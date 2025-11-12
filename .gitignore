@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Data files
+*.xlsx
+*.csv
+*.pkl
+data_cache*.pkl
+
+# Model files (uncomment if you don't want to track models)
+# models/*.pkl
+# models/*.json
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Results and outputs
+results/*
+!results/.gitkeep
+features_daily_all_players_v3/
+timelines_35day_enhanced_balanced_v3.csv
+
+# Temporary files
+*.tmp
+*.bak
+*.cache
+
+# V2 Reference (temporary copy for setup)
+v2_reference/
+
