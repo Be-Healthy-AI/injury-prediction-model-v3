@@ -7,12 +7,20 @@ Balanced dataset with configurable target ratio
 Based on V2 with V3 dataset support
 """
 
+import sys
+import io
+# Fix Unicode encoding for Windows console
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 import pandas as pd
 import numpy as np
 import os
 import random
 from datetime import datetime, timedelta
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
+from collections import defaultdict
 import warnings
 from tqdm import tqdm
 warnings.filterwarnings('ignore')
@@ -35,17 +43,20 @@ def get_static_features() -> List[str]:
         # Career injury features
         'cum_inj_starts', 'cum_inj_days', 'avg_injury_severity', 'max_injury_severity',
         'lower_leg_injuries', 'knee_injuries', 'upper_leg_injuries', 'hip_injuries',
-        'upper_body_injuries', 'head_injuries', 'illness_count', 'cum_matches_injured',
+        'upper_body_injuries', 'head_injuries', 'illness_count', 'other_injuries', 'cum_matches_injured',
         # Career competition features
         'avg_competition_importance', 'cum_disciplinary_actions', 'teams_last_season',
         'national_team_appearances', 'national_team_minutes', 'national_team_last_season',
         'national_team_frequency', 'senior_national_team', 'competition_intensity',
         'competition_level', 'competition_diversity', 'international_competitions',
         'cup_competitions', 'competition_frequency', 'competition_experience',
-        'competition_pressure', 'teams_today', 'cum_teams',
+        'competition_pressure', 'teams_today', 'cum_teams', 'seasons_count',
         # Career club features
         'club_cum_goals', 'club_cum_assists', 'club_cum_minutes',
         'club_cum_matches_played', 'club_cum_yellow_cards', 'club_cum_red_cards',
+        # Transfermarkt features
+        'transfermarkt_score_recent', 'transfermarkt_score_cum', 'transfermarkt_score_avg',
+        'transfermarkt_score_rolling5', 'transfermarkt_score_matches',
         # Interaction features
         'age_x_career_matches', 'age_x_career_goals', 'seniority_x_goals_per_match'
     ]
@@ -61,10 +72,10 @@ def get_windowed_features() -> List[str]:
         'days_since_last_match', 'last_match_position', 'position_match_default',
         'disciplinary_action', 'goals_per_match', 'assists_per_match', 'minutes_per_match',
         # Recent injury indicators
-        'days_since_last_injury', 'avg_injury_duration', 'injury_frequency',
+        'days_since_last_injury', 'days_since_last_injury_ended', 'avg_injury_duration', 'injury_frequency',
         'physio_injury_ratio',
         # Recent competition context
-        'competition_importance', 'season_phase', 'teams_this_season',
+        'competition_importance', 'month', 'teams_this_season',
         'teams_season_today', 'season_team_diversity',
         # Recent national team activity
         'days_since_last_national_match', 'national_team_this_season',
@@ -72,6 +83,12 @@ def get_windowed_features() -> List[str]:
         # Recent club performance
         'club_goals_per_match', 'club_assists_per_match', 'club_minutes_per_match',
         'club_seniority_x_goals_per_match',
+        # Match location
+        'home_matches', 'away_matches',
+        # Team result features
+        'team_win', 'team_draw', 'team_loss', 'team_points',
+        'cum_team_wins', 'cum_team_draws', 'cum_team_losses',
+        'team_win_rate', 'cum_team_points', 'team_points_rolling5', 'team_mood_score',
         # Substitution patterns
         'substitution_on_count', 'substitution_off_count', 'late_substitution_on_count',
         'early_substitution_off_count', 'impact_substitution_count', 'tactical_substitution_count',
@@ -104,10 +121,10 @@ def create_windowed_features_vectorized(df: pd.DataFrame, start_date: pd.Timesta
         
         # Define aggregation strategies for enhanced features
         last_value_features = ['last_match_position', 'position_match_default', 'disciplinary_action',
-                              'competition_importance', 'season_phase', 'teams_this_season',
+                              'competition_importance', 'month', 'teams_this_season',
                               'teams_season_today', 'season_team_diversity', 'national_team_this_season',
                               'national_team_intensity', 'club_goals_per_match', 'club_assists_per_match',
-                              'club_minutes_per_match', 'club_seniority_x_goals_per_match']
+                              'club_minutes_per_match', 'club_seniority_x_goals_per_match', 'team_win_rate']
         
         sum_features = ['matches_played', 'minutes_played_numeric', 'goals_numeric', 'assists_numeric',
                        'yellow_cards_numeric', 'red_cards_numeric', 'matches_bench_unused',
@@ -174,9 +191,9 @@ def generate_injury_timelines_enhanced(player_id: int, player_name: str, df: pd.
     
     return timelines
 
-def generate_non_injury_timelines_enhanced(player_id: int, player_name: str, df: pd.DataFrame) -> List[Dict]:
-    """Generate non-injury timelines - ONLY if no injuries in next 35 days"""
-    timelines = []
+def get_valid_non_injury_dates(df: pd.DataFrame) -> List[pd.Timestamp]:
+    """Get all valid non-injury reference dates (no injury in next 35 days)"""
+    valid_dates = []
     
     # Vectorized injury start detection
     injury_starts = df[df['cum_inj_starts'] > df['cum_inj_starts'].shift(1)]['date'].values
@@ -202,8 +219,23 @@ def generate_non_injury_timelines_enhanced(player_id: int, player_name: str, df:
         # Check if any injury starts fall in this 35-day window
         injury_in_window = np.any((injury_starts >= reference_date) & (injury_starts <= future_end))
         if injury_in_window:
-            continue  # Skip this timeline - injury in next 35 days
+            continue  # Skip this date - injury in next 35 days
         
+        # Check if we can create a complete 35-day window
+        start_date = reference_date - timedelta(days=34)
+        if start_date < min_date:
+            continue
+        
+        valid_dates.append(reference_date)
+    
+    return valid_dates
+
+def generate_non_injury_timelines_for_dates(player_id: int, player_name: str, df: pd.DataFrame, 
+                                            reference_dates: List[pd.Timestamp]) -> List[Dict]:
+    """Generate non-injury timelines for specific reference dates"""
+    timelines = []
+    
+    for reference_date in reference_dates:
         # Create windowed features
         start_date = reference_date - timedelta(days=34)
         windowed_features = create_windowed_features_vectorized(df, start_date, reference_date)
@@ -212,6 +244,8 @@ def generate_non_injury_timelines_enhanced(player_id: int, player_name: str, df:
         
         # Get static features from reference date
         ref_mask = df['date'] == reference_date
+        if not ref_mask.any():
+            continue
         ref_row = df[ref_mask].iloc[0]
         
         # Build timeline
@@ -241,59 +275,16 @@ def build_timeline(player_id: int, player_name: str, reference_date: pd.Timestam
     timeline = {**static_features, **windowed_features, 'target': target}
     return timeline
 
-def balance_dataset_enhanced(all_injury_timelines: List[Dict], all_non_injury_timelines: List[Dict]) -> List[Dict]:
-    """Balance dataset to achieve 15% target ratio"""
-    print(f"\n📊 DATASET BALANCING:")
-    print(f"Injury timelines: {len(all_injury_timelines)}")
-    print(f"Non-injury timelines: {len(all_non_injury_timelines)}")
-    
-    if len(all_injury_timelines) == 0:
-        print("❌ No injury timelines to balance!")
-        return []
-    
-    # Calculate required non-injury timelines for 15% ratio
-    required_non_injury = int(len(all_injury_timelines) * (1 - TARGET_RATIO) / TARGET_RATIO)
-    
-    print(f"Required non-injury timelines for 15% ratio: {required_non_injury}")
-    
-    if len(all_non_injury_timelines) >= required_non_injury:
-        # Randomly sample non-injury timelines
-        selected_non_injury = random.sample(all_non_injury_timelines, required_non_injury)
-        print(f"✅ Selected {len(selected_non_injury)} non-injury timelines")
-    else:
-        # Use all available non-injury timelines
-        selected_non_injury = all_non_injury_timelines
-        actual_ratio = len(all_injury_timelines) / (len(all_injury_timelines) + len(selected_non_injury))
-        print(f"⚠️  Using all {len(selected_non_injury)} non-injury timelines")
-        print(f"⚠️  Actual ratio will be {actual_ratio:.1%} (higher than 15%)")
-    
-    # Combine timelines
-    final_timelines = all_injury_timelines + selected_non_injury
-    
-    # Shuffle the dataset
-    random.shuffle(final_timelines)
-    
-    # Final statistics
-    injury_count = len(all_injury_timelines)
-    non_injury_count = len(selected_non_injury)
-    total_count = len(final_timelines)
-    final_ratio = injury_count / total_count
-    
-    print(f"\n📈 FINAL DATASET:")
-    print(f"Total timelines: {total_count}")
-    print(f"Injury timelines: {injury_count}")
-    print(f"Non-injury timelines: {non_injury_count}")
-    print(f"Final injury ratio: {final_ratio:.1%}")
-    
-    return final_timelines
-
 def get_all_player_ids() -> List[int]:
     """Get all player IDs from the daily features directory"""
     player_ids = []
-    # V3: Use V3 daily features directory
-    daily_features_dir = '../features_daily_all_players_v3'
+    # V3: Use daily_features_output directory
+    daily_features_dir = 'daily_features_output'
     if not os.path.exists(daily_features_dir):
-        daily_features_dir = '../features_daily_all_players'  # Fallback to V2 location
+        daily_features_dir = '../daily_features_output'  # Fallback if run from scripts directory
+    
+    if not os.path.exists(daily_features_dir):
+        raise FileNotFoundError(f"Daily features directory not found: {daily_features_dir}")
     
     for filename in os.listdir(daily_features_dir):
         if filename.startswith('player_') and filename.endswith('_daily_features.csv'):
@@ -304,7 +295,12 @@ def get_all_player_ids() -> List[int]:
 def get_player_name(player_id: int) -> str:
     """Get player name from the players data"""
     try:
-        players_df = pd.read_excel('original_data/20250807_players_profile.xlsx')
+        # Try current V3 file first
+        players_file = 'original_data/20251106_players_profile.xlsx'
+        if not os.path.exists(players_file):
+            players_file = '../original_data/20251106_players_profile.xlsx'
+        
+        players_df = pd.read_excel(players_file)
         player_row = players_df[players_df['id'] == player_id]
         if not player_row.empty:
             return player_row.iloc[0]['name']
@@ -313,27 +309,46 @@ def get_player_name(player_id: int) -> str:
     except:
         return f"Player_{player_id}"
 
-def main():
-    """Main function with balanced dataset generation"""
-    print("🚀 ENHANCED 35-DAY TIMELINE GENERATOR")
+def main(max_players: Optional[int] = None):
+    """Main function with optimized balanced dataset generation
+    
+    Args:
+        max_players: Optional limit on number of players to process (for testing)
+    """
+    print("🚀 ENHANCED 35-DAY TIMELINE GENERATOR (OPTIMIZED)")
     print("=" * 60)
     print("📋 Features: 108 enhanced features with 35-day windows")
-    print("⚡ Processing: Player-by-player for optimal performance")
-    print("🎯 Target: 15% injury ratio with balanced sampling")
+    print("⚡ Processing: Optimized two-pass approach")
+    print("🎯 Target: 15% injury ratio with smart sampling")
     
     start_time = datetime.now()
     
     # Get all player IDs
-    player_ids = get_all_player_ids()
-    print(f"Found {len(player_ids)} players")
+    all_player_ids = get_all_player_ids()
+    print(f"Found {len(all_player_ids)} players")
     
-    # Initialize collectors
+    # Apply limit if specified (for testing)
+    if max_players is not None:
+        player_ids = all_player_ids[:max_players]
+        print(f"🧪 TEST MODE: Processing {len(player_ids)} players (limited from {len(all_player_ids)})")
+    else:
+        player_ids = all_player_ids
+    
+    # Determine daily features directory
+    daily_features_dir = 'daily_features_output'
+    if not os.path.exists(daily_features_dir):
+        daily_features_dir = '../daily_features_output'
+    
+    # ===== PASS 1: Generate all injury timelines and collect valid non-injury dates =====
+    print("\n" + "=" * 60)
+    print("📊 PASS 1: Generating injury timelines and identifying valid dates")
+    print("=" * 60)
+    
     all_injury_timelines = []
-    all_non_injury_timelines = []
+    all_valid_non_injury_dates = []  # Store (player_id, reference_date) tuples
     processed_players = 0
     
-    # Process each player individually
-    for player_id in tqdm(player_ids, desc="Processing players", unit="player"):
+    for player_id in tqdm(player_ids, desc="Pass 1: Processing players", unit="player"):
         try:
             # Load player data
             df = pd.read_csv(f'{daily_features_dir}/player_{player_id}_daily_features.csv')
@@ -342,13 +357,14 @@ def main():
             # Get player name
             player_name = get_player_name(player_id)
             
-            # Process player timelines
+            # Generate all injury timelines (5 per injury)
             injury_timelines = generate_injury_timelines_enhanced(player_id, player_name, df)
-            non_injury_timelines = generate_non_injury_timelines_enhanced(player_id, player_name, df)
-            
-            # Collect timelines
             all_injury_timelines.extend(injury_timelines)
-            all_non_injury_timelines.extend(non_injury_timelines)
+            
+            # Get all valid non-injury dates for this player
+            valid_dates = get_valid_non_injury_dates(df)
+            for date in valid_dates:
+                all_valid_non_injury_dates.append((player_id, date))
             
             processed_players += 1
             
@@ -356,7 +372,7 @@ def main():
             if processed_players % 10 == 0:
                 print(f"\n📊 Progress: {processed_players}/{len(player_ids)} players")
                 print(f"   Injury timelines: {len(all_injury_timelines)}")
-                print(f"   Non-injury timelines: {len(all_non_injury_timelines)}")
+                print(f"   Valid non-injury dates: {len(all_valid_non_injury_dates)}")
                 
             # Memory optimization: clear player data
             del df
@@ -367,16 +383,92 @@ def main():
             traceback.print_exc()
             continue
     
-    processing_time = datetime.now() - start_time
+    pass1_time = datetime.now() - start_time
+    print(f"\n✅ PASS 1 Complete:")
+    print(f"   Total injury timelines: {len(all_injury_timelines)}")
+    print(f"   Total valid non-injury dates: {len(all_valid_non_injury_dates)}")
+    print(f"   Processing time: {pass1_time}")
     
-    print(f"\n📊 TIMELINE GENERATION SUMMARY:")
-    print(f"Processed players: {processed_players}/{len(player_ids)}")
-    print(f"Total injury timelines: {len(all_injury_timelines)}")
-    print(f"Total non-injury timelines: {len(all_non_injury_timelines)}")
-    print(f"Processing time: {processing_time}")
+    # Calculate required non-injury timelines
+    if len(all_injury_timelines) == 0:
+        print("❌ No injury timelines generated! Cannot create balanced dataset.")
+        return
     
-    # Balance the dataset
-    final_timelines = balance_dataset_enhanced(all_injury_timelines, all_non_injury_timelines)
+    required_non_injury = int(len(all_injury_timelines) * (1 - TARGET_RATIO) / TARGET_RATIO)
+    print(f"\n📊 BALANCING CALCULATION:")
+    print(f"   Injury timelines: {len(all_injury_timelines)}")
+    print(f"   Required non-injury timelines: {required_non_injury}")
+    print(f"   Available valid dates: {len(all_valid_non_injury_dates)}")
+    
+    if len(all_valid_non_injury_dates) < required_non_injury:
+        print(f"⚠️  Warning: Only {len(all_valid_non_injury_dates)} valid dates available, but {required_non_injury} needed")
+        print(f"   Will use all available dates (actual ratio will be higher than 15%)")
+        selected_dates = all_valid_non_injury_dates
+    else:
+        # Randomly sample exactly the required number of dates
+        selected_dates = random.sample(all_valid_non_injury_dates, required_non_injury)
+        print(f"✅ Randomly selected {len(selected_dates)} dates from {len(all_valid_non_injury_dates)} available")
+    
+    # ===== PASS 2: Generate timelines only for selected non-injury dates =====
+    print("\n" + "=" * 60)
+    print("📊 PASS 2: Generating non-injury timelines for selected dates")
+    print("=" * 60)
+    
+    all_non_injury_timelines = []
+    
+    # Group selected dates by player_id for efficient processing
+    dates_by_player = defaultdict(list)
+    for player_id, date in selected_dates:
+        dates_by_player[player_id].append(date)
+    
+    for player_id, dates in tqdm(dates_by_player.items(), desc="Pass 2: Processing players", unit="player"):
+        try:
+            # Load player data
+            df = pd.read_csv(f'{daily_features_dir}/player_{player_id}_daily_features.csv')
+            df['date'] = pd.to_datetime(df['date'])
+            
+            # Get player name
+            player_name = get_player_name(player_id)
+            
+            # Generate timelines only for selected dates
+            non_injury_timelines = generate_non_injury_timelines_for_dates(
+                player_id, player_name, df, dates
+            )
+            all_non_injury_timelines.extend(non_injury_timelines)
+            
+            # Memory optimization: clear player data
+            del df
+                
+        except Exception as e:
+            print(f"\n❌ Error processing player {player_id}: {e}")
+            import traceback
+            traceback.print_exc()
+            continue
+    
+    pass2_time = datetime.now() - start_time
+    print(f"\n✅ PASS 2 Complete:")
+    print(f"   Generated non-injury timelines: {len(all_non_injury_timelines)}")
+    print(f"   Processing time: {pass2_time}")
+    
+    # Combine and shuffle
+    print("\n" + "=" * 60)
+    print("📊 FINALIZING DATASET")
+    print("=" * 60)
+    
+    final_timelines = all_injury_timelines + all_non_injury_timelines
+    random.shuffle(final_timelines)
+    
+    # Final statistics
+    injury_count = len(all_injury_timelines)
+    non_injury_count = len(all_non_injury_timelines)
+    total_count = len(final_timelines)
+    final_ratio = injury_count / total_count if total_count > 0 else 0
+    
+    print(f"\n📈 FINAL DATASET:")
+    print(f"   Total timelines: {total_count}")
+    print(f"   Injury timelines: {injury_count}")
+    print(f"   Non-injury timelines: {non_injury_count}")
+    print(f"   Final injury ratio: {final_ratio:.1%}")
     
     if final_timelines:
         # Convert to DataFrame
@@ -384,22 +476,30 @@ def main():
         
         # Save to CSV
         output_file = 'timelines_35day_enhanced_balanced_v3.csv'
-        timelines_df.to_csv(output_file, index=False)
+        timelines_df.to_csv(output_file, index=False, encoding='utf-8-sig')
         print(f"\n✅ Timelines saved to: {output_file}")
         print(f"📊 Shape: {timelines_df.shape}")
         
         # Show feature summary
         print(f"\n📋 FEATURE SUMMARY:")
-        print(f"Static features: {len(get_static_features())}")
-        print(f"Windowed features: {len(get_windowed_features())}")
-        print(f"Total weekly features: {len(get_windowed_features()) * 5}")
-        print(f"Total features: {len(get_static_features()) + len(get_windowed_features()) * 5 + 1}")  # +1 for target
+        print(f"   Static features: {len(get_static_features())}")
+        print(f"   Windowed features: {len(get_windowed_features())}")
+        print(f"   Total weekly features: {len(get_windowed_features()) * 5}")
+        print(f"   Total features: {len(get_static_features()) + len(get_windowed_features()) * 5 + 1}")  # +1 for target
         
         total_time = datetime.now() - start_time
         print(f"\n⏱️  Total execution time: {total_time}")
+        print(f"   Pass 1 time: {pass1_time}")
+        print(f"   Pass 2 time: {pass2_time - pass1_time}")
         
     else:
         print("❌ No timelines generated!")
 
 if __name__ == "__main__":
-    main()
+    import sys
+    # Check for test mode argument
+    if len(sys.argv) > 1 and sys.argv[1] == '--test':
+        max_players = int(sys.argv[2]) if len(sys.argv) > 2 else 5
+        main(max_players=max_players)
+    else:
+        main()

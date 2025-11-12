@@ -14,38 +14,53 @@ import logging
 from typing import Dict, List, Tuple, Optional
 import warnings
 warnings.filterwarnings('ignore')
+import re
+from collections import defaultdict, deque
+import shutil
+from tqdm import tqdm
 
 # Import benfica-parity functions
 from benfica_parity_config import (
     BENFICA_PARITY_CONFIG,
     is_national_team_benfica_parity,
     map_competition_importance_benfica_parity,
-    map_season_phase_benfica_parity,
     calculate_age_benfica_parity,
     detect_disciplinary_action_benfica_parity,
     calculate_enhanced_features_dynamically,
     calculate_injury_features_benfica_parity,
     calculate_national_team_features_benfica_parity,
-    calculate_complex_derived_features_benfica_parity
+    calculate_complex_derived_features_benfica_parity,
+    set_competition_type_map
 )
 
 # Configure logging
+import sys
+if sys.platform == 'win32':
+    import io
+    # Fix Windows console encoding for emoji support
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('feature_generation.log'),
+        logging.FileHandler('feature_generation.log', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
+# Team country mapping cache
+TEAM_COUNTRY_MAP: Dict[str, str] = {}
+COMPETITION_TYPE_MAP: Dict[str, str] = {}
+
 # Configuration constants
 CONFIG = {
-    'DATA_DIR': '../original_data',
-    'CACHE_FILE': '../data_cache_v3.pkl',
+    'DATA_DIR': 'original_data',  # Relative to project root
+    'CACHE_FILE': 'data_cache_v3.pkl',  # Relative to project root
     'CACHE_DURATION': 3600,  # 1 hour in seconds
-    'DEFAULT_OUTPUT_DIR': '../features_daily_all_players_v3',
+    'DEFAULT_OUTPUT_DIR': 'daily_features_output',  # Relative to project root
     'FEATURE_COUNT': 108,
     'FOOTBALL_SEASON_END_MONTH': 6,  # June
     'FOOTBALL_SEASON_END_DAY': 30,
@@ -92,6 +107,7 @@ def load_data_with_cache() -> Dict[str, pd.DataFrame]:
     matches_files = glob.glob(f'{data_dir}/*match_data.xlsx') + glob.glob(f'{data_dir}/*match*.xlsx')
     teams_files = glob.glob(f'{data_dir}/*teams_data.xlsx') + glob.glob(f'{data_dir}/*teams*.xlsx')
     competitions_files = glob.glob(f'{data_dir}/*competition_data.xlsx') + glob.glob(f'{data_dir}/*competition*.xlsx')
+    career_files = glob.glob(f'{data_dir}/*players_career.xlsx') + glob.glob(f'{data_dir}/*players_career*.xlsx')
     
     # Use first match found, or fallback to default pattern
     players_path = players_files[0] if players_files else f'{data_dir}/players_profile.xlsx'
@@ -99,21 +115,34 @@ def load_data_with_cache() -> Dict[str, pd.DataFrame]:
     matches_path = matches_files[0] if matches_files else f'{data_dir}/match_data.xlsx'
     teams_path = teams_files[0] if teams_files else f'{data_dir}/teams_data.xlsx'
     competitions_path = competitions_files[0] if competitions_files else f'{data_dir}/competition_data.xlsx'
+    career_path = career_files[0] if career_files else f'{data_dir}/players_career.xlsx'
     
     logger.info(f"📄 Loading: {os.path.basename(players_path)}")
     players = pd.read_excel(players_path, engine='openpyxl')
+    logger.info(f"📄 Loading: {os.path.basename(injuries_path)}")
     injuries = pd.read_excel(injuries_path, engine='openpyxl')
+    logger.info(f"📄 Loading: {os.path.basename(matches_path)}")
     matches = pd.read_excel(matches_path, engine='openpyxl')
+    logger.info(f"📄 Loading: {os.path.basename(teams_path)}")
     teams = pd.read_excel(teams_path, engine='openpyxl')
+    logger.info(f"📄 Loading: {os.path.basename(competitions_path)}")
     competitions = pd.read_excel(competitions_path, engine='openpyxl')
+
+    career = None
+    if os.path.exists(career_path):
+        logger.info(f"📄 Loading: {os.path.basename(career_path)}")
+        career = pd.read_excel(career_path, engine='openpyxl')
+    else:
+        logger.warning("⚠️  Players career file not found; previous club seeding will be skipped.")
     
     # Cache the data
     data = {
         'players': players,
-        'injuries': injuries, 
+        'injuries': injuries,
         'matches': matches,
         'teams': teams,
-        'competitions': competitions
+        'competitions': competitions,
+        'career': career,
     }
     
     with open(CONFIG['CACHE_FILE'], 'wb') as f:
@@ -189,14 +218,14 @@ def preprocess_data_optimized(players, injuries, matches):
     # Combine yellow cards and second yellow cards for total yellow cards count
     matches['yellow_cards_numeric'] = matches['yellow_cards_numeric'] + matches['second_yellow_cards_numeric']
     
-    # Vectorized height conversion - handle "1,71m" format
+    # Vectorized height conversion - values are already in centimeters
     def parse_height(height_str):
         if pd.isna(height_str):
             return np.nan
-        # Remove 'm' and replace comma with dot, then convert to float and multiply by 100
-        height_clean = str(height_str).replace('m', '').replace(',', '.')
+        # Remove 'm' or 'cm' if present, replace comma with dot, then convert to float
+        height_clean = str(height_str).replace('m', '').replace('cm', '').replace(',', '.').strip()
         try:
-            return float(height_clean) * 100
+            return float(height_clean)
         except:
             return np.nan
     
@@ -205,8 +234,8 @@ def preprocess_data_optimized(players, injuries, matches):
     # ENHANCED: Add competition importance mapping using benfica-parity logic
     matches['competition_importance'] = matches['competition'].apply(map_competition_importance_benfica_parity)
     
-    # ENHANCED: Add season phase mapping using benfica-parity logic
-    matches['season_phase'] = matches['date'].apply(map_season_phase_benfica_parity)
+    # DEPRECATED: season_phase removed - replaced with month feature
+    # matches['season_phase'] = matches['date'].apply(map_season_phase_benfica_parity)
     
     # ENHANCED: Add disciplinary action detection using benfica-parity logic
     matches['disciplinary_action'] = matches.apply(detect_disciplinary_action_benfica_parity, axis=1)
@@ -249,20 +278,89 @@ def preprocess_data_optimized(players, injuries, matches):
         
         injury_lower = str(injury_type).lower()
         
-        if any(term in injury_lower for term in ['ankle', 'foot', 'toe', 'achilles']):
+        # LOWER LEG - Ankle, foot, lower leg, calf
+        if any(term in injury_lower for term in [
+            'ankle', 'ankel', 'foot', 'toe', 'achilles', 'fibula', 'tibia', 
+            'metatarsal', 'peroneal', 'calcaneus', 'plantar', 'heel', 'shin', 
+            'sole', 'talus', 'navicular', 'cuboid', 'cuneiform', 'phalanx', 
+            'sesamoid', 'tendinitis', 'tendonitis', 'tendinopathy', 'fascia', 
+            'fascitis', 'plantar fasciitis', 'achilles tendon', 'calf', 
+            'gastrocnemius', 'soleus', 'tibiotarsal', 'syndesmosis', 
+            'tibial', 'peroneal tendon', 'ankle sprain', 'ankle fracture',
+            'foot sprain', 'foot fracture', 'toe fracture', 'toe sprain'
+        ]):
             return 'lower_leg'
-        elif any(term in injury_lower for term in ['knee', 'patella', 'meniscus']):
+        
+        # KNEE - Knee, patella, meniscus, ligaments
+        elif any(term in injury_lower for term in [
+            'knee', 'patella', 'meniscus', 'meniscal', 'acl', 'pcl', 'lcl', 
+            'mcl', 'ligament', 'cruciate', 'patellar', 'cartilage', 
+            'arthroscopy', 'chondral', 'osteochondral', 'condyle', 
+            'femur', 'tibial plateau', 'bursitis', 'prepatellar', 
+            'infrapatellar', 'pes anserine', 'knee sprain', 'knee fracture'
+        ]):
             return 'knee'
-        elif any(term in injury_lower for term in ['thigh', 'quad', 'hamstring', 'calf']):
+        
+        # UPPER LEG - Thigh, hamstring, quadriceps (but NOT calf - that's lower_leg)
+        elif any(term in injury_lower for term in [
+            'thigh', 'quad', 'hamstring', 'adductor', 'quadriceps', 
+            'biceps femoris', 'rectus femoris', 'iliopsoas', 
+            'tensor fasciae latae', 'sartorius', 'gracilis', 
+            'semimembranosus', 'semitendinosus', 'vastus', 'femoral', 
+            'muscle strain', 'muscle tear', 'muscle injury', 
+            'muscle problems', 'muscle tension', 'muscle fatigue',
+            'breakdown of muscle fibers', 'muscle fibers', 'leg injury',
+            'sore muscles'
+        ]):
             return 'upper_leg'
-        elif any(term in injury_lower for term in ['hip', 'groin', 'adductor']):
+        
+        # HIP - Hip, pelvis, groin, lower back, abdominal
+        elif any(term in injury_lower for term in [
+            'hip', 'pelvis', 'pelvic', 'pubis', 'pubalgia', 'glute', 
+            'gluteus', 'lumbar', 'lower back', 'groin', 'adductor', 
+            'sacroiliac', 'abdominal', 'core', 'piriformis', 'iliac', 
+            'ischial', 'coccyx', 'tailbone', 'osteitis pubis', 
+            'sports hernia', 'inguinal', 'psoas', 'back problems', 
+            'back injury', 'lumbago', 'belly muscles'
+        ]):
             return 'hip'
-        elif any(term in injury_lower for term in ['shoulder', 'arm', 'elbow', 'wrist', 'hand']):
+        
+        # UPPER BODY - Shoulder, arm, hand, neck, spine, ribs, chest
+        elif any(term in injury_lower for term in [
+            'shoulder', 'arm', 'elbow', 'wrist', 'hand', 'finger', 'thumb', 
+            'clavicle', 'humerus', 'radius', 'ulna', 'scapula', 'bicep', 
+            'tricep', 'forearm', 'upper arm', 'rotator cuff', 'labrum', 
+            'acromion', 'sternoclavicular', 'acromioclavicular', 'carpal', 
+            'metacarpal', 'tendon', 'tendinitis', 'tendonitis', 'bursitis', 
+            'impingement', 'neck', 'cervical', 'cervicalgia', 'spine', 
+            'spinal', 'vertebra', 'vertebral', 'disc', 'herniated', 
+            'sciatica', 'back', 'cervical spine', 'thoracic', 'sacral', 
+            'rib', 'ribs', 'rib cage', 'rib area', 'capsule injury',
+            'tendon inflammation', 'rupture in a tendon', 'chest', 'chest injury'
+        ]):
             return 'upper_body'
-        elif any(term in injury_lower for term in ['head', 'face', 'eye', 'nose', 'mouth']):
+        
+        # HEAD - Head, face, brain
+        elif any(term in injury_lower for term in [
+            'head', 'face', 'eye', 'nose', 'mouth', 'concussion', 'skull', 
+            'jaw', 'cheekbone', 'ear', 'temple', 'brain', 'cranium', 
+            'facial', 'orbital', 'zygomatic', 'maxilla', 'mandible', 
+            'temporal', 'frontal', 'parietal', 'occipital', 'nasal', 
+            'dental', 'tooth'
+        ]):
             return 'head'
-        elif any(term in injury_lower for term in ['illness', 'sick', 'fever', 'cold']):
+        
+        # ILLNESS - Illness, infection, gastrointestinal
+        elif any(term in injury_lower for term in [
+            'illness', 'sick', 'sickness', 'fever', 'cold', 'flu', 'virus', 
+            'infection', 'influenza', 'covid', 'respiratory', 'bronchitis', 
+            'pneumonia', 'disease', 'sars', 'gastroenteritis', 'gastric', 
+            'gastric problems', 'diarrhea', 'nausea', 'vomiting', 
+            'dehydration', 'fatigue', 'exhaustion', 'heat stroke', 
+            'hypothermia', 'shock'
+        ]):
             return 'illness'
+        
         else:
             return 'other'
     
@@ -282,6 +380,33 @@ def preprocess_data_optimized(players, injuries, matches):
     
     return players, injuries, matches
 
+def preprocess_career_data(career: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
+    """Standardize players career dataset for previous club lookups."""
+    if career is None:
+        return None
+    career = career.copy()
+    rename_map = {
+        'id': 'player_id',
+        'ID': 'player_id',
+        'Date': 'transfer_date',
+        'date': 'transfer_date',
+        'From': 'from_club',
+        'from': 'from_club',
+        'To': 'to_club',
+        'to': 'to_club',
+        'Season': 'season'
+    }
+    existing = {old: new for old, new in rename_map.items() if old in career.columns}
+    if existing:
+        career = career.rename(columns=existing)
+    if 'transfer_date' in career.columns:
+        career['transfer_date'] = pd.to_datetime(career['transfer_date'], errors='coerce')
+    if 'player_id' in career.columns:
+        career = career.sort_values(['player_id', 'transfer_date'], na_position='last').reset_index(drop=True)
+    else:
+        career = career.sort_values(by='transfer_date', na_position='last').reset_index(drop=True)
+    return career
+
 def determine_match_participation_optimized(matches):
     """Optimized match participation determination"""
     def participation_status(row):
@@ -289,7 +414,14 @@ def determine_match_participation_optimized(matches):
         minutes = row['minutes_played_numeric']
         
         # Check for injury-related positions first
-        injury_indicators = ['injury', 'cruciate ligament tear', 'pubalgia', 'knee injury', 'muscle injury']
+        injury_indicators = [
+            'injury', 'lesion', 'unknown lesion', 'cervicalgia', 'pubalgia',
+            'knee injury', 'muscle injury', 'fracture', 'sprain', 'strain',
+            'tear', 'rupture', 'tendon', 'ligament', 'joint', 'bruise',
+            'contusion', 'inflammation', 'infection', 'illness', 'disease',
+            'pain', 'discomfort', 'surgery', 'rehabilitation', 'recuperation',
+            'cervicalgia', 'lombalgia', 'low back pain', 'back pain', 'unknown injury'
+        ]
         if any(indicator in position for indicator in injury_indicators):
             return 'injured'
         
@@ -316,7 +448,14 @@ def get_club_country(club_name):
         return None
     
     club_name_lower = str(club_name).lower()
-
+    for key in clean_club_variants(club_name):
+        if key in TEAM_COUNTRY_MAP:
+            return TEAM_COUNTRY_MAP[key]
+    # Fallback: try substring match in map
+    for key, value in TEAM_COUNTRY_MAP.items():
+        if key and key in club_name_lower:
+            return value
+    
     # Quick explicit mappings for frequently missing clubs in datasets
     # FC Alverca (Portugal)
     if 'alverca' in club_name_lower:
@@ -541,10 +680,18 @@ def get_football_season(date):
     else:  # January to June
         return f"{year-1}/{year}"
 
-def build_daily_profile_series_optimized(player_row, calendar, player_matches):
+def build_daily_profile_series_optimized(player_row, calendar, player_matches, player_career: Optional[pd.DataFrame] = None):
     """Highly optimized daily profile series building"""
     # Pre-calculate all values before creating DataFrame
     n_days = len(calendar)
+    
+    def normalize_club_name(value):
+        if pd.isna(value):
+            return None
+        value_str = str(value).strip()
+        if value_str == '' or value_str.lower() in {'nan', 'none', 'no club', 'free agent'}:
+            return None
+        return value_str
     
     # Static features (vectorized)
     # Use benfica-parity age calculation for better precision matching
@@ -554,34 +701,117 @@ def build_daily_profile_series_optimized(player_row, calendar, player_matches):
     nationality2_values = [player_row['nationality2']] * n_days
     height_cm_values = [player_row['height_cm']] * n_days
     dominant_foot_values = [player_row['dominant_foot']] * n_days
-    # FIXED: Use previous_club (renamed from signed_from in preprocessing) for initial assignment
-    previous_club_values = [player_row['previous_club']] * n_days
-    previous_club_country_values = [get_club_country(player_row['previous_club'])] * n_days
     
-    # Initialize club-related arrays
+    # Previous club seeding
+    initial_previous_club = clean_club_label(player_row.get('previous_club'))
+    initial_previous_club_country = get_club_country(initial_previous_club) if initial_previous_club else None
+
+    # Build career events for precise club transitions
+    career_events: List[Dict[str, Optional[str]]] = []
+    if player_career is not None and not player_career.empty:
+        date_col = 'transfer_date' if 'transfer_date' in player_career.columns else (
+            'Date' if 'Date' in player_career.columns else None
+        )
+        from_col = 'from_club' if 'from_club' in player_career.columns else (
+            'From' if 'From' in player_career.columns else None
+        )
+        to_col = 'to_club' if 'to_club' in player_career.columns else (
+            'To' if 'To' in player_career.columns else None
+        )
+        if date_col is not None:
+            for _, row in player_career.iterrows():
+                transfer_date = row.get(date_col)
+                if pd.isna(transfer_date):
+                    continue
+                transfer_date = pd.to_datetime(transfer_date, errors='coerce')
+                if pd.isna(transfer_date):
+                    continue
+                transfer_date = transfer_date.normalize()
+                from_club = clean_club_label(row.get(from_col)) if from_col is not None else None
+                to_club = clean_club_label(row.get(to_col)) if to_col is not None else None
+                if not from_club and not to_club:
+                    continue
+                career_events.append({'date': transfer_date, 'from': from_club, 'to': to_club})
+    career_events.sort(key=lambda x: x['date'])
+    use_career_assignment = len(career_events) > 0
+
+    # Prepare storage arrays
+    previous_club_values = [initial_previous_club] * n_days
+    previous_club_country_values = [initial_previous_club_country] * n_days
     current_club_values = [None] * n_days
     current_club_country_values = [None] * n_days
     seniority_days_values = [0] * n_days
-    
-    # ENHANCED: Proper club assignment logic with seniority reset
-    if not player_matches.empty:
-        # Filter to only main club matches (exclude national teams, junior teams, etc.)
+
+    current_club_seed = clean_club_label(player_row.get('current_club')) if 'current_club' in player_row else None
+    if not current_club_seed:
+        current_club_seed = clean_club_label(player_row.get('previous_club'))
+
+    if use_career_assignment:
+        start_date = calendar[0]
+        current_club = current_club_seed
+        current_club_country = get_club_country(current_club)
+        current_club_start = start_date
+        current_previous_club = initial_previous_club
+        current_previous_club_country = initial_previous_club_country
+
+        past_events = [e for e in career_events if e['date'] <= start_date]
+        future_events = [e for e in career_events if e['date'] > start_date]
+
+        for event in past_events:
+            if event['from']:
+                current_previous_club = event['from']
+                current_previous_club_country = get_club_country(current_previous_club)
+            if event['to']:
+                if current_club != event['to']:
+                    current_club = event['to']
+                    current_club_country = get_club_country(current_club)
+                    current_club_start = max(event['date'], start_date)
+
+        if current_club is None and future_events:
+            first_event = future_events[0]
+            if first_event['from']:
+                current_club = first_event['from']
+                current_club_country = get_club_country(current_club)
+                current_club_start = start_date
+        if current_club is None:
+            current_club = current_club_seed
+            current_club_country = get_club_country(current_club)
+
+        future_idx = 0
+        next_event = future_events[future_idx] if future_events else None
+
+        for i, date in enumerate(calendar):
+            while next_event is not None and date >= next_event['date']:
+                if next_event['from']:
+                    current_previous_club = next_event['from']
+                    current_previous_club_country = get_club_country(current_previous_club)
+                if next_event['to'] and current_club != next_event['to']:
+                    current_club = next_event['to']
+                    current_club_country = get_club_country(current_club)
+                    current_club_start = next_event['date']
+                future_idx += 1
+                next_event = future_events[future_idx] if future_idx < len(future_events) else None
+
+            previous_club_values[i] = current_previous_club
+            previous_club_country_values[i] = current_previous_club_country
+            current_club_values[i] = current_club
+            current_club_country_values[i] = current_club_country
+            seniority_days_values[i] = max(0, (date - current_club_start).days) if current_club_start else 0
+
+    elif not player_matches.empty:
+        # Fallback to match-derived club tracking when career data is unavailable
         main_club_matches = player_matches[
-            (player_matches['home_team'].apply(is_main_club_team)) | 
+            (player_matches['home_team'].apply(is_main_club_team)) |
             (player_matches['away_team'].apply(is_main_club_team))
         ].copy()
-        
+
         if not main_club_matches.empty:
-            # Determine player's club for each match
             player_clubs = []
             for _, match in main_club_matches.iterrows():
                 home_team = match['home_team']
                 away_team = match['away_team']
-                
-                # Determine which team the player belongs to
+
                 if is_main_club_team(home_team) and is_main_club_team(away_team):
-                    # Both are main clubs, need to determine player's club
-                    # Use the team that appears more frequently in player's career
                     home_count = len(player_matches[player_matches['home_team'] == home_team])
                     away_count = len(player_matches[player_matches['away_team'] == away_team])
                     player_club = home_team if home_count >= away_count else away_team
@@ -591,168 +821,118 @@ def build_daily_profile_series_optimized(player_row, calendar, player_matches):
                     player_club = away_team
                 else:
                     continue
-                
-                player_clubs.append({
-                    'date': match['date'],
-                    'club': player_club
-                })
-            
-            # Sort by date and detect club changes
+
+                player_clubs.append({'date': match['date'], 'club': clean_club_label(player_club)})
+
             player_clubs.sort(key=lambda x: x['date'])
-            
-            # Track club progression with stability logic
+
             club_periods = []
             current_club = None
             current_start_date = None
-            club_stability_days = 30  # Minimum days to consider a club change stable
-            
-            # Group consecutive club appearances
-            club_groups = []
+
             current_group = []
-            
             for club_info in player_clubs:
                 club = club_info['club']
                 date = club_info['date']
-                
+
                 if not current_group or club == current_group[-1]['club']:
                     current_group.append(club_info)
                 else:
-                    # Check if the previous group was stable enough
-                    if len(current_group) >= 3:  # At least 3 appearances
-                        club_groups.append(current_group)
+                    if len(current_group) >= 3:
+                        club_periods.append(current_group)
                     current_group = [club_info]
-            
-            # Add the last group if it's stable
+
             if len(current_group) >= 3:
-                club_groups.append(current_group)
-            
-            # Create club periods from stable groups
-            for group in club_groups:
-                if group:
-                    club = group[0]['club']
-                    start_date = group[0]['date']
-                    end_date = group[-1]['date']
-                    
-                    if current_club is None:
-                        current_club = club
-                        current_start_date = start_date
-                    elif club != current_club:
-                        # Club change detected
-                        club_periods.append({
-                            'club': current_club,
-                            'start_date': current_start_date,
-                            'end_date': start_date - pd.Timedelta(days=1)
-                        })
-                        current_club = club
-                        current_start_date = start_date
-            
-            # Add the last club period
-            if current_club is not None:
-                club_periods.append({
-                    'club': current_club,
-                    'start_date': current_start_date,
-                    'end_date': calendar[-1]  # End of calendar
-                })
-            
-            # Pre-calculate club assignments for each day
-            current_club_start = None
-            current_previous_club = None  # Start with None for first club
-            current_previous_club_country = None
-            current_club = None
-            current_club_country = None
-            has_changed_clubs = False  # Track if player has ever changed clubs
-            
-            # Set initial club from first period
-            if club_periods:
-                current_club = club_periods[0]['club']
-                current_club_country = get_club_country(current_club)
-                current_club_start = club_periods[0]['start_date']
-            
-            # Pre-calculate all values in one pass
+                club_periods.append(current_group)
+
+            structured_periods = []
+            for group in club_periods:
+                club = group[0]['club']
+                start_date = group[0]['date']
+                end_date = group[-1]['date']
+                structured_periods.append({'club': club, 'start_date': start_date, 'end_date': end_date})
+
+            current_club = current_club_seed or (structured_periods[0]['club'] if structured_periods else None)
+            current_club_country = get_club_country(current_club)
+            current_club_start = structured_periods[0]['start_date'] if structured_periods else calendar[0]
+            current_previous_club = initial_previous_club
+            current_previous_club_country = initial_previous_club_country
+
             for i, date in enumerate(calendar):
-                # Find the club period that contains this date
                 current_period = None
-                for period in club_periods:
+                for period in structured_periods:
                     if period['start_date'] <= date <= period['end_date']:
                         current_period = period
                         break
-                
-                # Update club if we found a period and it's different from current
+
                 if current_period and current_club != current_period['club']:
-                    # Club change detected
                     current_previous_club = current_club
-                    current_previous_club_country = get_club_country(current_club)
+                    current_previous_club_country = get_club_country(current_previous_club)
                     current_club = current_period['club']
                     current_club_country = get_club_country(current_club)
                     current_club_start = current_period['start_date']
-                    has_changed_clubs = True
-                
-                # Store assignments directly in lists
-                # Only set previous_club if player has actually changed clubs
-                if has_changed_clubs:
-                    previous_club_values[i] = current_previous_club
-                    previous_club_country_values[i] = current_previous_club_country
-                # If no club change yet, keep the initial previous_club from player profile
-                
-                current_club_values[i] = current_club
-                current_club_country_values[i] = current_club_country
-                seniority_days_values[i] = max(0, (date - current_club_start).days) if current_club_start else 0
-        else:
-            # No main club matches found, use default values
-            current_club_start = calendar[0]
-            current_previous_club = None  # No previous club if no matches found
-            current_previous_club_country = None
-            current_club = player_row['previous_club']  # Use the player's recorded previous club
-            current_club_country = get_club_country(current_club)
-            
-            for i, date in enumerate(calendar):
-                previous_club_values[i] = current_previous_club  # None since no club changes detected
+
+                previous_club_values[i] = current_previous_club
                 previous_club_country_values[i] = current_previous_club_country
                 current_club_values[i] = current_club
                 current_club_country_values[i] = current_club_country
+                seniority_days_values[i] = max(0, (date - current_club_start).days) if current_club_start else 0
+
+        else:
+            current_club = current_club_seed or initial_previous_club
+            current_club_country = get_club_country(current_club)
+            current_club_start = calendar[0]
+
+            for i, date in enumerate(calendar):
+                current_club_values[i] = current_club
+                current_club_country_values[i] = current_club_country
                 seniority_days_values[i] = max(0, (date - current_club_start).days)
+
     else:
-        # No club matches - use joined_on date
+        current_club = current_club_seed or initial_previous_club
+        current_club_country = get_club_country(current_club)
         joined_days = (calendar - player_row['joined_on']).days
         seniority_days_values = [max(0, days) for days in joined_days]
+
+        for i in range(n_days):
+            current_club_values[i] = current_club
+            current_club_country_values[i] = current_club_country
     
-    # Optimized teams calculation (EXCLUDING NATIONAL TEAMS)
-    # Filter matches to exclude national team games using benfica-parity detection
-    club_matches = player_matches[
-        ~(player_matches['home_team'].apply(is_national_team_benfica_parity) | 
-          player_matches['away_team'].apply(is_national_team_benfica_parity))
-    ].copy()
-    
-    # Pre-calculate all unique club teams
-    all_club_teams = set()
-    for _, match in club_matches.iterrows():
-        for team_col in ['home_team', 'away_team']:
-            team = match[team_col]
-            if pd.notna(team) and not is_national_team_fast(team):
-                all_club_teams.add(team)
-    
-    # Use groupby for faster daily calculation (CLUBS ONLY)
-    daily_club_teams = club_matches.groupby('date').agg({
+    # Optimized teams calculation (including national teams)
+    matches_for_team_counts = player_matches[['date', 'home_team', 'away_team']].copy()
+
+    daily_team_sets = matches_for_team_counts.groupby('date').agg({
         'home_team': lambda x: set(x.dropna()),
         'away_team': lambda x: set(x.dropna())
-    })
-    
-    unique_club_teams = set()
+    }) if not matches_for_team_counts.empty else pd.DataFrame(columns=['home_team', 'away_team'])
+
+    unique_teams_seen: set = set()
     teams_today_values = [0] * n_days
     cum_teams_values = [0] * n_days
+
+    for i, date in enumerate(calendar):
+        if date in daily_team_sets.index:
+            home_set = daily_team_sets.loc[date, 'home_team']
+            away_set = daily_team_sets.loc[date, 'away_team']
+            day_teams = set()
+            for team in home_set.union(away_set):
+                if pd.notna(team):
+                    day_teams.add(clean_club_label(team))
+            day_teams.discard(None)
+            teams_today_values[i] = len(day_teams)
+            unique_teams_seen.update(day_teams)
+        cum_teams_values[i] = len(unique_teams_seen)
+    
+    # Calculate season counter (starts at 0, increments each new season)
+    seasons_seen: set = set()
+    season_counter_values = [0] * n_days
     
     for i, date in enumerate(calendar):
-        if date in daily_club_teams.index:
-            home_teams = daily_club_teams.loc[date, 'home_team']
-            away_teams = daily_club_teams.loc[date, 'away_team']
-            # Filter out national teams from daily teams
-            club_teams_today = set()
-            for team in home_teams.union(away_teams):
-                if not is_national_team_benfica_parity(team):
-                    club_teams_today.add(team)
-            teams_today_values[i] = len(club_teams_today)
-            unique_club_teams.update(club_teams_today)
-        cum_teams_values[i] = len(unique_club_teams)
+        current_season = get_football_season(date)
+        if current_season and current_season not in seasons_seen:
+            seasons_seen.add(current_season)
+        # Count is number of seasons seen minus 1 (since we start at 0)
+        season_counter_values[i] = len(seasons_seen) - 1 if len(seasons_seen) > 0 else 0
     
     # Create DataFrame with all pre-calculated values
     out = pd.DataFrame({
@@ -768,13 +948,21 @@ def build_daily_profile_series_optimized(player_row, calendar, player_matches):
         'current_club_country': current_club_country_values,
         'teams_today': teams_today_values,
         'cum_teams': cum_teams_values,
-        'seniority_days': seniority_days_values
+        'seniority_days': seniority_days_values,
+        'seasons_count': season_counter_values
     }, index=calendar)
     
     return out
 
-def build_daily_match_series_optimized(matches, calendar, player_row):
+def build_daily_match_series_optimized(
+    matches: pd.DataFrame,
+    calendar: pd.DatetimeIndex,
+    player_row: pd.Series,
+    profile_series: Optional[pd.DataFrame],
+    player_career: Optional[pd.DataFrame]
+) -> pd.DataFrame:
     """Optimized daily match series building"""
+    team_metrics = compute_team_result_metrics(matches, calendar, player_row, profile_series, player_career)
     if matches.empty:
         # Return empty DataFrame with correct structure
         n_days = len(calendar)
@@ -812,7 +1000,7 @@ def build_daily_match_series_optimized(matches, calendar, player_row):
             # ENHANCED FEATURES - Use benfica-parity defaults
             'competition_importance': [0] * n_days,  # 0 = no match
             'avg_competition_importance': [0.0] * n_days,
-            'season_phase': [0] * n_days,  # 0 = no match
+            'month': [0] * n_days,  # Month of the year (1-12)
             'disciplinary_action': [0] * n_days,
             'cum_disciplinary_actions': [0] * n_days,
             'teams_this_season': [0] * n_days,
@@ -846,6 +1034,7 @@ def build_daily_match_series_optimized(matches, calendar, player_row):
             'club_minutes_per_match': [0.0] * n_days,
             'club_seniority_x_goals_per_match': [0.0] * n_days
         }
+        empty_data.update(team_metrics)
         return pd.DataFrame(empty_data, index=calendar)
     
     # Group by date for daily aggregation
@@ -857,7 +1046,6 @@ def build_daily_match_series_optimized(matches, calendar, player_row):
         'red_cards_numeric': 'sum',
         'position': 'last',
         'competition_importance': 'mean',
-        'season_phase': 'mean',
         'disciplinary_action': 'sum'
     }).reset_index()
     
@@ -883,7 +1071,7 @@ def build_daily_match_series_optimized(matches, calendar, player_row):
     matches_not_selected = [0] * n_days
     matches_injured = [0] * n_days
     competition_importance = [1] * n_days
-    season_phase = [3] * n_days
+    month = [0] * n_days  # Month of the year (1-12)
     disciplinary_action = [0] * n_days
     last_match_position = [''] * n_days
     
@@ -909,7 +1097,7 @@ def build_daily_match_series_optimized(matches, calendar, player_row):
             red_cards[idx] = row['red_cards_numeric']
             # Don't set enhanced features here - they will be set by benfica-parity function later
             # competition_importance[idx] = row['competition_importance']
-            # season_phase[idx] = row['season_phase']
+            # month is calculated directly from calendar dates below
             # disciplinary_action[idx] = row['disciplinary_action']
             
             # Only update last_match_position if player actually played and position is valid
@@ -982,10 +1170,12 @@ def build_daily_match_series_optimized(matches, calendar, player_row):
         else:
             position_match_default[i] = None  # No position played yet
     
+    # Calculate month directly from calendar dates (1-12)
+    month = [date.month for date in calendar]
+    
     # ENHANCED: Calculate enhanced features dynamically using benfica-parity logic
     enhanced_features = calculate_enhanced_features_dynamically(matches, calendar, player_row)
     competition_importance = enhanced_features['competition_importance']
-    season_phase = enhanced_features['season_phase']
     disciplinary_action = enhanced_features['disciplinary_action']
     avg_competition_importance = enhanced_features['avg_competition_importance']
     cum_disciplinary_actions = enhanced_features['cum_disciplinary_actions']
@@ -1000,67 +1190,71 @@ def build_daily_match_series_optimized(matches, calendar, player_row):
     teams_season_today = [0] * n_days
     season_team_diversity = [0] * n_days
     
-    # Calculate season-based team features
     if not matches.empty:
-        # Create a copy to avoid modifying the original
         matches_copy = matches.copy()
         matches_copy['football_season'] = matches_copy['date'].apply(get_football_season)
-        
-        # Group teams by season
-        season_teams = {}
-        for _, match in matches_copy.iterrows():
-            season = match['football_season']
-            home_team = match['home_team']
-            away_team = match['away_team']
-            
-            if season not in season_teams:
-                season_teams[season] = set()
-            
-            if pd.notna(home_team) and is_main_club_team(home_team):
-                season_teams[season].add(home_team)
-            if pd.notna(away_team) and is_main_club_team(away_team):
-                season_teams[season].add(away_team)
-        
-        # Calculate season-based features for each day
+        matches_copy.sort_values('date', inplace=True)
+
+        season_team_progression: Dict[str, List[Tuple[pd.Timestamp, int]]] = {}
+        season_match_progression: Dict[str, List[Tuple[pd.Timestamp, int]]] = {}
+        season_daily_team_counts: Dict[Tuple[str, pd.Timestamp], int] = {}
+
+        for season, season_matches in matches_copy.groupby('football_season'):
+            season_matches = season_matches.sort_values('date')
+            cumulative_teams: set = set()
+            progression: List[Tuple[pd.Timestamp, int]] = []
+            match_prog: List[Tuple[pd.Timestamp, int]] = []
+            match_count = 0
+
+            for _, match in season_matches.iterrows():
+                match_count += 1
+                daily_teams = set()
+                home_team = match['home_team']
+                away_team = match['away_team']
+
+                if pd.notna(home_team) and is_main_club_team(home_team):
+                    daily_teams.add(home_team)
+                    cumulative_teams.add(home_team)
+                if pd.notna(away_team) and is_main_club_team(away_team):
+                    daily_teams.add(away_team)
+                    cumulative_teams.add(away_team)
+
+                progression.append((match['date'], len(cumulative_teams)))
+                match_prog.append((match['date'], match_count))
+                season_daily_team_counts[(season, match['date'])] = len(daily_teams)
+
+            season_team_progression[season] = progression
+            season_match_progression[season] = match_prog
+
+        season_team_indices = {season: 0 for season in season_team_progression}
+        season_match_indices = {season: 0 for season in season_match_progression}
+
+        def get_progress_value(progression_map, indices_map, season_key, current_date):
+            progression_list = progression_map.get(season_key)
+            if not progression_list:
+                return 0
+            idx = indices_map.get(season_key, 0)
+            while idx < len(progression_list) and progression_list[idx][0] <= current_date:
+                idx += 1
+            indices_map[season_key] = idx
+            if idx == 0:
+                return 0
+            return progression_list[idx - 1][1]
+
         for i, date in enumerate(calendar):
             current_season = get_football_season(date)
-            year = date.year
-            month = date.month
-            
-            # teams_this_season: distinct teams played against in current season
-            teams_this_season[i] = len(season_teams.get(current_season, set()))
-            
-            # teams_last_season: distinct teams played against in previous season
-            if month >= 7:  # July onwards
-                prev_season = f"{year-1}/{year}"
-            else:  # January to June
-                prev_season = f"{year-2}/{year-1}"
-            teams_last_season[i] = len(season_teams.get(prev_season, set()))
-            
-            # teams_season_today: teams involved in matches on that specific day
-            day_matches = matches_copy[matches_copy['date'] == date]
-            if not day_matches.empty:
-                day_teams = set()
-                for _, match in day_matches.iterrows():
-                    home_team = match['home_team']
-                    away_team = match['away_team']
-                    if pd.notna(home_team) and is_main_club_team(home_team):
-                        day_teams.add(home_team)
-                    if pd.notna(away_team) and is_main_club_team(away_team):
-                        day_teams.add(away_team)
-                teams_season_today[i] = len(day_teams)
-            
-            # season_team_diversity: ratio of teams_this_season / total_matches_this_season
-            current_season_matches = matches_copy[matches_copy['football_season'] == current_season]
-            total_matches_this_season = len(current_season_matches)
-            if total_matches_this_season > 0:
-                season_team_diversity[i] = teams_this_season[i] / total_matches_this_season
-    
+            prev_season = f"{date.year - 1}/{date.year}" if date.month >= 7 else f"{date.year - 2}/{date.year - 1}"
 
-        
+            teams_this_season[i] = get_progress_value(season_team_progression, season_team_indices, current_season, date)
+            teams_last_season[i] = get_progress_value(season_team_progression, season_team_indices, prev_season, date)
 
-    
+            teams_season_today[i] = season_daily_team_counts.get((current_season, date), 0)
 
+            matches_this_season = get_progress_value(season_match_progression, season_match_indices, current_season, date)
+            if matches_this_season > 0:
+                season_team_diversity[i] = teams_this_season[i] / matches_this_season
+            else:
+                season_team_diversity[i] = 0
     
     # ENHANCED: National team features
     national_team_appearances = [0] * n_days
@@ -1235,6 +1429,11 @@ def build_daily_match_series_optimized(matches, calendar, player_row):
     competition_experience = complex_features['competition_experience']
     international_competitions = complex_features['international_competitions']
     cup_competitions = complex_features['cup_competitions']
+    transfermarkt_score_recent = complex_features.get('transfermarkt_score_recent', [0.0] * n_days)
+    transfermarkt_score_cum = complex_features.get('transfermarkt_score_cum', [0.0] * n_days)
+    transfermarkt_score_avg = complex_features.get('transfermarkt_score_avg', [0.0] * n_days)
+    transfermarkt_score_rolling5 = complex_features.get('transfermarkt_score_rolling5', [0.0] * n_days)
+    transfermarkt_score_matches = complex_features.get('transfermarkt_score_matches', [0] * n_days)
     
     # Complex derived features are now calculated by benfica-parity function above
     
@@ -1419,7 +1618,7 @@ def build_daily_match_series_optimized(matches, calendar, player_row):
         # ENHANCED FEATURES
         'competition_importance': competition_importance,
         'avg_competition_importance': avg_competition_importance,
-        'season_phase': season_phase,
+        'month': month,
         'disciplinary_action': disciplinary_action,
         'cum_disciplinary_actions': cum_disciplinary_actions,
         'teams_this_season': teams_this_season,
@@ -1442,6 +1641,11 @@ def build_daily_match_series_optimized(matches, calendar, player_row):
         'competition_frequency': competition_frequency,
         'competition_experience': competition_experience,
         'competition_pressure': competition_pressure,
+        'transfermarkt_score_recent': transfermarkt_score_recent,
+        'transfermarkt_score_cum': transfermarkt_score_cum,
+        'transfermarkt_score_avg': transfermarkt_score_avg,
+        'transfermarkt_score_rolling5': transfermarkt_score_rolling5,
+        'transfermarkt_score_matches': transfermarkt_score_matches,
         'club_cum_goals': club_cum_goals,
         'club_cum_assists': club_cum_assists,
         'club_cum_minutes': club_cum_minutes,
@@ -1464,6 +1668,8 @@ def build_daily_match_series_optimized(matches, calendar, player_row):
         'substitution_mood_indicator': substitution_mood_indicator,
         'consecutive_substitutions': consecutive_substitutions
     }, index=calendar)
+    for key, values in team_metrics.items():
+        out[key] = values
     
     return out
 
@@ -1476,6 +1682,7 @@ def build_daily_injury_series_optimized(injuries, calendar):
             'cum_inj_starts': [0] * n_days,
             'cum_inj_days': [0] * n_days,
             'days_since_last_injury': [999] * n_days,  # FIXED: Use 999 as default instead of np.nan
+            'days_since_last_injury_ended': [999] * n_days,
             'avg_injury_duration': [0.0] * n_days,
             'injury_frequency': [0.0] * n_days,
             # ENHANCED INJURY FEATURES
@@ -1488,6 +1695,7 @@ def build_daily_injury_series_optimized(injuries, calendar):
             'upper_body_injuries': [0] * n_days,
             'head_injuries': [0] * n_days,
             'illness_count': [0] * n_days,
+            'other_injuries': [0] * n_days,
             'physio_injury_ratio': [0.0] * n_days,
             # MISSING FEATURES
             'cum_matches_injured': [0] * n_days
@@ -1499,6 +1707,7 @@ def build_daily_injury_series_optimized(injuries, calendar):
     daily['inj_starts'] = 0
     daily['inj_days'] = 0
     daily['cum_matches_injured'] = 0
+    daily['injury_end_marker'] = 0
     
     # Mark injury periods
     for _, injury in injuries.iterrows():
@@ -1530,6 +1739,11 @@ def build_daily_injury_series_optimized(injuries, calendar):
         # Mark injury period
         injury_period = calendar[(calendar >= start_date) & (calendar <= end_date)]
         daily.loc[injury_period, 'inj_days'] = 1
+        
+        recovery_date = end_date + pd.Timedelta(days=1)
+        if calendar[0] <= recovery_date <= calendar[-1]:
+            if recovery_date in daily.index:
+                daily.loc[recovery_date, 'injury_end_marker'] = 1
     
     # Calculate cumulative values
     daily['cum_inj_starts'] = daily['inj_starts'].cumsum()
@@ -1543,6 +1757,18 @@ def build_daily_injury_series_optimized(injuries, calendar):
             last_injury_idx = i
         if last_injury_idx >= 0:
             daily.iloc[i, daily.columns.get_loc('days_since_last_injury')] = i - last_injury_idx
+    
+    # Calculate days since last injury ended (recovery)
+    days_since_last_injury_ended = [999] * len(calendar)
+    last_recovery_idx = None
+    injury_end_marker_values = daily['injury_end_marker'].tolist()
+    for i in range(len(calendar)):
+        if injury_end_marker_values[i] > 0:
+            last_recovery_idx = i
+            days_since_last_injury_ended[i] = 0
+        elif last_recovery_idx is not None:
+            days_since_last_injury_ended[i] = i - last_recovery_idx
+    daily['days_since_last_injury_ended'] = days_since_last_injury_ended
     
     # Calculate average injury duration
     if not injuries.empty:
@@ -1573,16 +1799,17 @@ def build_daily_injury_series_optimized(injuries, calendar):
     daily['upper_body_injuries'] = injury_features['upper_body_injuries']
     daily['head_injuries'] = injury_features['head_injuries']
     daily['illness_count'] = injury_features['illness_count']
+    daily['other_injuries'] = injury_features['other_injuries']
     daily['physio_injury_ratio'] = injury_features['physio_injury_ratio']
     
     # Select only the required columns
     required_columns = [
         'cum_inj_starts', 'cum_inj_days', 'days_since_last_injury',
-        'avg_injury_duration', 'injury_frequency',
+        'days_since_last_injury_ended', 'avg_injury_duration', 'injury_frequency',
         'avg_injury_severity', 'max_injury_severity',
         'lower_leg_injuries', 'knee_injuries', 'upper_leg_injuries',
         'hip_injuries', 'upper_body_injuries', 'head_injuries',
-        'illness_count', 'physio_injury_ratio',
+        'illness_count', 'other_injuries', 'physio_injury_ratio',
         'cum_matches_injured'  # Added missing feature
     ]
     
@@ -1605,7 +1832,9 @@ def generate_daily_features_for_player_enhanced(
     player_id: int, 
     player_row: pd.Series, 
     player_matches: pd.DataFrame, 
-    player_injuries: pd.DataFrame
+    player_injuries: pd.DataFrame,
+    player_career: Optional[pd.DataFrame] = None,
+    global_end_date_cap: Optional[pd.Timestamp] = None
 ) -> pd.DataFrame:
     """
     Enhanced daily features generation with fixed date range logic.
@@ -1615,6 +1844,8 @@ def generate_daily_features_for_player_enhanced(
         player_row: Player profile data
         player_matches: Player's match history
         player_injuries: Player's injury history
+        player_career: Player's career history (transfers) if available
+        global_end_date_cap: Optional maximum date for the calendar (e.g. max raw match date)
         
     Returns:
         DataFrame with daily features for the player
@@ -1631,6 +1862,10 @@ def generate_daily_features_for_player_enhanced(
     
     if not isinstance(player_injuries, pd.DataFrame):
         raise ValueError(f"Player {player_id}: player_injuries must be a DataFrame")
+    
+    if not isinstance(player_career, pd.DataFrame):
+        raise ValueError(f"Player {player_id}: player_career must be a DataFrame")
+    
     # FIXED: Use player's actual first match date instead of hardcoded 2011-07-21
     if not player_matches.empty:
         start_date = player_matches['date'].min()
@@ -1693,11 +1928,30 @@ def generate_daily_features_for_player_enhanced(
             end_date = pd.Timestamp('2025-06-30')
             print(f"   📅 Player {player_id} has no matches or injuries, using default end date: {end_date}")
     
+    start_date = pd.Timestamp(start_date)
+    end_date = pd.Timestamp(end_date)
+
+    if global_end_date_cap is not None:
+        cap_date = pd.Timestamp(global_end_date_cap)
+        if end_date > cap_date:
+            print(f"   ⏱️  Clamping calendar end from {end_date} to {cap_date} (global cap)")
+            end_date = cap_date
+
+    if start_date > end_date:
+        print(f"   ⚠️  Start date {start_date} exceeds end date {end_date}. Adjusting to single-day calendar.")
+        end_date = start_date
+
     calendar = pd.date_range(start=start_date, end=end_date, freq='D')
     
     # Build feature series
-    profile_series = build_daily_profile_series_optimized(player_row, calendar, player_matches)
-    match_series = build_daily_match_series_optimized(player_matches, calendar, player_row)
+    profile_series = build_daily_profile_series_optimized(player_row, calendar, player_matches, player_career)
+    match_series = build_daily_match_series_optimized(
+        player_matches,
+        calendar,
+        player_row,
+        profile_series=profile_series,
+        player_career=player_career
+    )
     injury_series = build_daily_injury_series_optimized(player_injuries, calendar)
     interaction_series = build_daily_interaction_features_optimized(profile_series, match_series, injury_series)
     
@@ -1709,10 +1963,10 @@ def generate_daily_features_for_player_enhanced(
     
     # Define our 98 selected features (51 original + 47 new - 1 removed)
     selected_features = [
-        # Profile features (13)
+        # Profile features (14)
         'age', 'seniority_days', 'position', 'nationality1', 'nationality2', 
         'height_cm', 'dominant_foot', 'previous_club', 'previous_club_country',
-        'current_club', 'current_club_country', 'teams_today', 'cum_teams',
+        'current_club', 'current_club_country', 'teams_today', 'cum_teams', 'seasons_count',
         
         # Windowed features (9)
         'matches_played', 'minutes_played_numeric', 'goals_numeric', 'assists_numeric',
@@ -1728,20 +1982,20 @@ def generate_daily_features_for_player_enhanced(
         'last_match_position', 'position_match_default',
         
         # Static injury features (5) - REMOVED total_career_injuries
-        'cum_inj_starts', 'cum_inj_days', 'days_since_last_injury',
+        'cum_inj_starts', 'cum_inj_days', 'days_since_last_injury', 'days_since_last_injury_ended',
         'avg_injury_duration', 'injury_frequency',
         
         # Interaction features (3)
         'age_x_career_matches', 'age_x_career_goals', 'seniority_x_goals_per_match',
         
-        # ENHANCED INJURY FEATURES (11)
+        # ENHANCED INJURY FEATURES (12)
         'avg_injury_severity', 'max_injury_severity',
         'lower_leg_injuries', 'knee_injuries', 'upper_leg_injuries',
         'hip_injuries', 'upper_body_injuries', 'head_injuries',
-        'illness_count', 'physio_injury_ratio', 'cum_matches_injured',
+        'illness_count', 'other_injuries', 'physio_injury_ratio', 'cum_matches_injured',
         
         # ENHANCED COMPETITION & SEASON FEATURES (6)
-        'competition_importance', 'avg_competition_importance', 'season_phase',
+        'competition_importance', 'avg_competition_importance', 'month',
         'disciplinary_action', 'cum_disciplinary_actions', 'teams_this_season',
         
         # ENHANCED SEASON & TEAM DIVERSITY FEATURES (3)
@@ -1767,7 +2021,19 @@ def generate_daily_features_for_player_enhanced(
         'substitution_on_count', 'substitution_off_count', 'late_substitution_on_count',
         'early_substitution_off_count', 'impact_substitution_count', 'tactical_substitution_count',
         'substitution_minutes_played', 'substitution_efficiency', 'substitution_mood_indicator',
-        'consecutive_substitutions'
+        'consecutive_substitutions',
+        
+        # TRANSFERMARKT PERFORMANCE (5)
+        'transfermarkt_score_recent', 'transfermarkt_score_cum', 'transfermarkt_score_avg',
+        'transfermarkt_score_rolling5', 'transfermarkt_score_matches',
+        
+        # MATCH LOCATION FEATURES (2)
+        'home_matches', 'away_matches',
+        
+        # TEAM RESULT FEATURES (11)
+        'team_win', 'team_draw', 'team_loss', 'team_points',
+        'cum_team_wins', 'cum_team_draws', 'cum_team_losses',
+        'team_win_rate', 'cum_team_points', 'team_points_rolling5', 'team_mood_score'
     ]
     
     # Filter to only include selected features
@@ -1786,12 +2052,175 @@ def generate_daily_features_for_player_enhanced(
     
     return daily_features
 
-def generate_features_for_all_players(output_dir: str = 'daily_features_output'):
+def check_disk_space(output_dir: str, estimated_size_mb: float) -> bool:
     """
-    Generate daily features for all players in the dataset.
+    Check if there's sufficient disk space for output files.
+    
+    Args:
+        output_dir: Directory where files will be saved
+        estimated_size_mb: Estimated total size needed in MB
+        
+    Returns:
+        True if sufficient space, False otherwise
+    """
+    try:
+        # Get absolute path to check disk space
+        abs_output_dir = os.path.abspath(output_dir)
+        os.makedirs(abs_output_dir, exist_ok=True)
+        
+        # Get disk usage
+        total, used, free = shutil.disk_usage(abs_output_dir)
+        free_mb = free / (1024 * 1024)
+        
+        # Add 20% buffer for safety
+        required_mb = estimated_size_mb * 1.2
+        
+        if free_mb < required_mb:
+            print(f"❌ Insufficient disk space!")
+            print(f"   Required: {required_mb:.1f} MB (with 20% buffer)")
+            print(f"   Available: {free_mb:.1f} MB")
+            print(f"   Shortage: {required_mb - free_mb:.1f} MB")
+            return False
+        else:
+            print(f"✅ Disk space check passed")
+            print(f"   Required: {required_mb:.1f} MB")
+            print(f"   Available: {free_mb:.1f} MB")
+            return True
+    except Exception as e:
+        print(f"⚠️  Could not check disk space: {str(e)}")
+        return True  # Continue if check fails
+
+def check_locked_files(output_dir: str) -> List[str]:
+    """
+    Check for locked/open CSV files in output directory.
+    
+    Args:
+        output_dir: Directory to check
+        
+    Returns:
+        List of locked file paths (empty if none)
+    """
+    locked_files = []
+    if not os.path.exists(output_dir):
+        return locked_files
+    
+    try:
+        csv_files = [f for f in os.listdir(output_dir) if f.endswith('.csv')]
+        for csv_file in csv_files:
+            file_path = os.path.join(output_dir, csv_file)
+            try:
+                # Try to open in append mode to check if locked
+                with open(file_path, 'a'):
+                    pass
+            except (PermissionError, IOError):
+                locked_files.append(csv_file)
+    except Exception as e:
+        print(f"⚠️  Could not check for locked files: {str(e)}")
+    
+    return locked_files
+
+def verify_input_files() -> Tuple[bool, List[str]]:
+    """
+    Verify all required input files exist.
+    
+    Returns:
+        Tuple of (all_exist: bool, missing_files: List[str])
+    """
+    data_dir = CONFIG['DATA_DIR']
+    required_files = [
+        '*players_profile*.xlsx',
+        '*injuries_data*.xlsx',
+        '*match_data*.xlsx',
+        '*teams_data*.xlsx',
+        '*competition_data*.xlsx',
+        '*players_career*.xlsx'
+    ]
+    
+    missing_files = []
+    
+    import glob
+    for pattern in required_files:
+        matches = glob.glob(os.path.join(data_dir, pattern))
+        if not matches:
+            missing_files.append(pattern)
+    
+    all_exist = len(missing_files) == 0
+    return all_exist, missing_files
+
+def run_preflight_checks(output_dir: str, num_players: int) -> bool:
+    """
+    Run all pre-flight checks before starting generation.
+    
+    Args:
+        output_dir: Output directory path
+        num_players: Number of players to process
+        
+    Returns:
+        True if all checks pass, False otherwise
+    """
+    print("\n" + "=" * 70)
+    print("🔍 PRE-FLIGHT CHECKS")
+    print("=" * 70)
+    
+    all_passed = True
+    
+    # Check 1: Verify input files
+    print("\n1️⃣  Checking input files...")
+    all_exist, missing = verify_input_files()
+    if not all_exist:
+        print(f"❌ Missing input files:")
+        for file in missing:
+            print(f"   - {file}")
+        all_passed = False
+    else:
+        print("✅ All input files found")
+    
+    # Check 2: Check for locked files
+    print("\n2️⃣  Checking for locked files...")
+    locked = check_locked_files(output_dir)
+    if locked:
+        print(f"❌ Found {len(locked)} locked/open file(s):")
+        for file in locked[:10]:  # Show first 10
+            print(f"   - {file}")
+        if len(locked) > 10:
+            print(f"   ... and {len(locked) - 10} more")
+        print("   Please close these files and try again.")
+        all_passed = False
+    else:
+        print("✅ No locked files detected")
+    
+    # Check 3: Check disk space
+    print("\n3️⃣  Checking disk space...")
+    # Estimate: average 5-10 MB per player file (conservative estimate)
+    estimated_mb_per_player = 8.0
+    estimated_total_mb = num_players * estimated_mb_per_player
+    if not check_disk_space(output_dir, estimated_total_mb):
+        all_passed = False
+    
+    print("\n" + "=" * 70)
+    if all_passed:
+        print("✅ All pre-flight checks passed! Ready to proceed.")
+    else:
+        print("❌ Pre-flight checks failed. Please resolve issues above.")
+    print("=" * 70 + "\n")
+    
+    return all_passed
+
+def generate_features_for_all_players(
+    output_dir: str = 'daily_features_output',
+    max_players: Optional[int] = None,
+    random_seed: Optional[int] = None
+):
+    """
+    Generate daily features for players in the dataset.
     
     Args:
         output_dir (str): Directory to save the output files
+        max_players (Optional[int]): Maximum number of players to process. 
+                                     If None, processes all players. If specified, 
+                                     randomly selects that many players.
+        random_seed (Optional[int]): Random seed for reproducible player selection.
+                                     Defaults to 42 if max_players is specified.
     """
     print("🚀 ENHANCED GOLD STANDARD DAILY FEATURES GENERATOR")
     print("=" * 70)
@@ -1803,6 +2232,11 @@ def generate_features_for_all_players(output_dir: str = 'daily_features_output')
     # Load data
     data = load_data_with_cache()
     players, injuries, matches = data['players'], data['injuries'], data['matches']
+    teams = data.get('teams')
+    competitions = data.get('competitions')
+    initialize_team_country_map(teams)
+    initialize_competition_type_map(competitions)
+    career = preprocess_career_data(data.get('career'))
     
     # Preprocess data
     players, injuries, matches = preprocess_data_optimized(players, injuries, matches)
@@ -1810,70 +2244,600 @@ def generate_features_for_all_players(output_dir: str = 'daily_features_output')
     # Get all non-goalkeeper player IDs
     all_player_ids = players['id'].tolist()
     
-    print(f"🎯 Processing {len(all_player_ids)} players")
+    # Random selection logic if max_players is specified
+    if max_players is not None:
+        import random
+        if random_seed is not None:
+            random.seed(random_seed)
+        else:
+            random.seed(42)  # Default seed for reproducibility
+        
+        if max_players > len(all_player_ids):
+            print(f"⚠️  Warning: max_players ({max_players}) exceeds available players ({len(all_player_ids)})")
+            print(f"   Processing all {len(all_player_ids)} players instead")
+            selected_player_ids = all_player_ids
+        else:
+            selected_player_ids = random.sample(all_player_ids, max_players)
+            print(f"🧪 TEST MODE: Randomly selected {max_players} players from {len(all_player_ids)} available")
+            print(f"📋 Selected player IDs: {sorted(selected_player_ids)}")
+    else:
+        selected_player_ids = all_player_ids
+        print(f"🎯 FULL MODE: Processing all {len(all_player_ids)} players")
+    
     print(f"📁 Output will be saved to '{output_dir}/' folder")
     
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
     
-    # Process each player
+    # Run pre-flight checks
+    if not run_preflight_checks(output_dir, len(selected_player_ids)):
+        print("❌ Pre-flight checks failed. Please resolve issues and try again.")
+        return
+    
+    # Process each player with progress bar and enhanced monitoring
     successful_players = 0
     failed_players = 0
+    player_times = []
+    files_generated = 0
     
-    for i, player_id in enumerate(all_player_ids, 1):
-        print(f"\n🔄 Processing player {i}/{len(all_player_ids)}: {player_id}")
+    # Check which players have already been processed
+    existing_files = set()
+    if os.path.exists(output_dir):
+        for file in os.listdir(output_dir):
+            if file.startswith('player_') and file.endswith('_daily_features.csv'):
+                try:
+                    player_id_from_file = int(file.replace('player_', '').replace('_daily_features.csv', ''))
+                    existing_files.add(player_id_from_file)
+                except ValueError:
+                    pass
+    
+    # Filter out already processed players
+    players_to_process = [pid for pid in selected_player_ids if pid not in existing_files]
+    skipped_count = len(selected_player_ids) - len(players_to_process)
+    
+    if skipped_count > 0:
+        print(f"⏭️  Skipping {skipped_count} already processed player(s)")
+        print(f"🔄 Processing {len(players_to_process)} remaining player(s)")
+    
+    if len(players_to_process) == 0:
+        print("✅ All players have already been processed!")
+        return
+    
+    # Initialize progress bar
+    pbar = tqdm(
+        players_to_process,
+        desc="Processing players",
+        unit="player",
+        bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]'
+    )
+    
+    for player_id in pbar:
+        player_start_time = datetime.now()
+        
+        # Update progress bar description with current player
+        pbar.set_description(f"Processing player {player_id}")
         
         try:
             # Get player data
             player_filter = players[players['id'] == player_id]
             if player_filter.empty:
-                print(f"   ❌ Player {player_id} not found in players data")
+                pbar.write(f"❌ Player {player_id} not found in players data")
                 failed_players += 1
                 continue
                 
             player_row = player_filter.iloc[0]
             player_matches = matches[matches['player_id'] == player_id].copy()
             player_injuries = injuries[injuries['player_id'] == player_id].copy()
+            player_career = None
+            if career is not None:
+                id_col = 'player_id' if 'player_id' in career.columns else ('id' if 'id' in career.columns else None)
+                if id_col is not None:
+                    player_career = career[career[id_col] == player_id].copy()
             
-            print(f"   Matches: {len(player_matches)}")
-            print(f"   Injuries: {len(player_injuries)}")
+            # Determine global end date cap (no calendars beyond last real match or today)
+            global_end_date_cap = None
+            try:
+                today_cap = pd.Timestamp.today().normalize()
+            except Exception:
+                today_cap = pd.Timestamp('today').normalize()
+
+            if matches is not None and not matches.empty:
+                max_match_date = matches['date'].max()
+                if pd.notna(max_match_date):
+                    global_end_date_cap = min(max_match_date, today_cap)
+                else:
+                    global_end_date_cap = today_cap
+            else:
+                global_end_date_cap = today_cap
+
+            print(f"🗓️  Global calendar cap set to: {global_end_date_cap}")
             
             # Generate daily features
             daily_features = generate_daily_features_for_player_enhanced(
-                player_id, player_row, player_matches, player_injuries
+                player_id,
+                player_row,
+                player_matches,
+                player_injuries,
+                player_career,
+                global_end_date_cap=global_end_date_cap
             )
             
             # Save to output folder
             output_file = f'{output_dir}/player_{player_id}_daily_features.csv'
-            daily_features.to_csv(output_file, index=False)
+            daily_features.to_csv(output_file, index=False, encoding='utf-8-sig')
             
-            print(f"✅ Saved: {output_file}")
-            print(f"📊 Shape: {daily_features.shape}")
-            print(f"📅 Date range: {daily_features['date'].min()} to {daily_features['date'].max()}")
+            # Calculate timing
+            player_time = (datetime.now() - player_start_time).total_seconds()
+            player_times.append(player_time)
+            files_generated += 1
+            
+            # Calculate statistics for progress bar
+            elapsed_time = (datetime.now() - start_time).total_seconds()
+            avg_time_per_player = sum(player_times) / len(player_times) if player_times else 0
+            remaining_players = len(selected_player_ids) - (successful_players + failed_players)
+            eta_seconds = remaining_players * avg_time_per_player if avg_time_per_player > 0 else 0
+            eta_str = str(timedelta(seconds=int(eta_seconds))) if eta_seconds > 0 else "calculating..."
+            
+            # Enhanced console output
+            pbar.write(f"✅ Player {player_id}: {daily_features.shape[0]} days, {daily_features.shape[1]} features")
+            pbar.write(f"   📊 Matches: {len(player_matches)}, Injuries: {len(player_injuries)}")
+            pbar.write(f"   ⏱️  Time: {player_time:.1f}s | Avg: {avg_time_per_player:.1f}s | ETA: {eta_str}")
+            pbar.write(f"   📁 Files generated: {files_generated}/{len(selected_player_ids)}")
             
             successful_players += 1
             
+            # Update progress bar postfix
+            percentage = (successful_players + failed_players) / len(selected_player_ids) * 100
+            pbar.set_postfix({
+                'Success': successful_players,
+                'Failed': failed_players,
+                'ETA': eta_str[:8] if eta_seconds > 0 else 'calc...'
+            })
+            
         except Exception as e:
-            print(f"❌ Error processing player {player_id}: {str(e)}")
+            player_time = (datetime.now() - player_start_time).total_seconds()
+            player_times.append(player_time)
+            pbar.write(f"❌ Error processing player {player_id}: {str(e)}")
             failed_players += 1
+            pbar.set_postfix({
+                'Success': successful_players,
+                'Failed': failed_players
+            })
     
+    pbar.close()
+    
+    # Final summary
     total_time = datetime.now() - start_time
-    print(f"\n⏱️  Total processing time: {total_time}")
+    avg_time = sum(player_times) / len(player_times) if player_times else 0
+    
+    print("\n" + "=" * 70)
+    print("📊 GENERATION SUMMARY")
+    print("=" * 70)
+    print(f"⏱️  Total processing time: {total_time}")
+    print(f"📈 Average time per player: {avg_time:.2f} seconds")
+    if skipped_count > 0:
+        print(f"⏭️  Skipped (already processed): {skipped_count} players")
     print(f"✅ Successfully processed: {successful_players} players")
     print(f"❌ Failed to process: {failed_players} players")
+    print(f"📁 Files generated: {files_generated}")
+    if successful_players > 0:
+        total_processed = successful_players + failed_players
+        print(f"📊 Success rate: {successful_players / total_processed * 100:.1f}%")
+    total_completed = skipped_count + successful_players
+    print(f"📋 Total completed: {total_completed}/{len(selected_player_ids)} players")
     print(f"🎉 Feature generation completed! Check the '{output_dir}/' folder for results.")
+    print("=" * 70)
 
 def main():
     """Main function - can be used for testing or production"""
-    import sys
+    import argparse
     
-    if len(sys.argv) > 1:
-        # Production mode with custom output directory
-        output_dir = sys.argv[1]
-        generate_features_for_all_players(output_dir)
+    parser = argparse.ArgumentParser(
+        description='Generate daily features for players',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Test mode: Process 10 randomly selected players
+  python create_daily_features_v3.py --test
+  
+  # Custom number of players
+  python create_daily_features_v3.py --max-players 20
+  
+  # Full mode: Process all players
+  python create_daily_features_v3.py
+  
+  # Test mode with custom output directory
+  python create_daily_features_v3.py --test --output-dir test_output
+  
+  # Custom seed for reproducibility
+  python create_daily_features_v3.py --test --seed 123
+        """
+    )
+    
+    parser.add_argument(
+        '--test',
+        action='store_true',
+        help='Test mode: Process 10 randomly selected players'
+    )
+    
+    parser.add_argument(
+        '--max-players',
+        type=int,
+        default=None,
+        help='Maximum number of players to process (randomly selected)'
+    )
+    
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        default='daily_features_output',
+        help='Output directory for daily features files (default: daily_features_output)'
+    )
+    
+    parser.add_argument(
+        '--seed',
+        type=int,
+        default=None,
+        help='Random seed for player selection (default: 42 when using --test or --max-players)'
+    )
+    
+    args = parser.parse_args()
+    
+    # Determine max_players based on arguments
+    if args.test:
+        max_players = 10
+    elif args.max_players is not None:
+        max_players = args.max_players
     else:
-        # Default production mode
-        generate_features_for_all_players()
+        max_players = None
+    
+    # Call the function with appropriate parameters
+    generate_features_for_all_players(
+        output_dir=args.output_dir,
+        max_players=max_players,
+        random_seed=args.seed
+    )
+
+def clean_club_label(value: Optional[str]) -> Optional[str]:
+    if value is None or (isinstance(value, float) and np.isnan(value)):
+        return None
+    value_str = str(value).strip()
+    if not value_str or value_str.lower() in {'nan', 'none', 'no club', 'free agent'}:
+        return None
+    return re.sub(r"\s+", " ", value_str)
+
+def initialize_team_country_map(teams_df: Optional[pd.DataFrame]):
+    global TEAM_COUNTRY_MAP
+    TEAM_COUNTRY_MAP = {}
+    if teams_df is None or teams_df.empty:
+        logger.warning("⚠️  Teams dataset is empty; club country lookup will rely on heuristics.")
+        return
+    team_col_candidates = ['team', 'team_name', 'name']
+    country_col_candidates = ['country', 'team_country']
+    team_col = next((col for col in team_col_candidates if col in teams_df.columns), None)
+    country_col = next((col for col in country_col_candidates if col in teams_df.columns), None)
+    if team_col is None or country_col is None:
+        logger.warning("⚠️  Teams dataset missing expected columns; club country lookup will rely on heuristics.")
+        return
+    for _, row in teams_df.iterrows():
+        club = clean_club_label(row[team_col])
+        country = row[country_col]
+        if not club or pd.isna(country):
+            continue
+        country_str = str(country).strip()
+        for key in clean_club_variants(club):
+            TEAM_COUNTRY_MAP[key] = country_str
+
+def normalize_competition_key(value: Optional[str]) -> Optional[str]:
+    if value is None or (isinstance(value, float) and np.isnan(value)):
+        return None
+    value_str = str(value).strip()
+    if not value_str or value_str.lower() in {'nan', 'none'}:
+        return None
+    return re.sub(r"\s+", " ", value_str.lower())
+
+def initialize_competition_type_map(competitions_df: Optional[pd.DataFrame]):
+    global COMPETITION_TYPE_MAP
+    COMPETITION_TYPE_MAP = {}
+    if competitions_df is None or competitions_df.empty:
+        logger.warning("⚠️  Competitions dataset is empty; competition intensity mapping will use heuristics only.")
+        set_competition_type_map({})
+        return
+    type_col = None
+    for candidate in ['type', 'Type', 'TYPE']:
+        if candidate in competitions_df.columns:
+            type_col = candidate
+            break
+    if type_col is None or 'competition' not in competitions_df.columns:
+        logger.warning("⚠️  Competitions dataset missing expected columns; competition intensity mapping will use heuristics only.")
+        set_competition_type_map({})
+        return
+    for _, row in competitions_df.iterrows():
+        comp = normalize_competition_key(row['competition'])
+        comp_type = row[type_col]
+        if comp and pd.notna(comp_type):
+            COMPETITION_TYPE_MAP[comp] = str(comp_type)
+    set_competition_type_map(COMPETITION_TYPE_MAP)
+
+def clean_club_variants(club_name: str) -> List[str]:
+    variants = []
+    normalized = normalize_club_key(club_name)
+    if not normalized:
+        return variants
+    variants.append(normalized)
+    # Remove content in parentheses
+    without_parentheses = re.sub(r"\s*\(.*?\)", "", normalized).strip()
+    if without_parentheses and without_parentheses not in variants:
+        variants.append(without_parentheses)
+    # Remove dots and extra punctuation for fallback
+    simple = re.sub(r"[^a-z0-9 ]", "", without_parentheses or normalized).strip()
+    if simple and simple not in variants:
+        variants.append(simple)
+    return variants
+
+def normalize_club_key(value: Optional[str]) -> Optional[str]:
+    cleaned = clean_club_label(value)
+    if cleaned is None:
+        return None
+    return cleaned.lower()
+
+def clubs_match(team_name: Optional[str], reference_name: Optional[str]) -> bool:
+    if not team_name or not reference_name:
+        return False
+    variants_team = set(clean_club_variants(team_name))
+    variants_ref = set(clean_club_variants(reference_name))
+    return bool(variants_team & variants_ref)
+
+def parse_match_result(result_str: Optional[str]) -> Tuple[Optional[int], Optional[int], bool, bool]:
+    if result_str is None or (isinstance(result_str, float) and np.isnan(result_str)):
+        return None, None, False, False
+    text = str(result_str).strip().lower()
+    if not text:
+        return None, None, False, False
+    numbers = re.findall(r"\d+", text)
+    if len(numbers) < 2:
+        return None, None, False, False
+    home_goals = int(numbers[0])
+    away_goals = int(numbers[1])
+    decided_by_penalties = 'p.g' in text or 'pens' in text
+    decided_after_extra = 'a.p' in text or 'aet' in text or 'et' in text
+    return home_goals, away_goals, decided_by_penalties, decided_after_extra
+
+def determine_player_team_for_match(
+    match_row: pd.Series,
+    current_club: Optional[str],
+    player_row: pd.Series,
+    career_clubs: set
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    home_team = clean_club_label(match_row.get('home_team'))
+    away_team = clean_club_label(match_row.get('away_team'))
+
+    current_club_clean = clean_club_label(current_club)
+    if current_club_clean:
+        if clubs_match(home_team, current_club_clean):
+            return 'home', home_team, away_team
+        if clubs_match(away_team, current_club_clean):
+            return 'away', away_team, home_team
+
+    for club in career_clubs:
+        if clubs_match(home_team, club):
+            return 'home', home_team, away_team
+        if clubs_match(away_team, club):
+            return 'away', away_team, home_team
+
+    nationalities = [player_row.get('nationality1'), player_row.get('nationality2')]
+
+    def team_matches_player_nationality(team: Optional[str]) -> bool:
+        if not team:
+            return False
+        if not is_national_team_fast(team):
+            return False
+        team_lower = team.lower()
+        for nat in nationalities:
+            if nat and str(nat).lower() in team_lower:
+                return True
+        return False
+
+    if team_matches_player_nationality(home_team):
+        return 'home', home_team, away_team
+    if team_matches_player_nationality(away_team):
+        return 'away', away_team, home_team
+
+    if home_team:
+        return 'home', home_team, away_team
+    if away_team:
+        return 'away', away_team, home_team
+
+    return None, None, None
+
+def compute_team_result_metrics(
+    matches: pd.DataFrame,
+    calendar: pd.DatetimeIndex,
+    player_row: pd.Series,
+    profile_series: Optional[pd.DataFrame],
+    player_career: Optional[pd.DataFrame]
+) -> Dict[str, List[float]]:
+    n_days = len(calendar)
+    zero_float = [0.0] * n_days
+    zero_int = [0] * n_days
+
+    if matches is None or matches.empty:
+        return {
+            'team_win': zero_int.copy(),
+            'team_draw': zero_int.copy(),
+            'team_loss': zero_int.copy(),
+            'team_points': zero_int.copy(),
+            'cum_team_wins': zero_int.copy(),
+            'cum_team_draws': zero_int.copy(),
+            'cum_team_losses': zero_int.copy(),
+            'team_win_rate': zero_float.copy(),
+            'cum_team_points': zero_int.copy(),
+            'team_points_rolling5': zero_float.copy(),
+            'team_mood_score': zero_float.copy(),
+            'home_matches': zero_int.copy(),
+            'away_matches': zero_int.copy()
+        }
+
+    matches_ext = matches.copy()
+    matches_ext['date'] = pd.to_datetime(matches_ext['date'])
+    matches_ext = matches_ext.dropna(subset=['date'])
+    matches_ext.sort_values('date', inplace=True)
+
+    current_club_series = None
+    if profile_series is not None and 'current_club' in profile_series.columns:
+        current_club_series = profile_series['current_club']
+
+    career_clubs = set()
+    if player_career is not None and not player_career.empty:
+        for col in ['from_club', 'to_club', 'From', 'To']:
+            if col in player_career.columns:
+                for value in player_career[col].dropna():
+                    label = clean_club_label(value)
+                    if label:
+                        career_clubs.add(label)
+
+    win_map = defaultdict(int)
+    draw_map = defaultdict(int)
+    loss_map = defaultdict(int)
+    points_map = defaultdict(list)
+    home_match_map = defaultdict(int)
+    away_match_map = defaultdict(int)
+
+    for _, row in matches_ext.iterrows():
+        match_date = row['date'].normalize()
+        current_club_today = None
+        if current_club_series is not None and match_date in current_club_series.index:
+            current_club_today = current_club_series.loc[match_date]
+
+        side, player_team_name, opponent_team_name = determine_player_team_for_match(
+            row, current_club_today, player_row, career_clubs
+        )
+
+        home_goals, away_goals, _, _ = parse_match_result(row.get('result'))
+        result = None
+        points = 0
+
+        if side and home_goals is not None and away_goals is not None:
+            if side == 'home':
+                team_goals, opp_goals = home_goals, away_goals
+            else:
+                team_goals, opp_goals = away_goals, home_goals
+
+            if team_goals > opp_goals:
+                result = 'win'
+                points = 3
+            elif team_goals == opp_goals:
+                result = 'draw'
+                points = 1
+            else:
+                result = 'loss'
+                points = 0
+
+        if result is None:
+            continue
+
+        if result == 'win':
+            win_map[match_date] += 1
+        elif result == 'draw':
+            draw_map[match_date] += 1
+        elif result == 'loss':
+            loss_map[match_date] += 1
+
+        points_map[match_date].append(points)
+
+        if side == 'home':
+            home_match_map[match_date] += 1
+        elif side == 'away':
+            away_match_map[match_date] += 1
+
+    team_win = [0] * n_days
+    team_draw = [0] * n_days
+    team_loss = [0] * n_days
+    team_points = [0] * n_days
+    home_matches = [0] * n_days
+    away_matches = [0] * n_days
+    cum_team_wins = [0] * n_days
+    cum_team_draws = [0] * n_days
+    cum_team_losses = [0] * n_days
+    team_win_rate = [0.0] * n_days
+    cum_team_points = [0] * n_days
+    team_points_rolling5 = [0.0] * n_days
+    team_mood_score = [0.0] * n_days
+
+    recent_points = deque(maxlen=5)
+    total_matches = 0
+    wins_so_far = 0
+    draws_so_far = 0
+    losses_so_far = 0
+    points_so_far = 0
+
+    calendar_list = list(calendar)
+
+    for i, date in enumerate(calendar_list):
+        wins_today = win_map.get(date, 0)
+        draws_today = draw_map.get(date, 0)
+        losses_today = loss_map.get(date, 0)
+        points_today_list = points_map.get(date, [])
+
+        team_win[i] = wins_today
+        team_draw[i] = draws_today
+        team_loss[i] = losses_today
+        team_points[i] = sum(points_today_list)
+        home_matches[i] = home_match_map.get(date, 0)
+        away_matches[i] = away_match_map.get(date, 0)
+
+        if wins_today or draws_today or losses_today:
+            for pts in points_today_list:
+                recent_points.append(pts)
+                points_so_far += pts
+            wins_so_far += wins_today
+            draws_so_far += draws_today
+            losses_so_far += losses_today
+            total_matches += wins_today + draws_today + losses_today
+
+        cum_team_wins[i] = wins_so_far
+        cum_team_draws[i] = draws_so_far
+        cum_team_losses[i] = losses_so_far
+        cum_team_points[i] = points_so_far
+
+        if total_matches > 0:
+            team_win_rate[i] = wins_so_far / total_matches
+        elif i > 0:
+            team_win_rate[i] = team_win_rate[i - 1]
+        else:
+            team_win_rate[i] = 0.0
+
+        rolling_points = sum(recent_points)
+        team_points_rolling5[i] = rolling_points
+        if recent_points:
+            team_mood_score[i] = rolling_points / (len(recent_points) * 3.0)
+        else:
+            team_mood_score[i] = 0.0
+
+        if total_matches == 0 and i > 0:
+            team_win_rate[i] = team_win_rate[i - 1]
+            cum_team_wins[i] = cum_team_wins[i - 1]
+            cum_team_draws[i] = cum_team_draws[i - 1]
+            cum_team_losses[i] = cum_team_losses[i - 1]
+            cum_team_points[i] = cum_team_points[i - 1]
+            team_points_rolling5[i] = team_points_rolling5[i - 1]
+            team_mood_score[i] = team_mood_score[i - 1]
+
+    return {
+        'team_win': team_win,
+        'team_draw': team_draw,
+        'team_loss': team_loss,
+        'team_points': team_points,
+        'cum_team_wins': cum_team_wins,
+        'cum_team_draws': cum_team_draws,
+        'cum_team_losses': cum_team_losses,
+        'team_win_rate': team_win_rate,
+        'cum_team_points': cum_team_points,
+        'team_points_rolling5': team_points_rolling5,
+        'team_mood_score': team_mood_score,
+        'home_matches': home_matches,
+        'away_matches': away_matches
+    }
 
 if __name__ == "__main__":
     main()
