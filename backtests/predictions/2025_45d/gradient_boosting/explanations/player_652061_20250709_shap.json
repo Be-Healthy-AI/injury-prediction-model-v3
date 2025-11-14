@@ -1,0 +1,2527 @@
+{
+  "entry_id": "player_652061_20250709",
+  "player_id": 652061,
+  "model": "gradient_boosting",
+  "top_features": [
+    {
+      "reference_date": "2025-05-25",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.021715546198665,
+          "abs_value": 1.021715546198665
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3366258720319414,
+          "abs_value": 0.3366258720319414
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.31299851255503514,
+          "abs_value": 0.31299851255503514
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.21018811642493548,
+          "abs_value": 0.21018811642493548
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.20224632625578237,
+          "abs_value": 0.20224632625578237
+        },
+        {
+          "name": "injury_frequency_week_4",
+          "value": 0.1929414279065756,
+          "abs_value": 0.1929414279065756
+        },
+        {
+          "name": "season_team_diversity_week_3",
+          "value": -0.1782407575783338,
+          "abs_value": 0.1782407575783338
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.16042692522034765,
+          "abs_value": 0.16042692522034765
+        },
+        {
+          "name": "season_team_diversity_week_1",
+          "value": -0.15323313100126362,
+          "abs_value": 0.15323313100126362
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.1501637103876151,
+          "abs_value": 0.1501637103876151
+        }
+      ],
+      "probability": 0.0008464193271528687
+    },
+    {
+      "reference_date": "2025-05-26",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.035843732701461,
+          "abs_value": 1.035843732701461
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.31297494152778843,
+          "abs_value": 0.31297494152778843
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.1991151339466478,
+          "abs_value": 0.1991151339466478
+        },
+        {
+          "name": "injury_frequency_week_4",
+          "value": 0.19239641015826595,
+          "abs_value": 0.19239641015826595
+        },
+        {
+          "name": "season_team_diversity_week_3",
+          "value": -0.1797947935659025,
+          "abs_value": 0.1797947935659025
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.177380296415233,
+          "abs_value": 0.177380296415233
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.15893773326555066,
+          "abs_value": 0.15893773326555066
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.15815329323718502,
+          "abs_value": 0.15815329323718502
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.1498283718123421,
+          "abs_value": 0.1498283718123421
+        },
+        {
+          "name": "cum_teams",
+          "value": 0.1453961621165288,
+          "abs_value": 0.1453961621165288
+        }
+      ],
+      "probability": 0.00031193860146602124
+    },
+    {
+      "reference_date": "2025-05-27",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.0627644413450261,
+          "abs_value": 1.0627644413450261
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.31297494152778843,
+          "abs_value": 0.31297494152778843
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.19326256342414058,
+          "abs_value": 0.19326256342414058
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.19134110607906865,
+          "abs_value": 0.19134110607906865
+        },
+        {
+          "name": "injury_frequency_week_4",
+          "value": 0.1908101873256696,
+          "abs_value": 0.1908101873256696
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.18484168488818567,
+          "abs_value": 0.18484168488818567
+        },
+        {
+          "name": "season_team_diversity_week_3",
+          "value": -0.17900499176991425,
+          "abs_value": 0.17900499176991425
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.16044413698845938,
+          "abs_value": 0.16044413698845938
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.15578491673947717,
+          "abs_value": 0.15578491673947717
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.1527818784523991,
+          "abs_value": 0.1527818784523991
+        }
+      ],
+      "probability": 0.0002990842418009284
+    },
+    {
+      "reference_date": "2025-05-28",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.028257410702163,
+          "abs_value": 1.028257410702163
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.31295607755063715,
+          "abs_value": 0.31295607755063715
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.19779378240909573,
+          "abs_value": 0.19779378240909573
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.1924478120892995,
+          "abs_value": 0.1924478120892995
+        },
+        {
+          "name": "season_team_diversity_week_3",
+          "value": -0.18703907283672477,
+          "abs_value": 0.18703907283672477
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.18594195457058416,
+          "abs_value": 0.18594195457058416
+        },
+        {
+          "name": "injury_frequency_week_4",
+          "value": 0.18569507436004076,
+          "abs_value": 0.18569507436004076
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.17182343344163623,
+          "abs_value": 0.17182343344163623
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.1585224239346125,
+          "abs_value": 0.1585224239346125
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.15292799984134536,
+          "abs_value": 0.15292799984134536
+        }
+      ],
+      "probability": 0.00027307281060426136
+    },
+    {
+      "reference_date": "2025-05-29",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.0282480195720036,
+          "abs_value": 1.0282480195720036
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.3127987248783807,
+          "abs_value": 0.3127987248783807
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.20097722910081572,
+          "abs_value": 0.20097722910081572
+        },
+        {
+          "name": "season_team_diversity_week_3",
+          "value": -0.18653441937895707,
+          "abs_value": 0.18653441937895707
+        },
+        {
+          "name": "injury_frequency_week_4",
+          "value": 0.182091866232481,
+          "abs_value": 0.182091866232481
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.17042565518059516,
+          "abs_value": 0.17042565518059516
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.17040316686140394,
+          "abs_value": 0.17040316686140394
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.17022276281265733,
+          "abs_value": 0.17022276281265733
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.15765032355963746,
+          "abs_value": 0.15765032355963746
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.15345576293054602,
+          "abs_value": 0.15345576293054602
+        }
+      ],
+      "probability": 0.0005509701248991095
+    },
+    {
+      "reference_date": "2025-05-30",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.0220196859142834,
+          "abs_value": 1.0220196859142834
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.3127987248783807,
+          "abs_value": 0.3127987248783807
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.20090687373472063,
+          "abs_value": 0.20090687373472063
+        },
+        {
+          "name": "season_team_diversity_week_3",
+          "value": -0.1843015966026041,
+          "abs_value": 0.1843015966026041
+        },
+        {
+          "name": "injury_frequency_week_4",
+          "value": 0.18044253235924593,
+          "abs_value": 0.18044253235924593
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.17063523170948158,
+          "abs_value": 0.17063523170948158
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.16894371592300325,
+          "abs_value": 0.16894371592300325
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.1685536766285247,
+          "abs_value": 0.1685536766285247
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.16310955169736507,
+          "abs_value": 0.16310955169736507
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.15918773331996297,
+          "abs_value": 0.15918773331996297
+        }
+      ],
+      "probability": 0.0005382229341250863
+    },
+    {
+      "reference_date": "2025-05-31",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.0723575576098003,
+          "abs_value": 1.0723575576098003
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.31279829331544373,
+          "abs_value": 0.31279829331544373
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.23134662013250704,
+          "abs_value": 0.23134662013250704
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2114321935749714,
+          "abs_value": 0.2114321935749714
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.19247775781183885,
+          "abs_value": 0.19247775781183885
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.17807844104194798,
+          "abs_value": 0.17807844104194798
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.1718136942123976,
+          "abs_value": 0.1718136942123976
+        },
+        {
+          "name": "season_team_diversity_week_1",
+          "value": -0.1644473877318702,
+          "abs_value": 0.1644473877318702
+        },
+        {
+          "name": "injury_frequency_week_4",
+          "value": 0.14487315568770712,
+          "abs_value": 0.14487315568770712
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.1417432124863682,
+          "abs_value": 0.1417432124863682
+        }
+      ],
+      "probability": 0.0007151943431563847
+    },
+    {
+      "reference_date": "2025-06-01",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.1082396592452195,
+          "abs_value": 1.1082396592452195
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.38144095083945867,
+          "abs_value": 0.38144095083945867
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.28803328711516757,
+          "abs_value": 0.28803328711516757
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.28177025532392375,
+          "abs_value": 0.28177025532392375
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.18013726394034466,
+          "abs_value": 0.18013726394034466
+        },
+        {
+          "name": "season_team_diversity_week_3",
+          "value": -0.16830814293858556,
+          "abs_value": 0.16830814293858556
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.15956775119784225,
+          "abs_value": 0.15956775119784225
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.15756654721376678,
+          "abs_value": 0.15756654721376678
+        },
+        {
+          "name": "month_week_4",
+          "value": -0.15718841147918813,
+          "abs_value": 0.15718841147918813
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.15151671301060196,
+          "abs_value": 0.15151671301060196
+        }
+      ],
+      "probability": 0.00033397863460406653
+    },
+    {
+      "reference_date": "2025-06-02",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.1083666669623817,
+          "abs_value": 1.1083666669623817
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.38144095083945867,
+          "abs_value": 0.38144095083945867
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.33446734371132025,
+          "abs_value": 0.33446734371132025
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.2784808849150986,
+          "abs_value": 0.2784808849150986
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.20215383983096027,
+          "abs_value": 0.20215383983096027
+        },
+        {
+          "name": "season_team_diversity_week_3",
+          "value": -0.1689654407847699,
+          "abs_value": 0.1689654407847699
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.15957515675434827,
+          "abs_value": 0.15957515675434827
+        },
+        {
+          "name": "month_week_4",
+          "value": -0.15666003968174141,
+          "abs_value": 0.15666003968174141
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.15316666763391382,
+          "abs_value": 0.15316666763391382
+        },
+        {
+          "name": "career_assists",
+          "value": -0.1437645769512234,
+          "abs_value": 0.1437645769512234
+        }
+      ],
+      "probability": 0.0005220420704418117
+    },
+    {
+      "reference_date": "2025-06-03",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.1092998644575767,
+          "abs_value": 1.1092998644575767
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.38144095083945867,
+          "abs_value": 0.38144095083945867
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.34597513192575186,
+          "abs_value": 0.34597513192575186
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.27939670524524707,
+          "abs_value": 0.27939670524524707
+        },
+        {
+          "name": "season_team_diversity_week_3",
+          "value": -0.17349974321587594,
+          "abs_value": 0.17349974321587594
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.17094074957725267,
+          "abs_value": 0.17094074957725267
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.15804708926609212,
+          "abs_value": 0.15804708926609212
+        },
+        {
+          "name": "month_week_4",
+          "value": -0.155729880336023,
+          "abs_value": 0.155729880336023
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.15179112632334893,
+          "abs_value": 0.15179112632334893
+        },
+        {
+          "name": "career_assists",
+          "value": -0.14982877814988144,
+          "abs_value": 0.14982877814988144
+        }
+      ],
+      "probability": 0.0005660542980605529
+    },
+    {
+      "reference_date": "2025-06-04",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.1087554158550443,
+          "abs_value": 1.1087554158550443
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.38144095083945867,
+          "abs_value": 0.38144095083945867
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.37289946391661777,
+          "abs_value": 0.37289946391661777
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.2811115795419082,
+          "abs_value": 0.2811115795419082
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.190883120238452,
+          "abs_value": 0.190883120238452
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.18002503597014757,
+          "abs_value": 0.18002503597014757
+        },
+        {
+          "name": "season_team_diversity_week_3",
+          "value": -0.1755954342179692,
+          "abs_value": 0.1755954342179692
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.1508725863412853,
+          "abs_value": 0.1508725863412853
+        },
+        {
+          "name": "career_assists",
+          "value": -0.15062234846769806,
+          "abs_value": 0.15062234846769806
+        },
+        {
+          "name": "month_week_4",
+          "value": -0.14158676066526635,
+          "abs_value": 0.14158676066526635
+        }
+      ],
+      "probability": 0.0004760558337836248
+    },
+    {
+      "reference_date": "2025-06-05",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.1087338629812062,
+          "abs_value": 1.1087338629812062
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.38144095083945867,
+          "abs_value": 0.38144095083945867
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.3606110425608713,
+          "abs_value": 0.3606110425608713
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.2807279176387496,
+          "abs_value": 0.2807279176387496
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.19061064161317154,
+          "abs_value": 0.19061064161317154
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.17965893776107864,
+          "abs_value": 0.17965893776107864
+        },
+        {
+          "name": "season_team_diversity_week_3",
+          "value": -0.1773687282738639,
+          "abs_value": 0.1773687282738639
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.15120659611103268,
+          "abs_value": 0.15120659611103268
+        },
+        {
+          "name": "career_assists",
+          "value": -0.14938008599240762,
+          "abs_value": 0.14938008599240762
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.14292103284870547,
+          "abs_value": 0.14292103284870547
+        }
+      ],
+      "probability": 0.0004999206351731087
+    },
+    {
+      "reference_date": "2025-06-06",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.108766303070959,
+          "abs_value": 1.108766303070959
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.38110200363396474,
+          "abs_value": 0.38110200363396474
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.35337847563891794,
+          "abs_value": 0.35337847563891794
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.27879985384248035,
+          "abs_value": 0.27879985384248035
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.1906698165567246,
+          "abs_value": 0.1906698165567246
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.1793340029538781,
+          "abs_value": 0.1793340029538781
+        },
+        {
+          "name": "season_team_diversity_week_3",
+          "value": -0.17562120647987725,
+          "abs_value": 0.17562120647987725
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.15102309715983747,
+          "abs_value": 0.15102309715983747
+        },
+        {
+          "name": "career_assists",
+          "value": -0.1494647803594136,
+          "abs_value": 0.1494647803594136
+        },
+        {
+          "name": "injury_frequency_week_2",
+          "value": 0.1431871302801875,
+          "abs_value": 0.1431871302801875
+        }
+      ],
+      "probability": 0.0004999206351731087
+    },
+    {
+      "reference_date": "2025-06-07",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.10445291452186,
+          "abs_value": 1.10445291452186
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.3710163328560578,
+          "abs_value": 0.3710163328560578
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.37073530381522973,
+          "abs_value": 0.37073530381522973
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.24604529698944635,
+          "abs_value": 0.24604529698944635
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.197306726299745,
+          "abs_value": 0.197306726299745
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.16823669352825,
+          "abs_value": 0.16823669352825
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.16693917909122713,
+          "abs_value": 0.16693917909122713
+        },
+        {
+          "name": "season_team_diversity_week_3",
+          "value": -0.16442453664660764,
+          "abs_value": 0.16442453664660764
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.15744318078559078,
+          "abs_value": 0.15744318078559078
+        },
+        {
+          "name": "injury_frequency_week_2",
+          "value": 0.15396104133423824,
+          "abs_value": 0.15396104133423824
+        }
+      ],
+      "probability": 0.0015506561414381254
+    },
+    {
+      "reference_date": "2025-06-08",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.0753689708633423,
+          "abs_value": 1.0753689708633423
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.40009825281226025,
+          "abs_value": 0.40009825281226025
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.37035508498498276,
+          "abs_value": 0.37035508498498276
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.23721658410126537,
+          "abs_value": 0.23721658410126537
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.210052562327887,
+          "abs_value": 0.210052562327887
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.20721975849170374,
+          "abs_value": 0.20721975849170374
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.1743777177276125,
+          "abs_value": 0.1743777177276125
+        },
+        {
+          "name": "club_seniority_x_goals_per_match_week_2",
+          "value": 0.15825227656233282,
+          "abs_value": 0.15825227656233282
+        },
+        {
+          "name": "cum_inj_days",
+          "value": -0.14763679670689933,
+          "abs_value": 0.14763679670689933
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.1453595758729301,
+          "abs_value": 0.1453595758729301
+        }
+      ],
+      "probability": 0.0009465178945606743
+    },
+    {
+      "reference_date": "2025-06-09",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.0753938641316845,
+          "abs_value": 1.0753938641316845
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.40250358661489766,
+          "abs_value": 0.40250358661489766
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.37035508498498276,
+          "abs_value": 0.37035508498498276
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2732285503224487,
+          "abs_value": 0.2732285503224487
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.23419583386752646,
+          "abs_value": 0.23419583386752646
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.20395249803099044,
+          "abs_value": 0.20395249803099044
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.1862541945118387,
+          "abs_value": 0.1862541945118387
+        },
+        {
+          "name": "club_seniority_x_goals_per_match_week_2",
+          "value": 0.158660323554523,
+          "abs_value": 0.158660323554523
+        },
+        {
+          "name": "cum_inj_days",
+          "value": -0.14789671806479168,
+          "abs_value": 0.14789671806479168
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.14584451116916453,
+          "abs_value": 0.14584451116916453
+        }
+      ],
+      "probability": 0.0007548076481341709
+    },
+    {
+      "reference_date": "2025-06-10",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.0753938674664658,
+          "abs_value": 1.0753938674664658
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.4018958764544002,
+          "abs_value": 0.4018958764544002
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.37035508498498276,
+          "abs_value": 0.37035508498498276
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.27483018869919984,
+          "abs_value": 0.27483018869919984
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.2453087121208732,
+          "abs_value": 0.2453087121208732
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.19911537101730928,
+          "abs_value": 0.19911537101730928
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.18258264126115617,
+          "abs_value": 0.18258264126115617
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.1688364599944303,
+          "abs_value": 0.1688364599944303
+        },
+        {
+          "name": "club_seniority_x_goals_per_match_week_2",
+          "value": 0.15880470169410427,
+          "abs_value": 0.15880470169410427
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.14956797722466345,
+          "abs_value": 0.14956797722466345
+        }
+      ],
+      "probability": 0.0008211179047047431
+    },
+    {
+      "reference_date": "2025-06-11",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.0754796735289787,
+          "abs_value": 1.0754796735289787
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.4015462528375934,
+          "abs_value": 0.4015462528375934
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.37035508498498276,
+          "abs_value": 0.37035508498498276
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2739253487893821,
+          "abs_value": 0.2739253487893821
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.2447526205675618,
+          "abs_value": 0.2447526205675618
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.19910072696315226,
+          "abs_value": 0.19910072696315226
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.17930484875510305,
+          "abs_value": 0.17930484875510305
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.1684424551047427,
+          "abs_value": 0.1684424551047427
+        },
+        {
+          "name": "club_seniority_x_goals_per_match_week_2",
+          "value": 0.15880861806922958,
+          "abs_value": 0.15880861806922958
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.14960580709393242,
+          "abs_value": 0.14960580709393242
+        }
+      ],
+      "probability": 0.0006961079461381893
+    },
+    {
+      "reference_date": "2025-06-12",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.0980609724571415,
+          "abs_value": 1.0980609724571415
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.37054449859495964,
+          "abs_value": 0.37054449859495964
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.32924026863117634,
+          "abs_value": 0.32924026863117634
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2951701687349033,
+          "abs_value": 0.2951701687349033
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.23367536337822695,
+          "abs_value": 0.23367536337822695
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.1957103933854851,
+          "abs_value": 0.1957103933854851
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.19335178514509027,
+          "abs_value": 0.19335178514509027
+        },
+        {
+          "name": "career_assists",
+          "value": -0.18346619835906203,
+          "abs_value": 0.18346619835906203
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.18020288395357623,
+          "abs_value": 0.18020288395357623
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.16035389957565097,
+          "abs_value": 0.16035389957565097
+        }
+      ],
+      "probability": 0.0031811825887837234
+    },
+    {
+      "reference_date": "2025-06-13",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.0946060503103654,
+          "abs_value": 1.0946060503103654
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.37054449859495964,
+          "abs_value": 0.37054449859495964
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.33351401534636843,
+          "abs_value": 0.33351401534636843
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.29296507457546167,
+          "abs_value": 0.29296507457546167
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.22864036049770742,
+          "abs_value": 0.22864036049770742
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.196278446917991,
+          "abs_value": 0.196278446917991
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.19592176760653782,
+          "abs_value": 0.19592176760653782
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.19327089498659672,
+          "abs_value": 0.19327089498659672
+        },
+        {
+          "name": "career_assists",
+          "value": -0.18629924617890622,
+          "abs_value": 0.18629924617890622
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.18408587326254125,
+          "abs_value": 0.18408587326254125
+        }
+      ],
+      "probability": 0.0031694364592587125
+    },
+    {
+      "reference_date": "2025-06-14",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.0969087392686312,
+          "abs_value": 1.0969087392686312
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.3809185692154075,
+          "abs_value": 0.3809185692154075
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.32848629136904617,
+          "abs_value": 0.32848629136904617
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.29626641548852656,
+          "abs_value": 0.29626641548852656
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.24718210017651027,
+          "abs_value": 0.24718210017651027
+        },
+        {
+          "name": "substitution_minutes_played_week_5",
+          "value": 0.195835855210623,
+          "abs_value": 0.195835855210623
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.19015922382994707,
+          "abs_value": 0.19015922382994707
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.18874534002914725,
+          "abs_value": 0.18874534002914725
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.18660381024511963,
+          "abs_value": 0.18660381024511963
+        },
+        {
+          "name": "career_assists",
+          "value": -0.18422532122063034,
+          "abs_value": 0.18422532122063034
+        }
+      ],
+      "probability": 0.004350053267819021
+    },
+    {
+      "reference_date": "2025-06-15",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 0.8974962071997249,
+          "abs_value": 0.8974962071997249
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3692789151539187,
+          "abs_value": 0.3692789151539187
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.2972650411897112,
+          "abs_value": 0.2972650411897112
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.27720084746584145,
+          "abs_value": 0.27720084746584145
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.24318415788488584,
+          "abs_value": 0.24318415788488584
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.19646404346151275,
+          "abs_value": 0.19646404346151275
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.1946125315065594,
+          "abs_value": 0.1946125315065594
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.19399377800893589,
+          "abs_value": 0.19399377800893589
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.17672606085041054,
+          "abs_value": 0.17672606085041054
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.17244445525668664,
+          "abs_value": 0.17244445525668664
+        }
+      ],
+      "probability": 0.015138755871160703
+    },
+    {
+      "reference_date": "2025-06-16",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 0.8990012322260459,
+          "abs_value": 0.8990012322260459
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.4040483113265753,
+          "abs_value": 0.4040483113265753
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.2970018924743038,
+          "abs_value": 0.2970018924743038
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2589428876918869,
+          "abs_value": 0.2589428876918869
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.20650828579199967,
+          "abs_value": 0.20650828579199967
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.19944178842470622,
+          "abs_value": 0.19944178842470622
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.19264817048262906,
+          "abs_value": 0.19264817048262906
+        },
+        {
+          "name": "cum_inj_days",
+          "value": -0.18422862039674887,
+          "abs_value": 0.18422862039674887
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.1838320606232439,
+          "abs_value": 0.1838320606232439
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": -0.17410641625878517,
+          "abs_value": 0.17410641625878517
+        }
+      ],
+      "probability": 0.013236578331446551
+    },
+    {
+      "reference_date": "2025-06-17",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 0.8989824903638519,
+          "abs_value": 0.8989824903638519
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.40404719992484833,
+          "abs_value": 0.40404719992484833
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.2970018924743038,
+          "abs_value": 0.2970018924743038
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.25881208142375045,
+          "abs_value": 0.25881208142375045
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.20612360646212216,
+          "abs_value": 0.20612360646212216
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.1927464327524944,
+          "abs_value": 0.1927464327524944
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.1920115913455178,
+          "abs_value": 0.1920115913455178
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.18795845815568854,
+          "abs_value": 0.18795845815568854
+        },
+        {
+          "name": "cum_inj_days",
+          "value": -0.18362940914132433,
+          "abs_value": 0.18362940914132433
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": -0.17708841455550317,
+          "abs_value": 0.17708841455550317
+        }
+      ],
+      "probability": 0.01291277857370545
+    },
+    {
+      "reference_date": "2025-06-18",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 0.8917155032730993,
+          "abs_value": 0.8917155032730993
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.40691982314646374,
+          "abs_value": 0.40691982314646374
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.29713307952841433,
+          "abs_value": 0.29713307952841433
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 0.26906258003844497,
+          "abs_value": 0.26906258003844497
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.26669828789499456,
+          "abs_value": 0.26669828789499456
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.2332122854209311,
+          "abs_value": 0.2332122854209311
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.20830919923500152,
+          "abs_value": 0.20830919923500152
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.1934035166753885,
+          "abs_value": 0.1934035166753885
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.185288853751686,
+          "abs_value": 0.185288853751686
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.17996958335461838,
+          "abs_value": 0.17996958335461838
+        }
+      ],
+      "probability": 0.020288253311906496
+    },
+    {
+      "reference_date": "2025-06-19",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 0.9325337795378239,
+          "abs_value": 0.9325337795378239
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.4094984378899321,
+          "abs_value": 0.4094984378899321
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.29713307952841433,
+          "abs_value": 0.29713307952841433
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.27384144799158255,
+          "abs_value": 0.27384144799158255
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 0.2468362390114884,
+          "abs_value": 0.2468362390114884
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.20983840736774131,
+          "abs_value": 0.20983840736774131
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.2079459424995487,
+          "abs_value": 0.2079459424995487
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": -0.19399104649432972,
+          "abs_value": 0.19399104649432972
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.1840806096446015,
+          "abs_value": 0.1840806096446015
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.1810165271215378,
+          "abs_value": 0.1810165271215378
+        }
+      ],
+      "probability": 0.009426577579350793
+    },
+    {
+      "reference_date": "2025-06-20",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 0.9324907447698428,
+          "abs_value": 0.9324907447698428
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.4024831234940401,
+          "abs_value": 0.4024831234940401
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.29713307952841433,
+          "abs_value": 0.29713307952841433
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2752194195665136,
+          "abs_value": 0.2752194195665136
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 0.24644040399594141,
+          "abs_value": 0.24644040399594141
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.20983298027531547,
+          "abs_value": 0.20983298027531547
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": -0.19395993203617787,
+          "abs_value": 0.19395993203617787
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.19033600727566377,
+          "abs_value": 0.19033600727566377
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.18581322270820821,
+          "abs_value": 0.18581322270820821
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.17998458146354684,
+          "abs_value": 0.17998458146354684
+        }
+      ],
+      "probability": 0.01079517933812546
+    },
+    {
+      "reference_date": "2025-06-21",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 0.9324509605023451,
+          "abs_value": 0.9324509605023451
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.4003246633749049,
+          "abs_value": 0.4003246633749049
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.29713307952841433,
+          "abs_value": 0.29713307952841433
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2754418462927913,
+          "abs_value": 0.2754418462927913
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.2101424257761035,
+          "abs_value": 0.2101424257761035
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": -0.19393828061406737,
+          "abs_value": 0.19393828061406737
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.19042523855462393,
+          "abs_value": 0.19042523855462393
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.1798933555175357,
+          "abs_value": 0.1798933555175357
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 0.171354615494269,
+          "abs_value": 0.171354615494269
+        },
+        {
+          "name": "days_since_last_injury_week_1",
+          "value": 0.169308819122146,
+          "abs_value": 0.169308819122146
+        }
+      ],
+      "probability": 0.007279896126088832
+    },
+    {
+      "reference_date": "2025-06-22",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 0.8954920873535134,
+          "abs_value": 0.8954920873535134
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.39500107541762125,
+          "abs_value": 0.39500107541762125
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.23894758368406085,
+          "abs_value": 0.23894758368406085
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.2142309649181721,
+          "abs_value": 0.2142309649181721
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.19776578400149095,
+          "abs_value": 0.19776578400149095
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": -0.19613239431790147,
+          "abs_value": 0.19613239431790147
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.1951566388716589,
+          "abs_value": 0.1951566388716589
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.18694557588466776,
+          "abs_value": 0.18694557588466776
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.17988152501000035,
+          "abs_value": 0.17988152501000035
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.17170900396446817,
+          "abs_value": 0.17170900396446817
+        }
+      ],
+      "probability": 0.0062333388018932364
+    },
+    {
+      "reference_date": "2025-06-23",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 0.8957062403660291,
+          "abs_value": 0.8957062403660291
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3948808663922819,
+          "abs_value": 0.3948808663922819
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.23894758368406085,
+          "abs_value": 0.23894758368406085
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.1979412932145906,
+          "abs_value": 0.1979412932145906
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.19475209890379025,
+          "abs_value": 0.19475209890379025
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.19374896427546345,
+          "abs_value": 0.19374896427546345
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": -0.19251698889676036,
+          "abs_value": 0.19251698889676036
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.18977881556049253,
+          "abs_value": 0.18977881556049253
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.1852189108588011,
+          "abs_value": 0.1852189108588011
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.17639380945813476,
+          "abs_value": 0.17639380945813476
+        }
+      ],
+      "probability": 0.007786655954694775
+    },
+    {
+      "reference_date": "2025-06-24",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 0.8945014890477905,
+          "abs_value": 0.8945014890477905
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3956369198424745,
+          "abs_value": 0.3956369198424745
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.23894758368406085,
+          "abs_value": 0.23894758368406085
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.19849977452350517,
+          "abs_value": 0.19849977452350517
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.1948550626132473,
+          "abs_value": 0.1948550626132473
+        },
+        {
+          "name": "season_team_diversity_week_5",
+          "value": -0.1945525505696441,
+          "abs_value": 0.1945525505696441
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": -0.1929153471054987,
+          "abs_value": 0.1929153471054987
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.1897697101789974,
+          "abs_value": 0.1897697101789974
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.18520205576383683,
+          "abs_value": 0.18520205576383683
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.17637290512132509,
+          "abs_value": 0.17637290512132509
+        }
+      ],
+      "probability": 0.008232748943352334
+    },
+    {
+      "reference_date": "2025-06-25",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 0.9215854467237844,
+          "abs_value": 0.9215854467237844
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3362929284134877,
+          "abs_value": 0.3362929284134877
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.3125613787989597,
+          "abs_value": 0.3125613787989597
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.23773361403898327,
+          "abs_value": 0.23773361403898327
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.21954785227019258,
+          "abs_value": 0.21954785227019258
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.2181419668023982,
+          "abs_value": 0.2181419668023982
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.18691905073123588,
+          "abs_value": 0.18691905073123588
+        },
+        {
+          "name": "month_week_4",
+          "value": -0.1695063592370363,
+          "abs_value": 0.1695063592370363
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.16382177355248423,
+          "abs_value": 0.16382177355248423
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.1577832937314933,
+          "abs_value": 0.1577832937314933
+        }
+      ],
+      "probability": 0.011155621694366706
+    },
+    {
+      "reference_date": "2025-06-26",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 0.9448311857655965,
+          "abs_value": 0.9448311857655965
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.31247731266897916,
+          "abs_value": 0.31247731266897916
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.24025321028421082,
+          "abs_value": 0.24025321028421082
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.22376649399587165,
+          "abs_value": 0.22376649399587165
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.20193423511470765,
+          "abs_value": 0.20193423511470765
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.20151653681710346,
+          "abs_value": 0.20151653681710346
+        },
+        {
+          "name": "minutes_played_numeric_week_4",
+          "value": 0.16614230390497126,
+          "abs_value": 0.16614230390497126
+        },
+        {
+          "name": "injury_frequency_week_4",
+          "value": 0.15457611918880215,
+          "abs_value": 0.15457611918880215
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.15429155179667864,
+          "abs_value": 0.15429155179667864
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.1469680294208503,
+          "abs_value": 0.1469680294208503
+        }
+      ],
+      "probability": 0.011090027004932968
+    },
+    {
+      "reference_date": "2025-06-27",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 0.9886083200100819,
+          "abs_value": 0.9886083200100819
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.31247731266897916,
+          "abs_value": 0.31247731266897916
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2285922343375437,
+          "abs_value": 0.2285922343375437
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.20623418752874967,
+          "abs_value": 0.20623418752874967
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.2037552703300327,
+          "abs_value": 0.2037552703300327
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.20286231633622165,
+          "abs_value": 0.20286231633622165
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.1675882243424636,
+          "abs_value": 0.1675882243424636
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.15465195903898046,
+          "abs_value": 0.15465195903898046
+        },
+        {
+          "name": "injury_frequency_week_4",
+          "value": 0.14661523737731832,
+          "abs_value": 0.14661523737731832
+        },
+        {
+          "name": "injury_frequency_week_2",
+          "value": 0.1405513825606089,
+          "abs_value": 0.1405513825606089
+        }
+      ],
+      "probability": 0.007533922684495783
+    },
+    {
+      "reference_date": "2025-06-28",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 0.9884436326587773,
+          "abs_value": 0.9884436326587773
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.31247731266897916,
+          "abs_value": 0.31247731266897916
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2277483985189844,
+          "abs_value": 0.2277483985189844
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.2100721367149477,
+          "abs_value": 0.2100721367149477
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.20553130447975593,
+          "abs_value": 0.20553130447975593
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.20371955329095762,
+          "abs_value": 0.20371955329095762
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.20261299453572854,
+          "abs_value": 0.20261299453572854
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.15128861963857063,
+          "abs_value": 0.15128861963857063
+        },
+        {
+          "name": "injury_frequency_week_4",
+          "value": 0.14625683959767077,
+          "abs_value": 0.14625683959767077
+        },
+        {
+          "name": "injury_frequency_week_2",
+          "value": 0.1423944788490555,
+          "abs_value": 0.1423944788490555
+        }
+      ],
+      "probability": 0.006542182032235374
+    },
+    {
+      "reference_date": "2025-06-29",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.075367259111088,
+          "abs_value": 1.075367259111088
+        },
+        {
+          "name": "previous_club_Sparta Praga",
+          "value": -0.3123199610304104,
+          "abs_value": 0.3123199610304104
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.2489787171571596,
+          "abs_value": 0.2489787171571596
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2166442757001625,
+          "abs_value": 0.2166442757001625
+        },
+        {
+          "name": "injury_frequency_week_2",
+          "value": 0.20756727068615707,
+          "abs_value": 0.20756727068615707
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.19923826406166878,
+          "abs_value": 0.19923826406166878
+        },
+        {
+          "name": "injury_frequency_week_4",
+          "value": 0.17388518388389498,
+          "abs_value": 0.17388518388389498
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.17319672364905073,
+          "abs_value": 0.17319672364905073
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.17031591998739698,
+          "abs_value": 0.17031591998739698
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.1497891362319793,
+          "abs_value": 0.1497891362319793
+        }
+      ],
+      "probability": 0.016373338720411478
+    },
+    {
+      "reference_date": "2025-06-30",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.129755071078393,
+          "abs_value": 1.129755071078393
+        },
+        {
+          "name": "current_club_Sparta Praga",
+          "value": 0.2194617221035215,
+          "abs_value": 0.2194617221035215
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.21284137420489366,
+          "abs_value": 0.21284137420489366
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.20942780127013175,
+          "abs_value": 0.20942780127013175
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.20638253401226345,
+          "abs_value": 0.20638253401226345
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2021129614229773,
+          "abs_value": 0.2021129614229773
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.1905746334274807,
+          "abs_value": 0.1905746334274807
+        },
+        {
+          "name": "last_match_position_week_5_Right Midfielder",
+          "value": 0.19016910495064568,
+          "abs_value": 0.19016910495064568
+        },
+        {
+          "name": "injury_frequency_week_2",
+          "value": 0.18927888331461462,
+          "abs_value": 0.18927888331461462
+        },
+        {
+          "name": "seniority_x_goals_per_match",
+          "value": 0.17730949998123477,
+          "abs_value": 0.17730949998123477
+        }
+      ],
+      "probability": 0.07241035932930628
+    },
+    {
+      "reference_date": "2025-07-01",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.1299866615374643,
+          "abs_value": 1.1299866615374643
+        },
+        {
+          "name": "current_club_Sparta Praga",
+          "value": 0.33124540803008373,
+          "abs_value": 0.33124540803008373
+        },
+        {
+          "name": "teams_this_season_week_5",
+          "value": 0.2632226566916414,
+          "abs_value": 0.2632226566916414
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.24330580041465397,
+          "abs_value": 0.24330580041465397
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.24298727407419637,
+          "abs_value": 0.24298727407419637
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.22913988913844602,
+          "abs_value": 0.22913988913844602
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.22053741310263275,
+          "abs_value": 0.22053741310263275
+        },
+        {
+          "name": "injury_frequency_week_2",
+          "value": 0.21392888274366517,
+          "abs_value": 0.21392888274366517
+        },
+        {
+          "name": "days_since_last_injury_week_3",
+          "value": 0.2031260217539188,
+          "abs_value": 0.2031260217539188
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2001280182506569,
+          "abs_value": 0.2001280182506569
+        }
+      ],
+      "probability": 0.563774782365724
+    },
+    {
+      "reference_date": "2025-07-02",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.1766490467057744,
+          "abs_value": 1.1766490467057744
+        },
+        {
+          "name": "current_club_Sparta Praga",
+          "value": 0.45337821188081545,
+          "abs_value": 0.45337821188081545
+        },
+        {
+          "name": "teams_this_season_week_5",
+          "value": 0.2791579364469359,
+          "abs_value": 0.2791579364469359
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.26622717492400194,
+          "abs_value": 0.26622717492400194
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.26538804967942026,
+          "abs_value": 0.26538804967942026
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.24595669206478293,
+          "abs_value": 0.24595669206478293
+        },
+        {
+          "name": "minutes_played_numeric_week_3",
+          "value": 0.243386985126144,
+          "abs_value": 0.243386985126144
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.23901871890238727,
+          "abs_value": 0.23901871890238727
+        },
+        {
+          "name": "injury_frequency_week_2",
+          "value": 0.22534869319499143,
+          "abs_value": 0.22534869319499143
+        },
+        {
+          "name": "days_since_last_injury_week_3",
+          "value": 0.20687241536258497,
+          "abs_value": 0.20687241536258497
+        }
+      ],
+      "probability": 0.903642077153554
+    },
+    {
+      "reference_date": "2025-07-03",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.2225505344781926,
+          "abs_value": 1.2225505344781926
+        },
+        {
+          "name": "current_club_Sparta Praga",
+          "value": 0.7070113302533402,
+          "abs_value": 0.7070113302533402
+        },
+        {
+          "name": "substitution_minutes_played_week_2",
+          "value": 0.29215892960600165,
+          "abs_value": 0.29215892960600165
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2835519785563197,
+          "abs_value": 0.2835519785563197
+        },
+        {
+          "name": "teams_this_season_week_5",
+          "value": 0.2709194986283577,
+          "abs_value": 0.2709194986283577
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.24704797902413947,
+          "abs_value": 0.24704797902413947
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.24688525275283504,
+          "abs_value": 0.24688525275283504
+        },
+        {
+          "name": "minutes_played_numeric_week_3",
+          "value": 0.236375518768042,
+          "abs_value": 0.236375518768042
+        },
+        {
+          "name": "injury_frequency_week_2",
+          "value": 0.22987515226758878,
+          "abs_value": 0.22987515226758878
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.22807360648764105,
+          "abs_value": 0.22807360648764105
+        }
+      ],
+      "probability": 0.9968664044651774
+    },
+    {
+      "reference_date": "2025-07-04",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.2227119399577249,
+          "abs_value": 1.2227119399577249
+        },
+        {
+          "name": "current_club_Sparta Praga",
+          "value": 0.7146948069190027,
+          "abs_value": 0.7146948069190027
+        },
+        {
+          "name": "substitution_minutes_played_week_2",
+          "value": 0.2922781641287657,
+          "abs_value": 0.2922781641287657
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2743523358219992,
+          "abs_value": 0.2743523358219992
+        },
+        {
+          "name": "teams_this_season_week_5",
+          "value": 0.2708849678698798,
+          "abs_value": 0.2708849678698798
+        },
+        {
+          "name": "minutes_played_numeric_week_3",
+          "value": 0.24874509178221624,
+          "abs_value": 0.24874509178221624
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.2468284816570037,
+          "abs_value": 0.2468284816570037
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.24412239368214061,
+          "abs_value": 0.24412239368214061
+        },
+        {
+          "name": "injury_frequency_week_2",
+          "value": 0.23412325590706182,
+          "abs_value": 0.23412325590706182
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.22972989051923223,
+          "abs_value": 0.22972989051923223
+        }
+      ],
+      "probability": 0.9967967841646133
+    },
+    {
+      "reference_date": "2025-07-05",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.2229194494063147,
+          "abs_value": 1.2229194494063147
+        },
+        {
+          "name": "current_club_Sparta Praga",
+          "value": 0.7147241531051434,
+          "abs_value": 0.7147241531051434
+        },
+        {
+          "name": "substitution_minutes_played_week_2",
+          "value": 0.2915159054545934,
+          "abs_value": 0.2915159054545934
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.27626504903171467,
+          "abs_value": 0.27626504903171467
+        },
+        {
+          "name": "teams_this_season_week_5",
+          "value": 0.27060564427984785,
+          "abs_value": 0.27060564427984785
+        },
+        {
+          "name": "minutes_played_numeric_week_3",
+          "value": 0.24875621309783957,
+          "abs_value": 0.24875621309783957
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.2465971082554525,
+          "abs_value": 0.2465971082554525
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.24563750002281856,
+          "abs_value": 0.24563750002281856
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.2453395969368651,
+          "abs_value": 0.2453395969368651
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.24361987545289523,
+          "abs_value": 0.24361987545289523
+        }
+      ],
+      "probability": 0.9970180624144221
+    },
+    {
+      "reference_date": "2025-07-06",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.2543692086527543,
+          "abs_value": 1.2543692086527543
+        },
+        {
+          "name": "current_club_Sparta Praga",
+          "value": 0.674906972194311,
+          "abs_value": 0.674906972194311
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.32227061440803756,
+          "abs_value": 0.32227061440803756
+        },
+        {
+          "name": "teams_this_season_week_5",
+          "value": 0.3118447544157049,
+          "abs_value": 0.3118447544157049
+        },
+        {
+          "name": "substitution_minutes_played_week_2",
+          "value": 0.29028692155243424,
+          "abs_value": 0.29028692155243424
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.27035646749385694,
+          "abs_value": 0.27035646749385694
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.2642819322225268,
+          "abs_value": 0.2642819322225268
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.25598356248921345,
+          "abs_value": 0.25598356248921345
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.23805683746681325,
+          "abs_value": 0.23805683746681325
+        },
+        {
+          "name": "days_since_last_injury_ended_week_1",
+          "value": 0.23376906401095068,
+          "abs_value": 0.23376906401095068
+        }
+      ],
+      "probability": 0.9981590703936956
+    },
+    {
+      "reference_date": "2025-07-07",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.3251150140315155,
+          "abs_value": 1.3251150140315155
+        },
+        {
+          "name": "current_club_Sparta Praga",
+          "value": 0.6750951416832037,
+          "abs_value": 0.6750951416832037
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.3206279170786712,
+          "abs_value": 0.3206279170786712
+        },
+        {
+          "name": "teams_this_season_week_5",
+          "value": 0.31227334302821697,
+          "abs_value": 0.31227334302821697
+        },
+        {
+          "name": "substitution_minutes_played_week_2",
+          "value": 0.29032808201763766,
+          "abs_value": 0.29032808201763766
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.2699304156453833,
+          "abs_value": 0.2699304156453833
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.26507679370700976,
+          "abs_value": 0.26507679370700976
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.25760355879657926,
+          "abs_value": 0.25760355879657926
+        },
+        {
+          "name": "club_minutes_per_match_week_5",
+          "value": 0.23785578695651255,
+          "abs_value": 0.23785578695651255
+        },
+        {
+          "name": "days_since_last_injury_ended_week_1",
+          "value": 0.23313262368666032,
+          "abs_value": 0.23313262368666032
+        }
+      ],
+      "probability": 0.9984028341868749
+    },
+    {
+      "reference_date": "2025-07-08",
+      "features": [
+        {
+          "name": "transfermarkt_score_rolling5",
+          "value": 1.2695785641727872,
+          "abs_value": 1.2695785641727872
+        },
+        {
+          "name": "current_club_Sparta Praga",
+          "value": 0.6775819479861344,
+          "abs_value": 0.6775819479861344
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.31841257201091294,
+          "abs_value": 0.31841257201091294
+        },
+        {
+          "name": "substitution_minutes_played_week_2",
+          "value": 0.28875106154822455,
+          "abs_value": 0.28875106154822455
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2858775815778364,
+          "abs_value": 0.2858775815778364
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.2682800072415299,
+          "abs_value": 0.2682800072415299
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.259020321705154,
+          "abs_value": 0.259020321705154
+        },
+        {
+          "name": "teams_this_season_week_5",
+          "value": 0.2562136409217908,
+          "abs_value": 0.2562136409217908
+        },
+        {
+          "name": "days_since_last_injury_ended_week_1",
+          "value": 0.23354112173549096,
+          "abs_value": 0.23354112173549096
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.22697215065259616,
+          "abs_value": 0.22697215065259616
+        }
+      ],
+      "probability": 0.9963192405016943
+    }
+  ]
+}

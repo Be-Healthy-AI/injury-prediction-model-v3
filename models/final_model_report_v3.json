@@ -1,0 +1,59 @@
+{
+  "timestamp": "2025-11-14 20:45:39",
+  "dataset": {
+    "total_samples": 47200,
+    "total_features_original": 349,
+    "total_features_encoded": 2210
+  },
+  "random_forest": {
+    "accuracy": 0.9934110169491526,
+    "precision": 0.9579217967798674,
+    "recall": 1.0,
+    "f1_score": 0.9785087416211734,
+    "roc_auc": 0.9999951663371467,
+    "gini_coefficient": 0.9999903326742934,
+    "cv_auc_mean": 0.9968690151297519,
+    "cv_auc_std": 0.0005110572896113795,
+    "training_time": "0:00:08.355472",
+    "confusion_matrix": [
+      [
+        39809,
+        311
+      ],
+      [
+        0,
+        7080
+      ]
+    ]
+  },
+  "gradient_boosting": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0,
+    "roc_auc": 1.0,
+    "gini_coefficient": 1.0,
+    "cv_auc_mean": 0.999663087010156,
+    "cv_auc_std": 0.00011589761013136797,
+    "training_time": "0:01:12.412505",
+    "confusion_matrix": [
+      [
+        40120,
+        0
+      ],
+      [
+        0,
+        7080
+      ]
+    ]
+  },
+  "ensemble": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1_score": 1.0,
+    "roc_auc": 1.0,
+    "gini_coefficient": 1.0,
+    "method": "Average of RF and GB probabilities (50% each)"
+  }
+}

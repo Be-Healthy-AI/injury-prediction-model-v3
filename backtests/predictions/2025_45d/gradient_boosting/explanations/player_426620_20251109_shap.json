@@ -1,0 +1,2527 @@
+{
+  "entry_id": "player_426620_20251109",
+  "player_id": 426620,
+  "model": "gradient_boosting",
+  "top_features": [
+    {
+      "reference_date": "2025-09-25",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.4196675550459053,
+          "abs_value": 0.4196675550459053
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2984902887688941,
+          "abs_value": 0.2984902887688941
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.26463705999554527,
+          "abs_value": 0.26463705999554527
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.25703298623877446,
+          "abs_value": 0.25703298623877446
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.25000149291692536,
+          "abs_value": 0.25000149291692536
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.21708037084409085,
+          "abs_value": 0.21708037084409085
+        },
+        {
+          "name": "minutes_played_numeric_week_1",
+          "value": 0.21158445932997472,
+          "abs_value": 0.21158445932997472
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.20820954261978059,
+          "abs_value": 0.20820954261978059
+        },
+        {
+          "name": "club_assists_per_match_week_3",
+          "value": -0.2057926983558752,
+          "abs_value": 0.2057926983558752
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": 0.19197425418225633,
+          "abs_value": 0.19197425418225633
+        }
+      ],
+      "probability": 0.0715369418204702
+    },
+    {
+      "reference_date": "2025-09-26",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.419366850699724,
+          "abs_value": 0.419366850699724
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.28885450483374636,
+          "abs_value": 0.28885450483374636
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.26355296318015664,
+          "abs_value": 0.26355296318015664
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.2554195451791679,
+          "abs_value": 0.2554195451791679
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.23975334355756442,
+          "abs_value": 0.23975334355756442
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.22097778582937888,
+          "abs_value": 0.22097778582937888
+        },
+        {
+          "name": "minutes_played_numeric_week_1",
+          "value": 0.20931536693805838,
+          "abs_value": 0.20931536693805838
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.20380788493804158,
+          "abs_value": 0.20380788493804158
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.19938379838074372,
+          "abs_value": 0.19938379838074372
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": 0.1917611960372852,
+          "abs_value": 0.1917611960372852
+        }
+      ],
+      "probability": 0.06086070624483658
+    },
+    {
+      "reference_date": "2025-09-27",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.45253074528303155,
+          "abs_value": 0.45253074528303155
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.3851958952254047,
+          "abs_value": 0.3851958952254047
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.3442505202040515,
+          "abs_value": 0.3442505202040515
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2960282911860979,
+          "abs_value": 0.2960282911860979
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.2800780058666182,
+          "abs_value": 0.2800780058666182
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 0.2721443127666063,
+          "abs_value": 0.2721443127666063
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.2357482689782966,
+          "abs_value": 0.2357482689782966
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2219990267459845,
+          "abs_value": 0.2219990267459845
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.21076623352050605,
+          "abs_value": 0.21076623352050605
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": 0.19346399751664026,
+          "abs_value": 0.19346399751664026
+        }
+      ],
+      "probability": 0.15377996912787434
+    },
+    {
+      "reference_date": "2025-09-28",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.42665225373639176,
+          "abs_value": 0.42665225373639176
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.3832056334227238,
+          "abs_value": 0.3832056334227238
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.327830173368553,
+          "abs_value": 0.327830173368553
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.3156444790670741,
+          "abs_value": 0.3156444790670741
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2695107740963702,
+          "abs_value": 0.2695107740963702
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.26401789054104946,
+          "abs_value": 0.26401789054104946
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.25026790917068453,
+          "abs_value": 0.25026790917068453
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 0.24150547459723137,
+          "abs_value": 0.24150547459723137
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.23817914260189818,
+          "abs_value": 0.23817914260189818
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": 0.19272239734088753,
+          "abs_value": 0.19272239734088753
+        }
+      ],
+      "probability": 0.2051748297046835
+    },
+    {
+      "reference_date": "2025-09-29",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.43277128011029087,
+          "abs_value": 0.43277128011029087
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.3013287917494839,
+          "abs_value": 0.3013287917494839
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2937843918964081,
+          "abs_value": 0.2937843918964081
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2894650474540056,
+          "abs_value": 0.2894650474540056
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.26300920196183564,
+          "abs_value": 0.26300920196183564
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.23125162662211798,
+          "abs_value": 0.23125162662211798
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.22895750246804633,
+          "abs_value": 0.22895750246804633
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": 0.2236627476811083,
+          "abs_value": 0.2236627476811083
+        },
+        {
+          "name": "minutes_played_numeric_week_4",
+          "value": 0.20445850827596254,
+          "abs_value": 0.20445850827596254
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.19193824665438244,
+          "abs_value": 0.19193824665438244
+        }
+      ],
+      "probability": 0.21499514381031895
+    },
+    {
+      "reference_date": "2025-09-30",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.36319906614149206,
+          "abs_value": 0.36319906614149206
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.32141746490944284,
+          "abs_value": 0.32141746490944284
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.3122773830378432,
+          "abs_value": 0.3122773830378432
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2927048674028038,
+          "abs_value": 0.2927048674028038
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.27108389986124837,
+          "abs_value": 0.27108389986124837
+        },
+        {
+          "name": "team_mood_score_week_1",
+          "value": -0.2487370200897684,
+          "abs_value": 0.2487370200897684
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.22923576349388475,
+          "abs_value": 0.22923576349388475
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": 0.21148878542105,
+          "abs_value": 0.21148878542105
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.21024743774707114,
+          "abs_value": 0.21024743774707114
+        },
+        {
+          "name": "days_since_last_national_match_week_2",
+          "value": 0.19487530124653268,
+          "abs_value": 0.19487530124653268
+        }
+      ],
+      "probability": 0.1322478023149111
+    },
+    {
+      "reference_date": "2025-10-01",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.3791294038703515,
+          "abs_value": 0.3791294038703515
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.370925246214863,
+          "abs_value": 0.370925246214863
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.3373470612788916,
+          "abs_value": 0.3373470612788916
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.3072632693401843,
+          "abs_value": 0.3072632693401843
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": 0.2696944250462454,
+          "abs_value": 0.2696944250462454
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.2569917945230286,
+          "abs_value": 0.2569917945230286
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.24151573671144216,
+          "abs_value": 0.24151573671144216
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.23711415272574426,
+          "abs_value": 0.23711415272574426
+        },
+        {
+          "name": "team_mood_score_week_1",
+          "value": -0.2271304031309837,
+          "abs_value": 0.2271304031309837
+        },
+        {
+          "name": "days_since_last_national_match_week_2",
+          "value": 0.1936528126266862,
+          "abs_value": 0.1936528126266862
+        }
+      ],
+      "probability": 0.3058554693979042
+    },
+    {
+      "reference_date": "2025-10-02",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.40464571174610714,
+          "abs_value": 0.40464571174610714
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.37047461570361406,
+          "abs_value": 0.37047461570361406
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.34015839200692144,
+          "abs_value": 0.34015839200692144
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.32127606733708464,
+          "abs_value": 0.32127606733708464
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.2780180441435497,
+          "abs_value": 0.2780180441435497
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.27183931873527745,
+          "abs_value": 0.27183931873527745
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": 0.24682969798898127,
+          "abs_value": 0.24682969798898127
+        },
+        {
+          "name": "team_mood_score_week_1",
+          "value": -0.23650086561931843,
+          "abs_value": 0.23650086561931843
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.23508011690168115,
+          "abs_value": 0.23508011690168115
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.2088157687624019,
+          "abs_value": 0.2088157687624019
+        }
+      ],
+      "probability": 0.4370275855770816
+    },
+    {
+      "reference_date": "2025-10-03",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.4259695666454285,
+          "abs_value": 0.4259695666454285
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.3603565526083729,
+          "abs_value": 0.3603565526083729
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.3541018569168411,
+          "abs_value": 0.3541018569168411
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.31894640639219834,
+          "abs_value": 0.31894640639219834
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.28088342950337963,
+          "abs_value": 0.28088342950337963
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.25897055411601044,
+          "abs_value": 0.25897055411601044
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": 0.25073600919563366,
+          "abs_value": 0.25073600919563366
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.23033313168946323,
+          "abs_value": 0.23033313168946323
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.22620964779718247,
+          "abs_value": 0.22620964779718247
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.18843606047585207,
+          "abs_value": 0.18843606047585207
+        }
+      ],
+      "probability": 0.3989982683472435
+    },
+    {
+      "reference_date": "2025-10-04",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.27414618896230564,
+          "abs_value": 0.27414618896230564
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2632951488706226,
+          "abs_value": 0.2632951488706226
+        },
+        {
+          "name": "club_cum_minutes",
+          "value": 0.2035266615595035,
+          "abs_value": 0.2035266615595035
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.18395132053456356,
+          "abs_value": 0.18395132053456356
+        },
+        {
+          "name": "club_assists_per_match_week_3",
+          "value": -0.1833054805953957,
+          "abs_value": 0.1833054805953957
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.18010829575400353,
+          "abs_value": 0.18010829575400353
+        },
+        {
+          "name": "substitution_minutes_played_week_1",
+          "value": -0.16741811349293165,
+          "abs_value": 0.16741811349293165
+        },
+        {
+          "name": "season_team_diversity_week_1",
+          "value": 0.1663886411287802,
+          "abs_value": 0.1663886411287802
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.1587544767731029,
+          "abs_value": 0.1587544767731029
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.1578207645048055,
+          "abs_value": 0.1578207645048055
+        }
+      ],
+      "probability": 0.014346852392931105
+    },
+    {
+      "reference_date": "2025-10-05",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.3256008722449053,
+          "abs_value": 0.3256008722449053
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.26957828383951954,
+          "abs_value": 0.26957828383951954
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2547378120342921,
+          "abs_value": 0.2547378120342921
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.20655726449114983,
+          "abs_value": 0.20655726449114983
+        },
+        {
+          "name": "club_assists_per_match_week_3",
+          "value": -0.18321000383362376,
+          "abs_value": 0.18321000383362376
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.1800558746964557,
+          "abs_value": 0.1800558746964557
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.17988281550638688,
+          "abs_value": 0.17988281550638688
+        },
+        {
+          "name": "seniority_x_goals_per_match",
+          "value": -0.17258279060770823,
+          "abs_value": 0.17258279060770823
+        },
+        {
+          "name": "minutes_played_numeric_week_4",
+          "value": 0.17223412212926312,
+          "abs_value": 0.17223412212926312
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.16875183776360156,
+          "abs_value": 0.16875183776360156
+        }
+      ],
+      "probability": 0.014006368786383335
+    },
+    {
+      "reference_date": "2025-10-06",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.3182095901090544,
+          "abs_value": 0.3182095901090544
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.29130074461704797,
+          "abs_value": 0.29130074461704797
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.25810914148654757,
+          "abs_value": 0.25810914148654757
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.23554320483272598,
+          "abs_value": 0.23554320483272598
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.2239526495928481,
+          "abs_value": 0.2239526495928481
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2166790894731601,
+          "abs_value": 0.2166790894731601
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.19018231702439167,
+          "abs_value": 0.19018231702439167
+        },
+        {
+          "name": "seniority_x_goals_per_match",
+          "value": -0.18560748146608236,
+          "abs_value": 0.18560748146608236
+        },
+        {
+          "name": "club_assists_per_match_week_3",
+          "value": -0.17484014343749024,
+          "abs_value": 0.17484014343749024
+        },
+        {
+          "name": "season_team_diversity_week_1",
+          "value": 0.17280497025445196,
+          "abs_value": 0.17280497025445196
+        }
+      ],
+      "probability": 0.07858270642128375
+    },
+    {
+      "reference_date": "2025-10-07",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.37624785484141493,
+          "abs_value": 0.37624785484141493
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.2761815514405983,
+          "abs_value": 0.2761815514405983
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.2504884027849696,
+          "abs_value": 0.2504884027849696
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.24568292234941394,
+          "abs_value": 0.24568292234941394
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.24467042977053852,
+          "abs_value": 0.24467042977053852
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.22752145300552626,
+          "abs_value": 0.22752145300552626
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.20821120957258776,
+          "abs_value": 0.20821120957258776
+        },
+        {
+          "name": "seniority_x_goals_per_match",
+          "value": -0.1826361173015541,
+          "abs_value": 0.1826361173015541
+        },
+        {
+          "name": "club_assists_per_match_week_3",
+          "value": -0.1734881194033525,
+          "abs_value": 0.1734881194033525
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.17060243413276086,
+          "abs_value": 0.17060243413276086
+        }
+      ],
+      "probability": 0.09762130739926522
+    },
+    {
+      "reference_date": "2025-10-08",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.33974015935240454,
+          "abs_value": 0.33974015935240454
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.32006618038649093,
+          "abs_value": 0.32006618038649093
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2715016727519801,
+          "abs_value": 0.2715016727519801
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.24961949788606225,
+          "abs_value": 0.24961949788606225
+        },
+        {
+          "name": "seniority_x_goals_per_match",
+          "value": -0.23856394268671946,
+          "abs_value": 0.23856394268671946
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.22830364251995786,
+          "abs_value": 0.22830364251995786
+        },
+        {
+          "name": "substitution_minutes_played_week_4",
+          "value": -0.22507807924012344,
+          "abs_value": 0.22507807924012344
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.21859342611609386,
+          "abs_value": 0.21859342611609386
+        },
+        {
+          "name": "club_assists_per_match_week_3",
+          "value": -0.20410342022836414,
+          "abs_value": 0.20410342022836414
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.1868729189693203,
+          "abs_value": 0.1868729189693203
+        }
+      ],
+      "probability": 0.08182281557110316
+    },
+    {
+      "reference_date": "2025-10-09",
+      "features": [
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.33428634420450454,
+          "abs_value": 0.33428634420450454
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.3145438713887188,
+          "abs_value": 0.3145438713887188
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.24381312836574706,
+          "abs_value": 0.24381312836574706
+        },
+        {
+          "name": "substitution_minutes_played_week_4",
+          "value": -0.23617553618648998,
+          "abs_value": 0.23617553618648998
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.21624091597810646,
+          "abs_value": 0.21624091597810646
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.21089892445432726,
+          "abs_value": 0.21089892445432726
+        },
+        {
+          "name": "club_assists_per_match_week_3",
+          "value": -0.19181681554286054,
+          "abs_value": 0.19181681554286054
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.18702201264032922,
+          "abs_value": 0.18702201264032922
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.1681458017555036,
+          "abs_value": 0.1681458017555036
+        },
+        {
+          "name": "seniority_x_goals_per_match",
+          "value": -0.16223362617431267,
+          "abs_value": 0.16223362617431267
+        }
+      ],
+      "probability": 0.019082257519856018
+    },
+    {
+      "reference_date": "2025-10-10",
+      "features": [
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.3369512193669252,
+          "abs_value": 0.3369512193669252
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.31135287576269993,
+          "abs_value": 0.31135287576269993
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.2401716562344423,
+          "abs_value": 0.2401716562344423
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.23920558628458854,
+          "abs_value": 0.23920558628458854
+        },
+        {
+          "name": "substitution_minutes_played_week_4",
+          "value": -0.23791525228812135,
+          "abs_value": 0.23791525228812135
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.22036821653862781,
+          "abs_value": 0.22036821653862781
+        },
+        {
+          "name": "club_assists_per_match_week_3",
+          "value": -0.19898308801831405,
+          "abs_value": 0.19898308801831405
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.19250369981992407,
+          "abs_value": 0.19250369981992407
+        },
+        {
+          "name": "seniority_x_goals_per_match",
+          "value": -0.1763857271427448,
+          "abs_value": 0.1763857271427448
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.16662938040805889,
+          "abs_value": 0.16662938040805889
+        }
+      ],
+      "probability": 0.0157799655520272
+    },
+    {
+      "reference_date": "2025-10-11",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2933027505871923,
+          "abs_value": 0.2933027505871923
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2638789014457805,
+          "abs_value": 0.2638789014457805
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2454798995550091,
+          "abs_value": 0.2454798995550091
+        },
+        {
+          "name": "substitution_minutes_played_week_4",
+          "value": -0.23515979435087417,
+          "abs_value": 0.23515979435087417
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.22441877747207442,
+          "abs_value": 0.22441877747207442
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.19159409591952853,
+          "abs_value": 0.19159409591952853
+        },
+        {
+          "name": "seniority_x_goals_per_match",
+          "value": -0.18807987112152175,
+          "abs_value": 0.18807987112152175
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.17786060726037892,
+          "abs_value": 0.17786060726037892
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.1737894060055409,
+          "abs_value": 0.1737894060055409
+        },
+        {
+          "name": "club_assists_per_match_week_3",
+          "value": -0.17331490176857603,
+          "abs_value": 0.17331490176857603
+        }
+      ],
+      "probability": 0.014419267925427184
+    },
+    {
+      "reference_date": "2025-10-12",
+      "features": [
+        {
+          "name": "substitution_minutes_played_week_4",
+          "value": -0.25306734882280785,
+          "abs_value": 0.25306734882280785
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.24837078468699353,
+          "abs_value": 0.24837078468699353
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.23603645999180783,
+          "abs_value": 0.23603645999180783
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.20651835078579617,
+          "abs_value": 0.20651835078579617
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.18767433101398107,
+          "abs_value": 0.18767433101398107
+        },
+        {
+          "name": "season_team_diversity_week_1",
+          "value": 0.18438997329423876,
+          "abs_value": 0.18438997329423876
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": -0.17190959078455811,
+          "abs_value": 0.17190959078455811
+        },
+        {
+          "name": "career_matches",
+          "value": 0.1637916839951612,
+          "abs_value": 0.1637916839951612
+        },
+        {
+          "name": "seniority_x_goals_per_match",
+          "value": -0.15706900582716693,
+          "abs_value": 0.15706900582716693
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.15128664264961797,
+          "abs_value": 0.15128664264961797
+        }
+      ],
+      "probability": 0.010527461026711753
+    },
+    {
+      "reference_date": "2025-10-13",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.24562333568656564,
+          "abs_value": 0.24562333568656564
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2122763881877619,
+          "abs_value": 0.2122763881877619
+        },
+        {
+          "name": "substitution_minutes_played_week_4",
+          "value": -0.2069915348968118,
+          "abs_value": 0.2069915348968118
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.20652352284016579,
+          "abs_value": 0.20652352284016579
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.18810285409610672,
+          "abs_value": 0.18810285409610672
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": -0.17626965829284238,
+          "abs_value": 0.17626965829284238
+        },
+        {
+          "name": "cum_matches_bench",
+          "value": -0.17127566049701,
+          "abs_value": 0.17127566049701
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.16883102676723682,
+          "abs_value": 0.16883102676723682
+        },
+        {
+          "name": "club_assists_per_match_week_3",
+          "value": -0.1657707477299226,
+          "abs_value": 0.1657707477299226
+        },
+        {
+          "name": "minutes_played_numeric_week_4",
+          "value": 0.15077406044164163,
+          "abs_value": 0.15077406044164163
+        }
+      ],
+      "probability": 0.0033843609279761828
+    },
+    {
+      "reference_date": "2025-10-14",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.2283693901327847,
+          "abs_value": 0.2283693901327847
+        },
+        {
+          "name": "substitution_minutes_played_week_4",
+          "value": -0.21109355590563036,
+          "abs_value": 0.21109355590563036
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.2079638891488924,
+          "abs_value": 0.2079638891488924
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.19493037965662843,
+          "abs_value": 0.19493037965662843
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.18704405486449302,
+          "abs_value": 0.18704405486449302
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": -0.1834289517314986,
+          "abs_value": 0.1834289517314986
+        },
+        {
+          "name": "seniority_x_goals_per_match",
+          "value": -0.1764940009314052,
+          "abs_value": 0.1764940009314052
+        },
+        {
+          "name": "cum_matches_bench",
+          "value": -0.17299424756048712,
+          "abs_value": 0.17299424756048712
+        },
+        {
+          "name": "club_assists_per_match_week_3",
+          "value": -0.16286279842612805,
+          "abs_value": 0.16286279842612805
+        },
+        {
+          "name": "minutes_played_numeric_week_4",
+          "value": 0.1613332607282084,
+          "abs_value": 0.1613332607282084
+        }
+      ],
+      "probability": 0.0020897295772437613
+    },
+    {
+      "reference_date": "2025-10-15",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.226373497353949,
+          "abs_value": 0.226373497353949
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.22238168212554563,
+          "abs_value": 0.22238168212554563
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.20851303731572124,
+          "abs_value": 0.20851303731572124
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.20197981904764647,
+          "abs_value": 0.20197981904764647
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": -0.1891946460820663,
+          "abs_value": 0.1891946460820663
+        },
+        {
+          "name": "minutes_played_numeric_week_4",
+          "value": 0.18790878497765237,
+          "abs_value": 0.18790878497765237
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.17632162504469448,
+          "abs_value": 0.17632162504469448
+        },
+        {
+          "name": "seniority_x_goals_per_match",
+          "value": -0.1762310557929936,
+          "abs_value": 0.1762310557929936
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.1744343507640283,
+          "abs_value": 0.1744343507640283
+        },
+        {
+          "name": "season_team_diversity_week_1",
+          "value": 0.17177984193460738,
+          "abs_value": 0.17177984193460738
+        }
+      ],
+      "probability": 0.007965346167011262
+    },
+    {
+      "reference_date": "2025-10-16",
+      "features": [
+        {
+          "name": "season_team_diversity_week_1",
+          "value": 0.23094447152780717,
+          "abs_value": 0.23094447152780717
+        },
+        {
+          "name": "seniority_x_goals_per_match",
+          "value": -0.21981299539872295,
+          "abs_value": 0.21981299539872295
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.21587027170592976,
+          "abs_value": 0.21587027170592976
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.20679323057221569,
+          "abs_value": 0.20679323057221569
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": -0.19726046422759766,
+          "abs_value": 0.19726046422759766
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.19672983856482235,
+          "abs_value": 0.19672983856482235
+        },
+        {
+          "name": "minutes_played_numeric_week_4",
+          "value": 0.18779808659533617,
+          "abs_value": 0.18779808659533617
+        },
+        {
+          "name": "competition_experience",
+          "value": 0.17569278766419058,
+          "abs_value": 0.17569278766419058
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.16734598942702222,
+          "abs_value": 0.16734598942702222
+        },
+        {
+          "name": "team_win_rate_week_5",
+          "value": -0.16679650151289974,
+          "abs_value": 0.16679650151289974
+        }
+      ],
+      "probability": 0.008517956355156288
+    },
+    {
+      "reference_date": "2025-10-17",
+      "features": [
+        {
+          "name": "season_team_diversity_week_1",
+          "value": 0.22112807741442025,
+          "abs_value": 0.22112807741442025
+        },
+        {
+          "name": "seniority_x_goals_per_match",
+          "value": -0.22054259592363643,
+          "abs_value": 0.22054259592363643
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.21476943539280452,
+          "abs_value": 0.21476943539280452
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.20616938993172854,
+          "abs_value": 0.20616938993172854
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.20133775225621253,
+          "abs_value": 0.20133775225621253
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": -0.1973021635750878,
+          "abs_value": 0.1973021635750878
+        },
+        {
+          "name": "minutes_played_numeric_week_4",
+          "value": 0.18112871693374266,
+          "abs_value": 0.18112871693374266
+        },
+        {
+          "name": "competition_experience",
+          "value": 0.17615381248461787,
+          "abs_value": 0.17615381248461787
+        },
+        {
+          "name": "team_win_rate_week_5",
+          "value": -0.16769061050093031,
+          "abs_value": 0.16769061050093031
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.16486989953371703,
+          "abs_value": 0.16486989953371703
+        }
+      ],
+      "probability": 0.006369260196727173
+    },
+    {
+      "reference_date": "2025-10-18",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.35083507194499375,
+          "abs_value": 0.35083507194499375
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.27607289325553713,
+          "abs_value": 0.27607289325553713
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.2596124703033151,
+          "abs_value": 0.2596124703033151
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": -0.18707630302218062,
+          "abs_value": 0.18707630302218062
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.18506364365362016,
+          "abs_value": 0.18506364365362016
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.1828701901378884,
+          "abs_value": 0.1828701901378884
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.17993348138690674,
+          "abs_value": 0.17993348138690674
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.17374826729320042,
+          "abs_value": 0.17374826729320042
+        },
+        {
+          "name": "competition_experience",
+          "value": 0.16492241996222598,
+          "abs_value": 0.16492241996222598
+        },
+        {
+          "name": "cum_team_wins_week_1",
+          "value": 0.15443112965936306,
+          "abs_value": 0.15443112965936306
+        }
+      ],
+      "probability": 0.01937396250080023
+    },
+    {
+      "reference_date": "2025-10-19",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.3455250669790273,
+          "abs_value": 0.3455250669790273
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.3224442425476804,
+          "abs_value": 0.3224442425476804
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.307730493732044,
+          "abs_value": 0.307730493732044
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.21098591705199207,
+          "abs_value": 0.21098591705199207
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": -0.1864293847832009,
+          "abs_value": 0.1864293847832009
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.1856923371586259,
+          "abs_value": 0.1856923371586259
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.18068130482545366,
+          "abs_value": 0.18068130482545366
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.175903536748816,
+          "abs_value": 0.175903536748816
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.15794772041781613,
+          "abs_value": 0.15794772041781613
+        },
+        {
+          "name": "cum_team_wins_week_1",
+          "value": 0.15123140973115856,
+          "abs_value": 0.15123140973115856
+        }
+      ],
+      "probability": 0.012013065626635849
+    },
+    {
+      "reference_date": "2025-10-20",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.37367858326003506,
+          "abs_value": 0.37367858326003506
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.3128532053273741,
+          "abs_value": 0.3128532053273741
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.28766277601848594,
+          "abs_value": 0.28766277601848594
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.19750973033391966,
+          "abs_value": 0.19750973033391966
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.19181602096962075,
+          "abs_value": 0.19181602096962075
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.1853061428989074,
+          "abs_value": 0.1853061428989074
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": -0.1831155029434961,
+          "abs_value": 0.1831155029434961
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.16615429005159008,
+          "abs_value": 0.16615429005159008
+        },
+        {
+          "name": "competition_experience",
+          "value": 0.16328112554670854,
+          "abs_value": 0.16328112554670854
+        },
+        {
+          "name": "cum_team_wins_week_1",
+          "value": 0.15198807135847897,
+          "abs_value": 0.15198807135847897
+        }
+      ],
+      "probability": 0.020456869463071473
+    },
+    {
+      "reference_date": "2025-10-21",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.3642624389142129,
+          "abs_value": 0.3642624389142129
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.31199351542694936,
+          "abs_value": 0.31199351542694936
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.2850373119601541,
+          "abs_value": 0.2850373119601541
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.19885399159781567,
+          "abs_value": 0.19885399159781567
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.19124664060275925,
+          "abs_value": 0.19124664060275925
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": -0.18500119865456777,
+          "abs_value": 0.18500119865456777
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.16436998336048037,
+          "abs_value": 0.16436998336048037
+        },
+        {
+          "name": "competition_experience",
+          "value": 0.16368629851568756,
+          "abs_value": 0.16368629851568756
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.16109924578182605,
+          "abs_value": 0.16109924578182605
+        },
+        {
+          "name": "cum_team_wins_week_1",
+          "value": 0.1522916928193946,
+          "abs_value": 0.1522916928193946
+        }
+      ],
+      "probability": 0.013804584481320832
+    },
+    {
+      "reference_date": "2025-10-22",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.35617693548982243,
+          "abs_value": 0.35617693548982243
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3440293490008818,
+          "abs_value": 0.3440293490008818
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2958252214182417,
+          "abs_value": 0.2958252214182417
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.20553650674837734,
+          "abs_value": 0.20553650674837734
+        },
+        {
+          "name": "season_team_diversity_week_2",
+          "value": 0.202638019531739,
+          "abs_value": 0.202638019531739
+        },
+        {
+          "name": "seniority_x_goals_per_match",
+          "value": -0.17552389020552306,
+          "abs_value": 0.17552389020552306
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.17407007592925325,
+          "abs_value": 0.17407007592925325
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": -0.17390196597490368,
+          "abs_value": 0.17390196597490368
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.17084876053614811,
+          "abs_value": 0.17084876053614811
+        },
+        {
+          "name": "season_team_diversity_week_1",
+          "value": 0.16017253422213712,
+          "abs_value": 0.16017253422213712
+        }
+      ],
+      "probability": 0.013461811117668492
+    },
+    {
+      "reference_date": "2025-10-23",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.4066602447513263,
+          "abs_value": 0.4066602447513263
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3308358333068806,
+          "abs_value": 0.3308358333068806
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.3094982141645413,
+          "abs_value": 0.3094982141645413
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.20714502307565053,
+          "abs_value": 0.20714502307565053
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": -0.1902624635143796,
+          "abs_value": 0.1902624635143796
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.1891943658932526,
+          "abs_value": 0.1891943658932526
+        },
+        {
+          "name": "seniority_x_goals_per_match",
+          "value": -0.18791296002747088,
+          "abs_value": 0.18791296002747088
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.17683210509023267,
+          "abs_value": 0.17683210509023267
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.17175909691245644,
+          "abs_value": 0.17175909691245644
+        },
+        {
+          "name": "season_team_diversity_week_1",
+          "value": 0.15556143177099577,
+          "abs_value": 0.15556143177099577
+        }
+      ],
+      "probability": 0.010540928645321723
+    },
+    {
+      "reference_date": "2025-10-24",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.40649390688366177,
+          "abs_value": 0.40649390688366177
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3303185991696133,
+          "abs_value": 0.3303185991696133
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.30888848361994264,
+          "abs_value": 0.30888848361994264
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.21742015160540962,
+          "abs_value": 0.21742015160540962
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": -0.19152238042975347,
+          "abs_value": 0.19152238042975347
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.1894177342093223,
+          "abs_value": 0.1894177342093223
+        },
+        {
+          "name": "seniority_x_goals_per_match",
+          "value": -0.18196088417698475,
+          "abs_value": 0.18196088417698475
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.17693183662689527,
+          "abs_value": 0.17693183662689527
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.16677535482971229,
+          "abs_value": 0.16677535482971229
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.1582361255681456,
+          "abs_value": 0.1582361255681456
+        }
+      ],
+      "probability": 0.011598665882415994
+    },
+    {
+      "reference_date": "2025-10-25",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.30700679700479083,
+          "abs_value": 0.30700679700479083
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.23717475335007077,
+          "abs_value": 0.23717475335007077
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.23344869283796948,
+          "abs_value": 0.23344869283796948
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.22979380864786797,
+          "abs_value": 0.22979380864786797
+        },
+        {
+          "name": "competition_experience",
+          "value": 0.19989097722291616,
+          "abs_value": 0.19989097722291616
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.1991035207129129,
+          "abs_value": 0.1991035207129129
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.1845363333441134,
+          "abs_value": 0.1845363333441134
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": -0.18201166987354275,
+          "abs_value": 0.18201166987354275
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.16654734236141244,
+          "abs_value": 0.16654734236141244
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.16558729463940444,
+          "abs_value": 0.16558729463940444
+        }
+      ],
+      "probability": 0.01586718106293535
+    },
+    {
+      "reference_date": "2025-10-26",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.5734342725552258,
+          "abs_value": 0.5734342725552258
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.3986122638374483,
+          "abs_value": 0.3986122638374483
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.31550246516287944,
+          "abs_value": 0.31550246516287944
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2879753226838174,
+          "abs_value": 0.2879753226838174
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.27672503921171493,
+          "abs_value": 0.27672503921171493
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.2630801782631489,
+          "abs_value": 0.2630801782631489
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.22724537064056086,
+          "abs_value": 0.22724537064056086
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": 0.2239388063856473,
+          "abs_value": 0.2239388063856473
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 0.21386733774994307,
+          "abs_value": 0.21386733774994307
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.20945819954757766,
+          "abs_value": 0.20945819954757766
+        }
+      ],
+      "probability": 0.3351262578931531
+    },
+    {
+      "reference_date": "2025-10-27",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.5573550311665268,
+          "abs_value": 0.5573550311665268
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.3373216308156591,
+          "abs_value": 0.3373216308156591
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.31119944177664005,
+          "abs_value": 0.31119944177664005
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.28198745007485765,
+          "abs_value": 0.28198745007485765
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2715998890307426,
+          "abs_value": 0.2715998890307426
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.26719639606927603,
+          "abs_value": 0.26719639606927603
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.25550409414715425,
+          "abs_value": 0.25550409414715425
+        },
+        {
+          "name": "cum_team_wins_week_5",
+          "value": 0.2150323931639253,
+          "abs_value": 0.2150323931639253
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 0.21316968281602475,
+          "abs_value": 0.21316968281602475
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.20398283944721812,
+          "abs_value": 0.20398283944721812
+        }
+      ],
+      "probability": 0.3620561258128798
+    },
+    {
+      "reference_date": "2025-10-28",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.5418641356274977,
+          "abs_value": 0.5418641356274977
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.3219961928181295,
+          "abs_value": 0.3219961928181295
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.31668494868253766,
+          "abs_value": 0.31668494868253766
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.28660917012125675,
+          "abs_value": 0.28660917012125675
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2815467486939127,
+          "abs_value": 0.2815467486939127
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.28091776695397047,
+          "abs_value": 0.28091776695397047
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.2764702104300514,
+          "abs_value": 0.2764702104300514
+        },
+        {
+          "name": "cum_team_wins_week_5",
+          "value": 0.21479560022712157,
+          "abs_value": 0.21479560022712157
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 0.2109439856262756,
+          "abs_value": 0.2109439856262756
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.1964232161150685,
+          "abs_value": 0.1964232161150685
+        }
+      ],
+      "probability": 0.3762175974813753
+    },
+    {
+      "reference_date": "2025-10-29",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.44774237229884667,
+          "abs_value": 0.44774237229884667
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.33317664105067624,
+          "abs_value": 0.33317664105067624
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.31686435937285334,
+          "abs_value": 0.31686435937285334
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.2849014598496408,
+          "abs_value": 0.2849014598496408
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.268838946563755,
+          "abs_value": 0.268838946563755
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2571631256407584,
+          "abs_value": 0.2571631256407584
+        },
+        {
+          "name": "minutes_played_numeric_week_1",
+          "value": 0.2395874863486702,
+          "abs_value": 0.2395874863486702
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.23335815417428843,
+          "abs_value": 0.23335815417428843
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 0.22025110935055447,
+          "abs_value": 0.22025110935055447
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.21998418085890772,
+          "abs_value": 0.21998418085890772
+        }
+      ],
+      "probability": 0.8073995224514808
+    },
+    {
+      "reference_date": "2025-10-30",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.4472923513592872,
+          "abs_value": 0.4472923513592872
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.33187738704334824,
+          "abs_value": 0.33187738704334824
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.3169453641816532,
+          "abs_value": 0.3169453641816532
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.2943719325649201,
+          "abs_value": 0.2943719325649201
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.2770305012020713,
+          "abs_value": 0.2770305012020713
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.258121209113434,
+          "abs_value": 0.258121209113434
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.24036992020204836,
+          "abs_value": 0.24036992020204836
+        },
+        {
+          "name": "minutes_played_numeric_week_1",
+          "value": 0.23922127864846532,
+          "abs_value": 0.23922127864846532
+        },
+        {
+          "name": "cum_team_wins_week_5",
+          "value": 0.21848454113855256,
+          "abs_value": 0.21848454113855256
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.2181273344929337,
+          "abs_value": 0.2181273344929337
+        }
+      ],
+      "probability": 0.7886670052280548
+    },
+    {
+      "reference_date": "2025-10-31",
+      "features": [
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 0.5572748628281788,
+          "abs_value": 0.5572748628281788
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.47422776100493985,
+          "abs_value": 0.47422776100493985
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.38895110510738706,
+          "abs_value": 0.38895110510738706
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.3175404294915641,
+          "abs_value": 0.3175404294915641
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3000244186174465,
+          "abs_value": 0.3000244186174465
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.29585854579020154,
+          "abs_value": 0.29585854579020154
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2679299801712779,
+          "abs_value": 0.2679299801712779
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": 0.23240417642385802,
+          "abs_value": 0.23240417642385802
+        },
+        {
+          "name": "minutes_played_numeric_week_1",
+          "value": 0.2195471429457236,
+          "abs_value": 0.2195471429457236
+        },
+        {
+          "name": "competition_experience",
+          "value": 0.21759329088987245,
+          "abs_value": 0.21759329088987245
+        }
+      ],
+      "probability": 0.9098161020942579
+    },
+    {
+      "reference_date": "2025-11-01",
+      "features": [
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 0.49377974422678733,
+          "abs_value": 0.49377974422678733
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.48260969150221383,
+          "abs_value": 0.48260969150221383
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.4474103427176498,
+          "abs_value": 0.4474103427176498
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.34976820781596,
+          "abs_value": 0.34976820781596
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.3322181781311018,
+          "abs_value": 0.3322181781311018
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.28266649235518254,
+          "abs_value": 0.28266649235518254
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.27887622695910264,
+          "abs_value": 0.27887622695910264
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": 0.2404313803038864,
+          "abs_value": 0.2404313803038864
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.22673150712850795,
+          "abs_value": 0.22673150712850795
+        },
+        {
+          "name": "cum_team_losses_week_2",
+          "value": 0.22176425282282972,
+          "abs_value": 0.22176425282282972
+        }
+      ],
+      "probability": 0.9240709717003198
+    },
+    {
+      "reference_date": "2025-11-02",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.40564429508572686,
+          "abs_value": 0.40564429508572686
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.3525023906232867,
+          "abs_value": 0.3525023906232867
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.32663232401894243,
+          "abs_value": 0.32663232401894243
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.29070962635209596,
+          "abs_value": 0.29070962635209596
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.27879339487076493,
+          "abs_value": 0.27879339487076493
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.27860040234279637,
+          "abs_value": 0.27860040234279637
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.25765935018021313,
+          "abs_value": 0.25765935018021313
+        },
+        {
+          "name": "minutes_played_numeric_week_1",
+          "value": 0.23856503309189592,
+          "abs_value": 0.23856503309189592
+        },
+        {
+          "name": "tactical_substitution_count_week_5",
+          "value": 0.2304169801935046,
+          "abs_value": 0.2304169801935046
+        },
+        {
+          "name": "cum_team_wins_week_5",
+          "value": 0.22466112376708022,
+          "abs_value": 0.22466112376708022
+        }
+      ],
+      "probability": 0.9630237168267644
+    },
+    {
+      "reference_date": "2025-11-03",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.40465331997196646,
+          "abs_value": 0.40465331997196646
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.3513454585328346,
+          "abs_value": 0.3513454585328346
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.32563688581743677,
+          "abs_value": 0.32563688581743677
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.28373360662693237,
+          "abs_value": 0.28373360662693237
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.27779659072457263,
+          "abs_value": 0.27779659072457263
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.27160654401080125,
+          "abs_value": 0.27160654401080125
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2556664022796374,
+          "abs_value": 0.2556664022796374
+        },
+        {
+          "name": "minutes_played_numeric_week_1",
+          "value": 0.23566690866479723,
+          "abs_value": 0.23566690866479723
+        },
+        {
+          "name": "cum_team_wins_week_5",
+          "value": 0.22404377760462438,
+          "abs_value": 0.22404377760462438
+        },
+        {
+          "name": "tactical_substitution_count_week_5",
+          "value": 0.22013067194054806,
+          "abs_value": 0.22013067194054806
+        }
+      ],
+      "probability": 0.959637540376379
+    },
+    {
+      "reference_date": "2025-11-04",
+      "features": [
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 0.6055305404899048,
+          "abs_value": 0.6055305404899048
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.49754416970590504,
+          "abs_value": 0.49754416970590504
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.48071826684754315,
+          "abs_value": 0.48071826684754315
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.4508338862287921,
+          "abs_value": 0.4508338862287921
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.35436855239812864,
+          "abs_value": 0.35436855239812864
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.3033445726887284,
+          "abs_value": 0.3033445726887284
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.297613469579686,
+          "abs_value": 0.297613469579686
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2851451489058727,
+          "abs_value": 0.2851451489058727
+        },
+        {
+          "name": "club_cum_minutes",
+          "value": 0.27989309135321505,
+          "abs_value": 0.27989309135321505
+        },
+        {
+          "name": "tactical_substitution_count_week_5",
+          "value": 0.2502832506071627,
+          "abs_value": 0.2502832506071627
+        }
+      ],
+      "probability": 0.9996888542754717
+    },
+    {
+      "reference_date": "2025-11-05",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.6480594292575661,
+          "abs_value": 0.6480594292575661
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 0.5221368280336469,
+          "abs_value": 0.5221368280336469
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.48175086968599906,
+          "abs_value": 0.48175086968599906
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.4151253353173762,
+          "abs_value": 0.4151253353173762
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.36151979941867957,
+          "abs_value": 0.36151979941867957
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.348255513659815,
+          "abs_value": 0.348255513659815
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.29072568243830466,
+          "abs_value": 0.29072568243830466
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.28458028276015757,
+          "abs_value": 0.28458028276015757
+        },
+        {
+          "name": "club_cum_minutes",
+          "value": 0.2798643275445811,
+          "abs_value": 0.2798643275445811
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": 0.2648368895185762,
+          "abs_value": 0.2648368895185762
+        }
+      ],
+      "probability": 0.9997146132967948
+    },
+    {
+      "reference_date": "2025-11-06",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.5998180546338242,
+          "abs_value": 0.5998180546338242
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 0.5403828162134375,
+          "abs_value": 0.5403828162134375
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.47782414579269017,
+          "abs_value": 0.47782414579269017
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.4380941466525922,
+          "abs_value": 0.4380941466525922
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.3854229691582776,
+          "abs_value": 0.3854229691582776
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.34398375403090137,
+          "abs_value": 0.34398375403090137
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.28879021820742035,
+          "abs_value": 0.28879021820742035
+        },
+        {
+          "name": "club_cum_minutes",
+          "value": 0.2861520896097349,
+          "abs_value": 0.2861520896097349
+        },
+        {
+          "name": "tactical_substitution_count_week_5",
+          "value": 0.2853756804275443,
+          "abs_value": 0.2853756804275443
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2843022116023112,
+          "abs_value": 0.2843022116023112
+        }
+      ],
+      "probability": 0.9997951718319902
+    },
+    {
+      "reference_date": "2025-11-07",
+      "features": [
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.5650825700783845,
+          "abs_value": 0.5650825700783845
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.4147799883063815,
+          "abs_value": 0.4147799883063815
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.3943500033382849,
+          "abs_value": 0.3943500033382849
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.38755004871616144,
+          "abs_value": 0.38755004871616144
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.3584372960002416,
+          "abs_value": 0.3584372960002416
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.28788848172828,
+          "abs_value": 0.28788848172828
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.28177743138684375,
+          "abs_value": 0.28177743138684375
+        },
+        {
+          "name": "club_cum_minutes",
+          "value": 0.2599947286788484,
+          "abs_value": 0.2599947286788484
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 0.2569483286656147,
+          "abs_value": 0.2569483286656147
+        },
+        {
+          "name": "club_cum_goals",
+          "value": 0.24865833918237965,
+          "abs_value": 0.24865833918237965
+        }
+      ],
+      "probability": 0.9997118716774067
+    },
+    {
+      "reference_date": "2025-11-08",
+      "features": [
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 1.125690513802041,
+          "abs_value": 1.125690513802041
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.5909565197306632,
+          "abs_value": 0.5909565197306632
+        },
+        {
+          "name": "early_substitution_off_count_week_5",
+          "value": 0.5768595243732676,
+          "abs_value": 0.5768595243732676
+        },
+        {
+          "name": "assists_per_match_week_4",
+          "value": 0.46076873693728854,
+          "abs_value": 0.46076873693728854
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.4026916288121795,
+          "abs_value": 0.4026916288121795
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.322367947136126,
+          "abs_value": 0.322367947136126
+        },
+        {
+          "name": "club_cum_matches_played",
+          "value": 0.3180380430699653,
+          "abs_value": 0.3180380430699653
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.30494067884960235,
+          "abs_value": 0.30494067884960235
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.30021039450340936,
+          "abs_value": 0.30021039450340936
+        },
+        {
+          "name": "days_since_last_injury_week_2",
+          "value": 0.2550468374947639,
+          "abs_value": 0.2550468374947639
+        }
+      ],
+      "probability": 0.9999028061767358
+    }
+  ]
+}

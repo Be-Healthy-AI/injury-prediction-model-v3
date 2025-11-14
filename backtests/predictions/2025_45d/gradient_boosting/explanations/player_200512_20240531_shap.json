@@ -1,0 +1,2527 @@
+{
+  "entry_id": "player_200512_20240531",
+  "player_id": 200512,
+  "model": "gradient_boosting",
+  "top_features": [
+    {
+      "reference_date": "2024-04-16",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.27048818179378586,
+          "abs_value": 0.27048818179378586
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.25238032705380875,
+          "abs_value": 0.25238032705380875
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.23449888512869094,
+          "abs_value": 0.23449888512869094
+        },
+        {
+          "name": "matches_played_week_5",
+          "value": -0.21741936928788086,
+          "abs_value": 0.21741936928788086
+        },
+        {
+          "name": "team_mood_score_week_1",
+          "value": -0.21493106075386592,
+          "abs_value": 0.21493106075386592
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.21312052623128022,
+          "abs_value": 0.21312052623128022
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.20198395079071518,
+          "abs_value": 0.20198395079071518
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.20082037261905888,
+          "abs_value": 0.20082037261905888
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.19882048557145474,
+          "abs_value": 0.19882048557145474
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.1806215096742547,
+          "abs_value": 0.1806215096742547
+        }
+      ],
+      "probability": 0.0008976439972765321
+    },
+    {
+      "reference_date": "2024-04-17",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.2655437643788752,
+          "abs_value": 0.2655437643788752
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.25659360038208034,
+          "abs_value": 0.25659360038208034
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.2560977356779234,
+          "abs_value": 0.2560977356779234
+        },
+        {
+          "name": "matches_played_week_5",
+          "value": -0.21833126687232504,
+          "abs_value": 0.21833126687232504
+        },
+        {
+          "name": "team_mood_score_week_1",
+          "value": -0.21832453510206423,
+          "abs_value": 0.21832453510206423
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.20439205518702372,
+          "abs_value": 0.20439205518702372
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.2007870868498015,
+          "abs_value": 0.2007870868498015
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.17831453235094571,
+          "abs_value": 0.17831453235094571
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.17478858164018854,
+          "abs_value": 0.17478858164018854
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.169412792404523,
+          "abs_value": 0.169412792404523
+        }
+      ],
+      "probability": 0.000394965101453839
+    },
+    {
+      "reference_date": "2024-04-18",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.264389211334551,
+          "abs_value": 0.264389211334551
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.26022311020000094,
+          "abs_value": 0.26022311020000094
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.24001078984424568,
+          "abs_value": 0.24001078984424568
+        },
+        {
+          "name": "matches_played_week_5",
+          "value": -0.2203005331796542,
+          "abs_value": 0.2203005331796542
+        },
+        {
+          "name": "team_mood_score_week_1",
+          "value": -0.21752954827707058,
+          "abs_value": 0.21752954827707058
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.20433034734303127,
+          "abs_value": 0.20433034734303127
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.20091650593770383,
+          "abs_value": 0.20091650593770383
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": -0.18335930538496711,
+          "abs_value": 0.18335930538496711
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.17468638877646284,
+          "abs_value": 0.17468638877646284
+        },
+        {
+          "name": "month_week_2",
+          "value": 0.16393854551672396,
+          "abs_value": 0.16393854551672396
+        }
+      ],
+      "probability": 0.00043004066763257615
+    },
+    {
+      "reference_date": "2024-04-19",
+      "features": [
+        {
+          "name": "cum_matches_played",
+          "value": 0.3120373161533476,
+          "abs_value": 0.3120373161533476
+        },
+        {
+          "name": "goals_numeric_week_5",
+          "value": -0.2765051819171361,
+          "abs_value": 0.2765051819171361
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.26417435791629595,
+          "abs_value": 0.26417435791629595
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.25795911430138846,
+          "abs_value": 0.25795911430138846
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.2545168751035212,
+          "abs_value": 0.2545168751035212
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.2425720679075081,
+          "abs_value": 0.2425720679075081
+        },
+        {
+          "name": "team_mood_score_week_1",
+          "value": -0.23297128962252456,
+          "abs_value": 0.23297128962252456
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.22290597587995567,
+          "abs_value": 0.22290597587995567
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2128541235545697,
+          "abs_value": 0.2128541235545697
+        },
+        {
+          "name": "days_since_last_national_match_week_3",
+          "value": -0.20797734423194839,
+          "abs_value": 0.20797734423194839
+        }
+      ],
+      "probability": 0.0028215504189076797
+    },
+    {
+      "reference_date": "2024-04-20",
+      "features": [
+        {
+          "name": "cum_matches_played",
+          "value": 0.31564509322445794,
+          "abs_value": 0.31564509322445794
+        },
+        {
+          "name": "goals_numeric_week_5",
+          "value": -0.2774620499081812,
+          "abs_value": 0.2774620499081812
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.2646735159889724,
+          "abs_value": 0.2646735159889724
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.2545484693566004,
+          "abs_value": 0.2545484693566004
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.2518507416368453,
+          "abs_value": 0.2518507416368453
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.2421811810733315,
+          "abs_value": 0.2421811810733315
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.2250144082411876,
+          "abs_value": 0.2250144082411876
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.20559318282797692,
+          "abs_value": 0.20559318282797692
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.20544708084156918,
+          "abs_value": 0.20544708084156918
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.20465141744742013,
+          "abs_value": 0.20465141744742013
+        }
+      ],
+      "probability": 0.0018696950877750773
+    },
+    {
+      "reference_date": "2024-04-21",
+      "features": [
+        {
+          "name": "goals_numeric_week_5",
+          "value": -0.29196795950991244,
+          "abs_value": 0.29196795950991244
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.27717740059804646,
+          "abs_value": 0.27717740059804646
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.26830894296029933,
+          "abs_value": 0.26830894296029933
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.25510542272910786,
+          "abs_value": 0.25510542272910786
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.24831704107076208,
+          "abs_value": 0.24831704107076208
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.23376093140897697,
+          "abs_value": 0.23376093140897697
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.21439123830497928,
+          "abs_value": 0.21439123830497928
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.20923202516434733,
+          "abs_value": 0.20923202516434733
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.20461335733700067,
+          "abs_value": 0.20461335733700067
+        },
+        {
+          "name": "days_since_last_national_match_week_3",
+          "value": -0.19780716075628277,
+          "abs_value": 0.19780716075628277
+        }
+      ],
+      "probability": 0.0026436097782388092
+    },
+    {
+      "reference_date": "2024-04-22",
+      "features": [
+        {
+          "name": "age_x_career_goals",
+          "value": 0.27962651506983205,
+          "abs_value": 0.27962651506983205
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.2782799835831053,
+          "abs_value": 0.2782799835831053
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.24770796834704115,
+          "abs_value": 0.24770796834704115
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.23856680057636057,
+          "abs_value": 0.23856680057636057
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.23608279651758263,
+          "abs_value": 0.23608279651758263
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.23263703871414237,
+          "abs_value": 0.23263703871414237
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.22773873699856445,
+          "abs_value": 0.22773873699856445
+        },
+        {
+          "name": "goals_numeric_week_5",
+          "value": -0.22148479586593753,
+          "abs_value": 0.22148479586593753
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.21896046764440336,
+          "abs_value": 0.21896046764440336
+        },
+        {
+          "name": "cum_competitions",
+          "value": 0.21268367667566765,
+          "abs_value": 0.21268367667566765
+        }
+      ],
+      "probability": 0.007197694167117273
+    },
+    {
+      "reference_date": "2024-04-23",
+      "features": [
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.2755194288072002,
+          "abs_value": 0.2755194288072002
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.26459722910468336,
+          "abs_value": 0.26459722910468336
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.2621365052279428,
+          "abs_value": 0.2621365052279428
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.24934363450406632,
+          "abs_value": 0.24934363450406632
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.24702204057859942,
+          "abs_value": 0.24702204057859942
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.2393371988186591,
+          "abs_value": 0.2393371988186591
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.2296234252153853,
+          "abs_value": 0.2296234252153853
+        },
+        {
+          "name": "teams_this_season_week_1",
+          "value": -0.21342752648969224,
+          "abs_value": 0.21342752648969224
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.19730684586382033,
+          "abs_value": 0.19730684586382033
+        },
+        {
+          "name": "goals_numeric_week_5",
+          "value": -0.19621094531224256,
+          "abs_value": 0.19621094531224256
+        }
+      ],
+      "probability": 0.002747272591074035
+    },
+    {
+      "reference_date": "2024-04-24",
+      "features": [
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.2734459226865044,
+          "abs_value": 0.2734459226865044
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.2646482458608975,
+          "abs_value": 0.2646482458608975
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.2619878255064615,
+          "abs_value": 0.2619878255064615
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.24951742847710096,
+          "abs_value": 0.24951742847710096
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.24000681728477868,
+          "abs_value": 0.24000681728477868
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.22979737123654131,
+          "abs_value": 0.22979737123654131
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.22947497422829705,
+          "abs_value": 0.22947497422829705
+        },
+        {
+          "name": "goals_numeric_week_5",
+          "value": -0.20046568873563628,
+          "abs_value": 0.20046568873563628
+        },
+        {
+          "name": "teams_this_season_week_1",
+          "value": -0.18768895552313822,
+          "abs_value": 0.18768895552313822
+        },
+        {
+          "name": "injury_frequency_week_3",
+          "value": 0.17649583609147013,
+          "abs_value": 0.17649583609147013
+        }
+      ],
+      "probability": 0.0016933511822142136
+    },
+    {
+      "reference_date": "2024-04-25",
+      "features": [
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.2736902553228426,
+          "abs_value": 0.2736902553228426
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.26172683718900486,
+          "abs_value": 0.26172683718900486
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.26160303739384255,
+          "abs_value": 0.26160303739384255
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.256038498296027,
+          "abs_value": 0.256038498296027
+        },
+        {
+          "name": "month_week_1",
+          "value": -0.239516585043133,
+          "abs_value": 0.239516585043133
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.2325223964489584,
+          "abs_value": 0.2325223964489584
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.22868647333931025,
+          "abs_value": 0.22868647333931025
+        },
+        {
+          "name": "goals_numeric_week_5",
+          "value": -0.20046568873563628,
+          "abs_value": 0.20046568873563628
+        },
+        {
+          "name": "teams_this_season_week_1",
+          "value": -0.18841180003535163,
+          "abs_value": 0.18841180003535163
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.17379786761678281,
+          "abs_value": 0.17379786761678281
+        }
+      ],
+      "probability": 0.0015872270711452627
+    },
+    {
+      "reference_date": "2024-04-26",
+      "features": [
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.2895784489042659,
+          "abs_value": 0.2895784489042659
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.2668688565717069,
+          "abs_value": 0.2668688565717069
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.2347921020551426,
+          "abs_value": 0.2347921020551426
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.2262692598136659,
+          "abs_value": 0.2262692598136659
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.20759418531658586,
+          "abs_value": 0.20759418531658586
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.20304814299354884,
+          "abs_value": 0.20304814299354884
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.18397872580467137,
+          "abs_value": 0.18397872580467137
+        },
+        {
+          "name": "injury_frequency_week_4",
+          "value": 0.18208863639055303,
+          "abs_value": 0.18208863639055303
+        },
+        {
+          "name": "upper_leg_injuries",
+          "value": -0.17914047069642816,
+          "abs_value": 0.17914047069642816
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.17839727520875218,
+          "abs_value": 0.17839727520875218
+        }
+      ],
+      "probability": 0.004424142537860575
+    },
+    {
+      "reference_date": "2024-04-27",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.28002963699291694,
+          "abs_value": 0.28002963699291694
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.2749386293582361,
+          "abs_value": 0.2749386293582361
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.2592129605217633,
+          "abs_value": 0.2592129605217633
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.22778673994908774,
+          "abs_value": 0.22778673994908774
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.22143888869698752,
+          "abs_value": 0.22143888869698752
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.21908727337983838,
+          "abs_value": 0.21908727337983838
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.20936290792195827,
+          "abs_value": 0.20936290792195827
+        },
+        {
+          "name": "injury_frequency_week_4",
+          "value": 0.19483485465498454,
+          "abs_value": 0.19483485465498454
+        },
+        {
+          "name": "team_points_week_2",
+          "value": 0.18876444384249474,
+          "abs_value": 0.18876444384249474
+        },
+        {
+          "name": "cum_team_points_week_1",
+          "value": 0.16159307332813538,
+          "abs_value": 0.16159307332813538
+        }
+      ],
+      "probability": 0.006527727508061416
+    },
+    {
+      "reference_date": "2024-04-28",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.28232761458560435,
+          "abs_value": 0.28232761458560435
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.26678124412241705,
+          "abs_value": 0.26678124412241705
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.26093164434018357,
+          "abs_value": 0.26093164434018357
+        },
+        {
+          "name": "team_points_week_2",
+          "value": 0.2402506458842232,
+          "abs_value": 0.2402506458842232
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.222253458427523,
+          "abs_value": 0.222253458427523
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.2190454834767284,
+          "abs_value": 0.2190454834767284
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.2183415296355275,
+          "abs_value": 0.2183415296355275
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.2159213422388508,
+          "abs_value": 0.2159213422388508
+        },
+        {
+          "name": "injury_frequency_week_4",
+          "value": 0.1960162137700563,
+          "abs_value": 0.1960162137700563
+        },
+        {
+          "name": "injury_frequency_week_3",
+          "value": 0.19011525453183387,
+          "abs_value": 0.19011525453183387
+        }
+      ],
+      "probability": 0.006633569877670062
+    },
+    {
+      "reference_date": "2024-04-29",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.29934813271303207,
+          "abs_value": 0.29934813271303207
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.2876280384700877,
+          "abs_value": 0.2876280384700877
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.2639157742170249,
+          "abs_value": 0.2639157742170249
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.23423732079596607,
+          "abs_value": 0.23423732079596607
+        },
+        {
+          "name": "team_points_week_2",
+          "value": 0.22961872409795364,
+          "abs_value": 0.22961872409795364
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.22144130084614086,
+          "abs_value": 0.22144130084614086
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.22065097466796277,
+          "abs_value": 0.22065097466796277
+        },
+        {
+          "name": "injury_frequency_week_3",
+          "value": 0.2174853052750849,
+          "abs_value": 0.2174853052750849
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.21735220317231047,
+          "abs_value": 0.21735220317231047
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.18508202291703987,
+          "abs_value": 0.18508202291703987
+        }
+      ],
+      "probability": 0.009791990634186854
+    },
+    {
+      "reference_date": "2024-04-30",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.25623297669280326,
+          "abs_value": 0.25623297669280326
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.2381181129115476,
+          "abs_value": 0.2381181129115476
+        },
+        {
+          "name": "cum_team_wins_week_3",
+          "value": 0.22731066508782605,
+          "abs_value": 0.22731066508782605
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.22416449828585439,
+          "abs_value": 0.22416449828585439
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.218800865375441,
+          "abs_value": 0.218800865375441
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.21179429640162659,
+          "abs_value": 0.21179429640162659
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.18663483897113528,
+          "abs_value": 0.18663483897113528
+        },
+        {
+          "name": "substitution_minutes_played_week_2",
+          "value": -0.18522120880963397,
+          "abs_value": 0.18522120880963397
+        },
+        {
+          "name": "injury_frequency_week_3",
+          "value": 0.1665632190500646,
+          "abs_value": 0.1665632190500646
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.16465718775756505,
+          "abs_value": 0.16465718775756505
+        }
+      ],
+      "probability": 0.0024121147444281462
+    },
+    {
+      "reference_date": "2024-05-01",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.30868655229463304,
+          "abs_value": 0.30868655229463304
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.29296469743029013,
+          "abs_value": 0.29296469743029013
+        },
+        {
+          "name": "substitution_minutes_played_week_2",
+          "value": -0.24342605803707482,
+          "abs_value": 0.24342605803707482
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.22618333415153039,
+          "abs_value": 0.22618333415153039
+        },
+        {
+          "name": "national_team_intensity_week_4",
+          "value": 0.2126276896414455,
+          "abs_value": 0.2126276896414455
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.1993346792198319,
+          "abs_value": 0.1993346792198319
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.18862306640895457,
+          "abs_value": 0.18862306640895457
+        },
+        {
+          "name": "month_week_2",
+          "value": 0.18649348646384578,
+          "abs_value": 0.18649348646384578
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.18331516175442725,
+          "abs_value": 0.18331516175442725
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.17814542132554684,
+          "abs_value": 0.17814542132554684
+        }
+      ],
+      "probability": 0.007568648013717176
+    },
+    {
+      "reference_date": "2024-05-02",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.29145028528675976,
+          "abs_value": 0.29145028528675976
+        },
+        {
+          "name": "substitution_minutes_played_week_2",
+          "value": -0.24557140800333943,
+          "abs_value": 0.24557140800333943
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.23642252495915045,
+          "abs_value": 0.23642252495915045
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.22506803491422567,
+          "abs_value": 0.22506803491422567
+        },
+        {
+          "name": "national_team_intensity_week_4",
+          "value": 0.21089965002006875,
+          "abs_value": 0.21089965002006875
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.19956952368643202,
+          "abs_value": 0.19956952368643202
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.1892056892507971,
+          "abs_value": 0.1892056892507971
+        },
+        {
+          "name": "month_week_2",
+          "value": 0.18673708928156318,
+          "abs_value": 0.18673708928156318
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.17981080226144028,
+          "abs_value": 0.17981080226144028
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.17859968633188228,
+          "abs_value": 0.17859968633188228
+        }
+      ],
+      "probability": 0.004212656810300138
+    },
+    {
+      "reference_date": "2024-05-03",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3049249526374033,
+          "abs_value": 0.3049249526374033
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.26770893299200643,
+          "abs_value": 0.26770893299200643
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.23785990600697943,
+          "abs_value": 0.23785990600697943
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.21769774739453815,
+          "abs_value": 0.21769774739453815
+        },
+        {
+          "name": "injury_frequency_week_3",
+          "value": 0.1901266299168745,
+          "abs_value": 0.1901266299168745
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.1863254363100604,
+          "abs_value": 0.1863254363100604
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.18630830642924753,
+          "abs_value": 0.18630830642924753
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.17500587389678646,
+          "abs_value": 0.17500587389678646
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.1698318445690143,
+          "abs_value": 0.1698318445690143
+        },
+        {
+          "name": "month_week_2",
+          "value": 0.16529278437538175,
+          "abs_value": 0.16529278437538175
+        }
+      ],
+      "probability": 0.0551662918781951
+    },
+    {
+      "reference_date": "2024-05-04",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.31416913982290734,
+          "abs_value": 0.31416913982290734
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.2212777521161883,
+          "abs_value": 0.2212777521161883
+        },
+        {
+          "name": "goals_numeric_week_5",
+          "value": -0.21185943762869455,
+          "abs_value": 0.21185943762869455
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.19960863107439175,
+          "abs_value": 0.19960863107439175
+        },
+        {
+          "name": "national_team_intensity_week_4",
+          "value": 0.19889066567261715,
+          "abs_value": 0.19889066567261715
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.1917407456871367,
+          "abs_value": 0.1917407456871367
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.19066362256317718,
+          "abs_value": 0.19066362256317718
+        },
+        {
+          "name": "club_minutes_per_match_week_1",
+          "value": -0.1875217400409748,
+          "abs_value": 0.1875217400409748
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.1848599727919396,
+          "abs_value": 0.1848599727919396
+        },
+        {
+          "name": "international_competitions",
+          "value": 0.17718390361366976,
+          "abs_value": 0.17718390361366976
+        }
+      ],
+      "probability": 0.021515002454359274
+    },
+    {
+      "reference_date": "2024-05-05",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3150782921193226,
+          "abs_value": 0.3150782921193226
+        },
+        {
+          "name": "goals_numeric_week_5",
+          "value": -0.2207020105816527,
+          "abs_value": 0.2207020105816527
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.2153764898836754,
+          "abs_value": 0.2153764898836754
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.20096622992031382,
+          "abs_value": 0.20096622992031382
+        },
+        {
+          "name": "national_team_intensity_week_4",
+          "value": 0.19649018399875717,
+          "abs_value": 0.19649018399875717
+        },
+        {
+          "name": "club_minutes_per_match_week_1",
+          "value": -0.1889955261491747,
+          "abs_value": 0.1889955261491747
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.18651914521763635,
+          "abs_value": 0.18651914521763635
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.1865123432306955,
+          "abs_value": 0.1865123432306955
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.17288125549490482,
+          "abs_value": 0.17288125549490482
+        },
+        {
+          "name": "cum_competitions",
+          "value": 0.1710754335172616,
+          "abs_value": 0.1710754335172616
+        }
+      ],
+      "probability": 0.020045698422489416
+    },
+    {
+      "reference_date": "2024-05-06",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.32586492917229615,
+          "abs_value": 0.32586492917229615
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.24531179957162613,
+          "abs_value": 0.24531179957162613
+        },
+        {
+          "name": "goals_numeric_week_5",
+          "value": -0.22638812112217704,
+          "abs_value": 0.22638812112217704
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.21012606788335517,
+          "abs_value": 0.21012606788335517
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.20384835517257252,
+          "abs_value": 0.20384835517257252
+        },
+        {
+          "name": "cum_competitions",
+          "value": 0.19173376671277456,
+          "abs_value": 0.19173376671277456
+        },
+        {
+          "name": "club_cum_assists",
+          "value": 0.18917024397149976,
+          "abs_value": 0.18917024397149976
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.18705218683227082,
+          "abs_value": 0.18705218683227082
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.17769521200945984,
+          "abs_value": 0.17769521200945984
+        },
+        {
+          "name": "club_minutes_per_match_week_1",
+          "value": -0.1703446235887913,
+          "abs_value": 0.1703446235887913
+        }
+      ],
+      "probability": 0.02222500516062321
+    },
+    {
+      "reference_date": "2024-05-07",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.31730286428484156,
+          "abs_value": 0.31730286428484156
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.25249584810566406,
+          "abs_value": 0.25249584810566406
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.23682216905981288,
+          "abs_value": 0.23682216905981288
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.22741498242576544,
+          "abs_value": 0.22741498242576544
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.21492586144898984,
+          "abs_value": 0.21492586144898984
+        },
+        {
+          "name": "goals_numeric_week_5",
+          "value": -0.2135300562283555,
+          "abs_value": 0.2135300562283555
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.19878578698229515,
+          "abs_value": 0.19878578698229515
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.19657483734767792,
+          "abs_value": 0.19657483734767792
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.1950903204381679,
+          "abs_value": 0.1950903204381679
+        },
+        {
+          "name": "cum_competitions",
+          "value": 0.19130683443717023,
+          "abs_value": 0.19130683443717023
+        }
+      ],
+      "probability": 0.020599385502525776
+    },
+    {
+      "reference_date": "2024-05-08",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.32031290253863587,
+          "abs_value": 0.32031290253863587
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2697258797500082,
+          "abs_value": 0.2697258797500082
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.25713705501279466,
+          "abs_value": 0.25713705501279466
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.23364876035884433,
+          "abs_value": 0.23364876035884433
+        },
+        {
+          "name": "international_competitions",
+          "value": 0.20883001877708718,
+          "abs_value": 0.20883001877708718
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.20749239665538358,
+          "abs_value": 0.20749239665538358
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.20381741643603507,
+          "abs_value": 0.20381741643603507
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.20141375942300185,
+          "abs_value": 0.20141375942300185
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.1952486852939476,
+          "abs_value": 0.1952486852939476
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.19102987349464656,
+          "abs_value": 0.19102987349464656
+        }
+      ],
+      "probability": 0.03403969463028241
+    },
+    {
+      "reference_date": "2024-05-09",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3161769718809184,
+          "abs_value": 0.3161769718809184
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2899826487715971,
+          "abs_value": 0.2899826487715971
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.2591767548723118,
+          "abs_value": 0.2591767548723118
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.2241845310894825,
+          "abs_value": 0.2241845310894825
+        },
+        {
+          "name": "international_competitions",
+          "value": 0.21147535236520568,
+          "abs_value": 0.21147535236520568
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.20237264750259507,
+          "abs_value": 0.20237264750259507
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.19667448927748263,
+          "abs_value": 0.19667448927748263
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.19629349432216872,
+          "abs_value": 0.19629349432216872
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.19610356876416046,
+          "abs_value": 0.19610356876416046
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.19595534834013897,
+          "abs_value": 0.19595534834013897
+        }
+      ],
+      "probability": 0.06495168813853987
+    },
+    {
+      "reference_date": "2024-05-10",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.3027463439285377,
+          "abs_value": 0.3027463439285377
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.29178008312683473,
+          "abs_value": 0.29178008312683473
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.2467244720956303,
+          "abs_value": 0.2467244720956303
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.2356588462318347,
+          "abs_value": 0.2356588462318347
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.22436029400877402,
+          "abs_value": 0.22436029400877402
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.22420159479494767,
+          "abs_value": 0.22420159479494767
+        },
+        {
+          "name": "international_competitions",
+          "value": 0.21013447081268427,
+          "abs_value": 0.21013447081268427
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.20849490970450588,
+          "abs_value": 0.20849490970450588
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.1856738129909706,
+          "abs_value": 0.1856738129909706
+        },
+        {
+          "name": "cum_team_losses_week_4",
+          "value": 0.1835354273579069,
+          "abs_value": 0.1835354273579069
+        }
+      ],
+      "probability": 0.11674203781844843
+    },
+    {
+      "reference_date": "2024-05-11",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.30630840958392525,
+          "abs_value": 0.30630840958392525
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.26145642023699806,
+          "abs_value": 0.26145642023699806
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2521389062560483,
+          "abs_value": 0.2521389062560483
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.22282501464006732,
+          "abs_value": 0.22282501464006732
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.20932176240736675,
+          "abs_value": 0.20932176240736675
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.19883307851221727,
+          "abs_value": 0.19883307851221727
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.1937340232310707,
+          "abs_value": 0.1937340232310707
+        },
+        {
+          "name": "international_competitions",
+          "value": 0.19194952074135796,
+          "abs_value": 0.19194952074135796
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.18988421067125122,
+          "abs_value": 0.18988421067125122
+        },
+        {
+          "name": "national_team_intensity_week_5",
+          "value": 0.17962487572192826,
+          "abs_value": 0.17962487572192826
+        }
+      ],
+      "probability": 0.05157272464037754
+    },
+    {
+      "reference_date": "2024-05-12",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3037894336746942,
+          "abs_value": 0.3037894336746942
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.28162054165025974,
+          "abs_value": 0.28162054165025974
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2608965345462207,
+          "abs_value": 0.2608965345462207
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.225238229625036,
+          "abs_value": 0.225238229625036
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.20946766250010812,
+          "abs_value": 0.20946766250010812
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.19624690230731948,
+          "abs_value": 0.19624690230731948
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.19145075244156187,
+          "abs_value": 0.19145075244156187
+        },
+        {
+          "name": "international_competitions",
+          "value": 0.18858490293614344,
+          "abs_value": 0.18858490293614344
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.18549257058320553,
+          "abs_value": 0.18549257058320553
+        },
+        {
+          "name": "injury_frequency_week_3",
+          "value": 0.1784136776445622,
+          "abs_value": 0.1784136776445622
+        }
+      ],
+      "probability": 0.09603367946534042
+    },
+    {
+      "reference_date": "2024-05-13",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3024578173800394,
+          "abs_value": 0.3024578173800394
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2771828956242843,
+          "abs_value": 0.2771828956242843
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2609991354797477,
+          "abs_value": 0.2609991354797477
+        },
+        {
+          "name": "national_team_intensity_week_5",
+          "value": 0.24303644807744185,
+          "abs_value": 0.24303644807744185
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.22071816165733113,
+          "abs_value": 0.22071816165733113
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.2096044294598348,
+          "abs_value": 0.2096044294598348
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.20041551035744193,
+          "abs_value": 0.20041551035744193
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.19695837827497528,
+          "abs_value": 0.19695837827497528
+        },
+        {
+          "name": "international_competitions",
+          "value": 0.19123154912069,
+          "abs_value": 0.19123154912069
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.18466657098493705,
+          "abs_value": 0.18466657098493705
+        }
+      ],
+      "probability": 0.1228402097990384
+    },
+    {
+      "reference_date": "2024-05-14",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.30303360194400997,
+          "abs_value": 0.30303360194400997
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2776566642221618,
+          "abs_value": 0.2776566642221618
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2721796121408505,
+          "abs_value": 0.2721796121408505
+        },
+        {
+          "name": "national_team_intensity_week_5",
+          "value": 0.24296861100291484,
+          "abs_value": 0.24296861100291484
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.2207428524205517,
+          "abs_value": 0.2207428524205517
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.2091019446282145,
+          "abs_value": 0.2091019446282145
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.200454573493008,
+          "abs_value": 0.200454573493008
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.19694230512914593,
+          "abs_value": 0.19694230512914593
+        },
+        {
+          "name": "international_competitions",
+          "value": 0.1913148446126539,
+          "abs_value": 0.1913148446126539
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.18450473685587604,
+          "abs_value": 0.18450473685587604
+        }
+      ],
+      "probability": 0.1504332194035752
+    },
+    {
+      "reference_date": "2024-05-15",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.29687202922207756,
+          "abs_value": 0.29687202922207756
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.29286777331020347,
+          "abs_value": 0.29286777331020347
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.24602027980845595,
+          "abs_value": 0.24602027980845595
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.24527556714612153,
+          "abs_value": 0.24527556714612153
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.23211074495790146,
+          "abs_value": 0.23211074495790146
+        },
+        {
+          "name": "national_team_intensity_week_5",
+          "value": 0.22682961986779215,
+          "abs_value": 0.22682961986779215
+        },
+        {
+          "name": "injury_frequency_week_3",
+          "value": 0.20847684677679712,
+          "abs_value": 0.20847684677679712
+        },
+        {
+          "name": "international_competitions",
+          "value": 0.19847609851398798,
+          "abs_value": 0.19847609851398798
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.19577001260456744,
+          "abs_value": 0.19577001260456744
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.18465495827391068,
+          "abs_value": 0.18465495827391068
+        }
+      ],
+      "probability": 0.44827604199510157
+    },
+    {
+      "reference_date": "2024-05-16",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3225012097766371,
+          "abs_value": 0.3225012097766371
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.31030336824794413,
+          "abs_value": 0.31030336824794413
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.26446707407683173,
+          "abs_value": 0.26446707407683173
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.24541746401314155,
+          "abs_value": 0.24541746401314155
+        },
+        {
+          "name": "national_team_intensity_week_5",
+          "value": 0.22315103530659028,
+          "abs_value": 0.22315103530659028
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.2087874542900435,
+          "abs_value": 0.2087874542900435
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": -0.20871307874333309,
+          "abs_value": 0.20871307874333309
+        },
+        {
+          "name": "cum_competitions",
+          "value": 0.1919404865624881,
+          "abs_value": 0.1919404865624881
+        },
+        {
+          "name": "club_seniority_x_goals_per_match_week_3",
+          "value": 0.1880978927267595,
+          "abs_value": 0.1880978927267595
+        },
+        {
+          "name": "cum_minutes_played_numeric",
+          "value": 0.18737314155290513,
+          "abs_value": 0.18737314155290513
+        }
+      ],
+      "probability": 0.2439766845089145
+    },
+    {
+      "reference_date": "2024-05-17",
+      "features": [
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.28694292686789985,
+          "abs_value": 0.28694292686789985
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.2817097516500258,
+          "abs_value": 0.2817097516500258
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.2771357763187956,
+          "abs_value": 0.2771357763187956
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.2593419317164316,
+          "abs_value": 0.2593419317164316
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.23611936315153575,
+          "abs_value": 0.23611936315153575
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.23291399461189355,
+          "abs_value": 0.23291399461189355
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.20644698261522837,
+          "abs_value": 0.20644698261522837
+        },
+        {
+          "name": "cum_competitions",
+          "value": 0.1886508492607959,
+          "abs_value": 0.1886508492607959
+        },
+        {
+          "name": "national_team_intensity_week_5",
+          "value": 0.18518299374519462,
+          "abs_value": 0.18518299374519462
+        },
+        {
+          "name": "international_competitions",
+          "value": 0.17876898919187778,
+          "abs_value": 0.17876898919187778
+        }
+      ],
+      "probability": 0.42390849468775393
+    },
+    {
+      "reference_date": "2024-05-18",
+      "features": [
+        {
+          "name": "cum_matches_played",
+          "value": 0.272447336221207,
+          "abs_value": 0.272447336221207
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.2721164608727074,
+          "abs_value": 0.2721164608727074
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.26804202896169826,
+          "abs_value": 0.26804202896169826
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.2665065972128871,
+          "abs_value": 0.2665065972128871
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.2625797303190758,
+          "abs_value": 0.2625797303190758
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.24853073474670398,
+          "abs_value": 0.24853073474670398
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.21505873108898602,
+          "abs_value": 0.21505873108898602
+        },
+        {
+          "name": "international_competitions",
+          "value": 0.20220673877082657,
+          "abs_value": 0.20220673877082657
+        },
+        {
+          "name": "injury_frequency_week_3",
+          "value": 0.20211505848576264,
+          "abs_value": 0.20211505848576264
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.1973468703653379,
+          "abs_value": 0.1973468703653379
+        }
+      ],
+      "probability": 0.8143047132821428
+    },
+    {
+      "reference_date": "2024-05-19",
+      "features": [
+        {
+          "name": "cum_matches_played",
+          "value": 0.2780426226669884,
+          "abs_value": 0.2780426226669884
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.27306782868408797,
+          "abs_value": 0.27306782868408797
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.2718644365953208,
+          "abs_value": 0.2718644365953208
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.27017752790226435,
+          "abs_value": 0.27017752790226435
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.2617268596536944,
+          "abs_value": 0.2617268596536944
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2485061710672832,
+          "abs_value": 0.2485061710672832
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2165819779685369,
+          "abs_value": 0.2165819779685369
+        },
+        {
+          "name": "injury_frequency_week_3",
+          "value": 0.20452557335453564,
+          "abs_value": 0.20452557335453564
+        },
+        {
+          "name": "international_competitions",
+          "value": 0.20239133954529806,
+          "abs_value": 0.20239133954529806
+        },
+        {
+          "name": "national_team_last_season",
+          "value": 0.20007434023361642,
+          "abs_value": 0.20007434023361642
+        }
+      ],
+      "probability": 0.8412380706202217
+    },
+    {
+      "reference_date": "2024-05-20",
+      "features": [
+        {
+          "name": "national_team_intensity_week_2",
+          "value": 0.28705315376461366,
+          "abs_value": 0.28705315376461366
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.2780705976310647,
+          "abs_value": 0.2780705976310647
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.2731548802673092,
+          "abs_value": 0.2731548802673092
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.27113606874016954,
+          "abs_value": 0.27113606874016954
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2702875926195715,
+          "abs_value": 0.2702875926195715
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.2613911322608586,
+          "abs_value": 0.2613911322608586
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.24853499018591016,
+          "abs_value": 0.24853499018591016
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.21745911565583664,
+          "abs_value": 0.21745911565583664
+        },
+        {
+          "name": "injury_frequency_week_3",
+          "value": 0.21097960365392127,
+          "abs_value": 0.21097960365392127
+        },
+        {
+          "name": "international_competitions",
+          "value": 0.20242784281751616,
+          "abs_value": 0.20242784281751616
+        }
+      ],
+      "probability": 0.9432391899721744
+    },
+    {
+      "reference_date": "2024-05-21",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3004735686893325,
+          "abs_value": 0.3004735686893325
+        },
+        {
+          "name": "national_team_intensity_week_2",
+          "value": 0.2871682045465664,
+          "abs_value": 0.2871682045465664
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.2775178299911528,
+          "abs_value": 0.2775178299911528
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.2731704597912442,
+          "abs_value": 0.2731704597912442
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2702341241985591,
+          "abs_value": 0.2702341241985591
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.2614608778775804,
+          "abs_value": 0.2614608778775804
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.24862682450504112,
+          "abs_value": 0.24862682450504112
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.21761458892477153,
+          "abs_value": 0.21761458892477153
+        },
+        {
+          "name": "injury_frequency_week_3",
+          "value": 0.21094191905336587,
+          "abs_value": 0.21094191905336587
+        },
+        {
+          "name": "international_competitions",
+          "value": 0.2051624492978866,
+          "abs_value": 0.2051624492978866
+        }
+      ],
+      "probability": 0.9506027756901101
+    },
+    {
+      "reference_date": "2024-05-22",
+      "features": [
+        {
+          "name": "age_x_career_goals",
+          "value": 0.3771891562553915,
+          "abs_value": 0.3771891562553915
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.35349097665692525,
+          "abs_value": 0.35349097665692525
+        },
+        {
+          "name": "team_points_week_2",
+          "value": 0.3280236958505814,
+          "abs_value": 0.3280236958505814
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.32029799347502896,
+          "abs_value": 0.32029799347502896
+        },
+        {
+          "name": "national_team_intensity_week_2",
+          "value": 0.31243945899456804,
+          "abs_value": 0.31243945899456804
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.28342024257517356,
+          "abs_value": 0.28342024257517356
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.281534427647859,
+          "abs_value": 0.281534427647859
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.27178647336635625,
+          "abs_value": 0.27178647336635625
+        },
+        {
+          "name": "injury_frequency_week_3",
+          "value": 0.26728538541825525,
+          "abs_value": 0.26728538541825525
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2664219684410654,
+          "abs_value": 0.2664219684410654
+        }
+      ],
+      "probability": 0.9990617049553976
+    },
+    {
+      "reference_date": "2024-05-23",
+      "features": [
+        {
+          "name": "team_points_week_2",
+          "value": 0.42957275718290605,
+          "abs_value": 0.42957275718290605
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.37596345157100997,
+          "abs_value": 0.37596345157100997
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.36683840454367234,
+          "abs_value": 0.36683840454367234
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2785928556929868,
+          "abs_value": 0.2785928556929868
+        },
+        {
+          "name": "injury_frequency_week_3",
+          "value": 0.27156637220647056,
+          "abs_value": 0.27156637220647056
+        },
+        {
+          "name": "seasons_count",
+          "value": 0.26918734973927533,
+          "abs_value": 0.26918734973927533
+        },
+        {
+          "name": "national_team_intensity_week_2",
+          "value": 0.2668572639473684,
+          "abs_value": 0.2668572639473684
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2628289678685308,
+          "abs_value": 0.2628289678685308
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.2530791090155617,
+          "abs_value": 0.2530791090155617
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2527523569991344,
+          "abs_value": 0.2527523569991344
+        }
+      ],
+      "probability": 0.9988159454816146
+    },
+    {
+      "reference_date": "2024-05-24",
+      "features": [
+        {
+          "name": "team_points_week_2",
+          "value": 0.39882948309474703,
+          "abs_value": 0.39882948309474703
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.3606245517139772,
+          "abs_value": 0.3606245517139772
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.3474874816889791,
+          "abs_value": 0.3474874816889791
+        },
+        {
+          "name": "national_team_intensity_week_2",
+          "value": 0.32239477705224906,
+          "abs_value": 0.32239477705224906
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.3041598248347145,
+          "abs_value": 0.3041598248347145
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2855926376485265,
+          "abs_value": 0.2855926376485265
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2760944899590486,
+          "abs_value": 0.2760944899590486
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2534542900674431,
+          "abs_value": 0.2534542900674431
+        },
+        {
+          "name": "cum_team_draws_week_4",
+          "value": 0.25235209265815717,
+          "abs_value": 0.25235209265815717
+        },
+        {
+          "name": "injury_frequency_week_3",
+          "value": 0.24648474470849357,
+          "abs_value": 0.24648474470849357
+        }
+      ],
+      "probability": 0.9993267363359428
+    },
+    {
+      "reference_date": "2024-05-25",
+      "features": [
+        {
+          "name": "team_points_week_2",
+          "value": 0.3652028751843451,
+          "abs_value": 0.3652028751843451
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.33540068348484414,
+          "abs_value": 0.33540068348484414
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.3255653818090512,
+          "abs_value": 0.3255653818090512
+        },
+        {
+          "name": "national_team_intensity_week_2",
+          "value": 0.3194141212114198,
+          "abs_value": 0.3194141212114198
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.29904898560335386,
+          "abs_value": 0.29904898560335386
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.28996586740346775,
+          "abs_value": 0.28996586740346775
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2766293274239632,
+          "abs_value": 0.2766293274239632
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2743720743939775,
+          "abs_value": 0.2743720743939775
+        },
+        {
+          "name": "injury_frequency_week_3",
+          "value": 0.2701145893707096,
+          "abs_value": 0.2701145893707096
+        },
+        {
+          "name": "cum_team_draws_week_4",
+          "value": 0.2504626910804079,
+          "abs_value": 0.2504626910804079
+        }
+      ],
+      "probability": 0.9995426437098572
+    },
+    {
+      "reference_date": "2024-05-26",
+      "features": [
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.336463253782145,
+          "abs_value": 0.336463253782145
+        },
+        {
+          "name": "team_points_week_2",
+          "value": 0.3310580900287675,
+          "abs_value": 0.3310580900287675
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.32449898384501313,
+          "abs_value": 0.32449898384501313
+        },
+        {
+          "name": "national_team_intensity_week_2",
+          "value": 0.317032184896895,
+          "abs_value": 0.317032184896895
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.2906822950121859,
+          "abs_value": 0.2906822950121859
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.27822592591311074,
+          "abs_value": 0.27822592591311074
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.2780125427855616,
+          "abs_value": 0.2780125427855616
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.2765304532867256,
+          "abs_value": 0.2765304532867256
+        },
+        {
+          "name": "injury_frequency_week_3",
+          "value": 0.26877558123432244,
+          "abs_value": 0.26877558123432244
+        },
+        {
+          "name": "cum_team_draws_week_4",
+          "value": 0.25267548286607333,
+          "abs_value": 0.25267548286607333
+        }
+      ],
+      "probability": 0.9991719272692898
+    },
+    {
+      "reference_date": "2024-05-27",
+      "features": [
+        {
+          "name": "days_since_last_injury_week_5",
+          "value": -2.1031537213344658,
+          "abs_value": 2.1031537213344658
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 1.05538033926353,
+          "abs_value": 1.05538033926353
+        },
+        {
+          "name": "early_substitution_off_count_week_5",
+          "value": 0.6113539070135033,
+          "abs_value": 0.6113539070135033
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.46483836788168253,
+          "abs_value": 0.46483836788168253
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.3651300732869916,
+          "abs_value": 0.3651300732869916
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.31498124990066617,
+          "abs_value": 0.31498124990066617
+        },
+        {
+          "name": "national_team_intensity_week_5",
+          "value": 0.31196099826111207,
+          "abs_value": 0.31196099826111207
+        },
+        {
+          "name": "age_x_career_goals",
+          "value": 0.3005661799294279,
+          "abs_value": 0.3005661799294279
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2961881807301965,
+          "abs_value": 0.2961881807301965
+        },
+        {
+          "name": "club_minutes_per_match_week_2",
+          "value": 0.28429036393716195,
+          "abs_value": 0.28429036393716195
+        }
+      ],
+      "probability": 0.9999886663225188
+    },
+    {
+      "reference_date": "2024-05-28",
+      "features": [
+        {
+          "name": "days_since_last_injury_week_5",
+          "value": -2.0890339068808155,
+          "abs_value": 2.0890339068808155
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 1.023282530815683,
+          "abs_value": 1.023282530815683
+        },
+        {
+          "name": "early_substitution_off_count_week_5",
+          "value": 0.5396070547540727,
+          "abs_value": 0.5396070547540727
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.45081996374434474,
+          "abs_value": 0.45081996374434474
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.35584817521184714,
+          "abs_value": 0.35584817521184714
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.31748451127737515,
+          "abs_value": 0.31748451127737515
+        },
+        {
+          "name": "national_team_intensity_week_5",
+          "value": 0.30744236119692026,
+          "abs_value": 0.30744236119692026
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.2978689429930055,
+          "abs_value": 0.2978689429930055
+        },
+        {
+          "name": "club_minutes_per_match_week_2",
+          "value": 0.28628861120532745,
+          "abs_value": 0.28628861120532745
+        },
+        {
+          "name": "career_matches",
+          "value": 0.2833451815062884,
+          "abs_value": 0.2833451815062884
+        }
+      ],
+      "probability": 0.9999839096358671
+    },
+    {
+      "reference_date": "2024-05-29",
+      "features": [
+        {
+          "name": "days_since_last_injury_week_5",
+          "value": -2.1362659682650493,
+          "abs_value": 2.1362659682650493
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 1.1609052995529878,
+          "abs_value": 1.1609052995529878
+        },
+        {
+          "name": "early_substitution_off_count_week_5",
+          "value": 0.5907857440530903,
+          "abs_value": 0.5907857440530903
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.43896089715854164,
+          "abs_value": 0.43896089715854164
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.370120410155497,
+          "abs_value": 0.370120410155497
+        },
+        {
+          "name": "minutes_played_numeric_week_5",
+          "value": 0.31722306294374025,
+          "abs_value": 0.31722306294374025
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.29172480204166495,
+          "abs_value": 0.29172480204166495
+        },
+        {
+          "name": "career_matches",
+          "value": 0.2812258533729097,
+          "abs_value": 0.2812258533729097
+        },
+        {
+          "name": "club_minutes_per_match_week_2",
+          "value": 0.2754256881220945,
+          "abs_value": 0.2754256881220945
+        },
+        {
+          "name": "injury_frequency_week_1",
+          "value": 0.27044693373876777,
+          "abs_value": 0.27044693373876777
+        }
+      ],
+      "probability": 0.9998784275574967
+    },
+    {
+      "reference_date": "2024-05-30",
+      "features": [
+        {
+          "name": "days_since_last_injury_week_5",
+          "value": -2.1595756201791487,
+          "abs_value": 2.1595756201791487
+        },
+        {
+          "name": "substitution_mood_indicator_week_5",
+          "value": 1.0754226026231462,
+          "abs_value": 1.0754226026231462
+        },
+        {
+          "name": "early_substitution_off_count_week_5",
+          "value": 0.44374953341315915,
+          "abs_value": 0.44374953341315915
+        },
+        {
+          "name": "days_since_last_match_week_5",
+          "value": 0.41555489431150067,
+          "abs_value": 0.41555489431150067
+        },
+        {
+          "name": "injury_frequency_week_5",
+          "value": 0.3255721166274654,
+          "abs_value": 0.3255721166274654
+        },
+        {
+          "name": "cum_matches_played",
+          "value": 0.31363296808799723,
+          "abs_value": 0.31363296808799723
+        },
+        {
+          "name": "career_matches",
+          "value": 0.3061484846453688,
+          "abs_value": 0.3061484846453688
+        },
+        {
+          "name": "club_minutes_per_match_week_2",
+          "value": 0.2882320741624417,
+          "abs_value": 0.2882320741624417
+        },
+        {
+          "name": "cum_team_losses_week_5",
+          "value": 0.2867763765560787,
+          "abs_value": 0.2867763765560787
+        },
+        {
+          "name": "substitution_off_count_week_5",
+          "value": 0.28347360140723427,
+          "abs_value": 0.28347360140723427
+        }
+      ],
+      "probability": 0.9997571374609033
+    }
+  ]
+}
