@@ -1,0 +1,63 @@
+{
+  "train": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "roc_auc": 1.0,
+    "gini": 1.0,
+    "confusion_matrix": {
+      "tn": 28424,
+      "fp": 0,
+      "fn": 0,
+      "tp": 5016
+    }
+  },
+  "validation_insample": {
+    "accuracy": 0.9930622009569378,
+    "precision": 0.9846029173419774,
+    "recall": 0.9688995215311005,
+    "f1": 0.9766881028938906,
+    "roc_auc": 0.9996980111153456,
+    "gini": 0.9993960222306912,
+    "confusion_matrix": {
+      "tn": 7087,
+      "fp": 19,
+      "fn": 39,
+      "tp": 1215
+    }
+  },
+  "validation_outsample": {
+    "accuracy": 0.847307430129516,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "roc_auc": 0.6779835240941897,
+    "gini": 0.35596704818837943,
+    "confusion_matrix": {
+      "tn": 1243,
+      "fp": 4,
+      "fn": 220,
+      "tp": 0
+    }
+  },
+  "gaps_insample": {
+    "accuracy": 0.006937799043062243,
+    "precision": 0.015397082658022643,
+    "recall": 0.031100478468899517,
+    "f1": 0.02331189710610937,
+    "roc_auc": 0.00030198888465438056,
+    "gini": 0.0006039777693087611
+  },
+  "gaps_outsample": {
+    "accuracy": 0.15269256987048396,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "roc_auc": 0.3220164759058103,
+    "gini": 0.6440329518116206
+  },
+  "overfitting_risk_insample": "LOW",
+  "auc_gap_insample": 0.00030198888465438056,
+  "auc_gap_outsample": 0.3220164759058103
+}

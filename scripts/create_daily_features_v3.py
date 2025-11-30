@@ -8,6 +8,7 @@ Based on V2 with enhancements and new dataset support
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+from pathlib import Path
 import os
 import pickle
 import logging
@@ -151,22 +152,36 @@ def load_data_with_cache() -> Dict[str, pd.DataFrame]:
     return data
 
 def preprocess_data_optimized(players, injuries, matches):
-    """Optimized data preprocessing with vectorized operations"""
+    """Optimized data preprocessing with vectorized operations
+    
+    Returns:
+        Tuple of (players, physio_injuries, non_physio_injuries, matches)
+        - physio_injuries: Used for target calculation (no_physio_injury is null/NaN)
+        - non_physio_injuries: Used for feature generation (no_physio_injury = 1)
+    """
     print("🔧 Preprocessing data...")
     
     # Filter goalkeepers (vectorized)
     players = players[players['position'] != 'Goalkeeper'].copy()
     
-    # Filter injuries (vectorized)
-    injuries = injuries[injuries['no_physio_injury'].isna()].copy()
+    # Separate physio injuries (target) from non-physio injuries (features)
+    # Physio injuries: no_physio_injury is null/NaN (used for target)
+    # Non-physio injuries: no_physio_injury = 1 (used for features)
+    physio_injuries = injuries[injuries['no_physio_injury'].isna()].copy()
+    non_physio_injuries = injuries[injuries['no_physio_injury'] == 1].copy()
     
-    # Convert dates (vectorized)
+    print(f"   Physio injuries (target): {len(physio_injuries)}")
+    print(f"   Non-physio injuries (features): {len(non_physio_injuries)}")
+    
+    # Convert dates (vectorized) for both injury types
     date_columns = ['fromDate', 'untilDate']
     for col in date_columns:
-        injuries[col] = pd.to_datetime(injuries[col])
+        physio_injuries[col] = pd.to_datetime(physio_injuries[col])
+        non_physio_injuries[col] = pd.to_datetime(non_physio_injuries[col])
     
     # Add duration_days (vectorized)
-    injuries['duration_days'] = (injuries['untilDate'] - injuries['fromDate']).dt.days
+    physio_injuries['duration_days'] = (physio_injuries['untilDate'] - physio_injuries['fromDate']).dt.days
+    non_physio_injuries['duration_days'] = (non_physio_injuries['untilDate'] - non_physio_injuries['fromDate']).dt.days
     
     # Preprocess matches (vectorized)
     matches['date'] = pd.to_datetime(matches['date'])
@@ -240,7 +255,7 @@ def preprocess_data_optimized(players, injuries, matches):
     # ENHANCED: Add disciplinary action detection using benfica-parity logic
     matches['disciplinary_action'] = matches.apply(detect_disciplinary_action_benfica_parity, axis=1)
     
-    # ENHANCED: Add injury severity mapping
+    # ENHANCED: Add injury severity mapping (for both physio and non-physio)
     def map_injury_severity(injury_type):
         """Map injury types to severity scores (1-5)"""
         if pd.isna(injury_type):
@@ -268,7 +283,8 @@ def preprocess_data_optimized(players, injuries, matches):
         else:
             return 1
     
-    injuries['injury_severity'] = injuries['injury_type'].apply(map_injury_severity)
+    physio_injuries['injury_severity'] = physio_injuries['injury_type'].apply(map_injury_severity)
+    non_physio_injuries['injury_severity'] = non_physio_injuries['injury_type'].apply(map_injury_severity)
     
     # ENHANCED: Add injury body part categorization
     def categorize_body_part(injury_type):
@@ -364,7 +380,8 @@ def preprocess_data_optimized(players, injuries, matches):
         else:
             return 'other'
     
-    injuries['body_part_category'] = injuries['injury_type'].apply(categorize_body_part)
+    physio_injuries['body_part_category'] = physio_injuries['injury_type'].apply(categorize_body_part)
+    non_physio_injuries['body_part_category'] = non_physio_injuries['injury_type'].apply(categorize_body_part)
     
     # Map column names to match expected format
     players = players.rename(columns={
@@ -376,9 +393,10 @@ def preprocess_data_optimized(players, injuries, matches):
     players['previous_club_country'] = None
     
     print(f"Players after excluding goalkeepers: {players.shape}")
-    print(f"Injuries after filtering (no_physio_injury = null): {injuries.shape}")
+    print(f"Physio injuries (target): {physio_injuries.shape}")
+    print(f"Non-physio injuries (features): {non_physio_injuries.shape}")
     
-    return players, injuries, matches
+    return players, physio_injuries, non_physio_injuries, matches
 
 def preprocess_career_data(career: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
     """Standardize players career dataset for previous club lookups."""
@@ -1673,8 +1691,172 @@ def build_daily_match_series_optimized(
     
     return out
 
-def build_daily_injury_series_optimized(injuries, calendar):
-    """Enhanced daily injury series building with complete feature set"""
+def build_daily_non_physio_injury_features(non_physio_injuries, calendar):
+    """Build features from non-physio injuries (signals and fragility indicators)
+    
+    Args:
+        non_physio_injuries: DataFrame with non-physio injuries (no_physio_injury = 1)
+        calendar: Full calendar for generating daily features
+        
+    Returns:
+        DataFrame with non-physio injury features
+    """
+    n_days = len(calendar)
+    
+    # Initialize feature arrays
+    # Signal features (Competitive pace recovery, Effort management, Muscle fatigue)
+    competitive_pace_recovery_count = [0] * n_days
+    effort_management_count = [0] * n_days
+    muscle_fatigue_count = [0] * n_days
+    days_since_last_signal = [999] * n_days
+    
+    # Fragility features (operations, interventions, flus, COVID-19, sick)
+    operation_count = [0] * n_days
+    intervention_count = [0] * n_days
+    flu_count = [0] * n_days
+    covid_count = [0] * n_days
+    sick_count = [0] * n_days
+    days_since_last_fragility = [999] * n_days
+    fragility_recovery_days = [0] * n_days  # Days in recovery from fragility events
+    
+    if non_physio_injuries.empty:
+        return pd.DataFrame({
+            'competitive_pace_recovery_count': competitive_pace_recovery_count,
+            'effort_management_count': effort_management_count,
+            'muscle_fatigue_count': muscle_fatigue_count,
+            'days_since_last_signal': days_since_last_signal,
+            'operation_count': operation_count,
+            'intervention_count': intervention_count,
+            'flu_count': flu_count,
+            'covid_count': covid_count,
+            'sick_count': sick_count,
+            'days_since_last_fragility': days_since_last_fragility,
+            'fragility_recovery_days': fragility_recovery_days
+        }, index=calendar)
+    
+    # Helper function to categorize injury type
+    def categorize_non_physio_injury(injury_type):
+        """Categorize non-physio injury into signal or fragility type"""
+        if pd.isna(injury_type):
+            return None
+        
+        injury_lower = str(injury_type).lower()
+        
+        # Signal types
+        if 'competitive pace recovery' in injury_lower or 'pace recovery' in injury_lower:
+            return 'signal_competitive_pace'
+        elif 'effort management' in injury_lower:
+            return 'signal_effort_management'
+        elif 'muscle fatigue' in injury_lower:
+            return 'signal_muscle_fatigue'
+        
+        # Fragility types
+        elif any(term in injury_lower for term in ['operation', 'surgery', 'surgical', 'operated']):
+            return 'fragility_operation'
+        elif any(term in injury_lower for term in ['intervention', 'procedure', 'medical intervention']):
+            return 'fragility_intervention'
+        elif any(term in injury_lower for term in ['flu', 'influenza']):
+            return 'fragility_flu'
+        elif any(term in injury_lower for term in ['covid', 'covid-19', 'coronavirus', 'sars-cov']):
+            return 'fragility_covid'
+        elif any(term in injury_lower for term in ['sick', 'sickness', 'illness']):
+            return 'fragility_sick'
+        
+        return None
+    
+    # Process each day
+    last_signal_idx = None
+    last_fragility_idx = None
+    
+    for i, date in enumerate(calendar):
+        # Count cumulative signals up to this date
+        past_injuries = non_physio_injuries[non_physio_injuries['fromDate'] <= date]
+        
+        for _, injury in past_injuries.iterrows():
+            if pd.isna(injury['fromDate']):
+                continue
+            
+            injury_type_cat = categorize_non_physio_injury(injury.get('injury_type'))
+            
+            if injury_type_cat == 'signal_competitive_pace':
+                competitive_pace_recovery_count[i] += 1
+                if injury['fromDate'] == date:
+                    last_signal_idx = i
+            elif injury_type_cat == 'signal_effort_management':
+                effort_management_count[i] += 1
+                if injury['fromDate'] == date:
+                    last_signal_idx = i
+            elif injury_type_cat == 'signal_muscle_fatigue':
+                muscle_fatigue_count[i] += 1
+                if injury['fromDate'] == date:
+                    last_signal_idx = i
+            elif injury_type_cat == 'fragility_operation':
+                operation_count[i] += 1
+                if injury['fromDate'] == date:
+                    last_fragility_idx = i
+            elif injury_type_cat == 'fragility_intervention':
+                intervention_count[i] += 1
+                if injury['fromDate'] == date:
+                    last_fragility_idx = i
+            elif injury_type_cat == 'fragility_flu':
+                flu_count[i] += 1
+                if injury['fromDate'] == date:
+                    last_fragility_idx = i
+            elif injury_type_cat == 'fragility_covid':
+                covid_count[i] += 1
+                if injury['fromDate'] == date:
+                    last_fragility_idx = i
+            elif injury_type_cat == 'fragility_sick':
+                sick_count[i] += 1
+                if injury['fromDate'] == date:
+                    last_fragility_idx = i
+        
+        # Calculate days since last signal
+        if last_signal_idx is not None:
+            days_since_last_signal[i] = i - last_signal_idx
+        
+        # Calculate days since last fragility
+        if last_fragility_idx is not None:
+            days_since_last_fragility[i] = i - last_fragility_idx
+        
+        # Calculate fragility recovery days (days within fragility event periods)
+        fragility_recovery_days[i] = 0
+        for _, injury in past_injuries.iterrows():
+            if pd.isna(injury['fromDate']):
+                continue
+            
+            injury_type_cat = categorize_non_physio_injury(injury.get('injury_type'))
+            if injury_type_cat and injury_type_cat.startswith('fragility_'):
+                start_date = injury['fromDate'].normalize()
+                end_date = injury['untilDate'].normalize() if pd.notna(injury.get('untilDate')) else start_date + pd.Timedelta(days=30)
+                
+                if start_date <= date <= end_date:
+                    fragility_recovery_days[i] += (min(date, end_date) - start_date).days + 1
+    
+    return pd.DataFrame({
+        'competitive_pace_recovery_count': competitive_pace_recovery_count,
+        'effort_management_count': effort_management_count,
+        'muscle_fatigue_count': muscle_fatigue_count,
+        'days_since_last_signal': days_since_last_signal,
+        'operation_count': operation_count,
+        'intervention_count': intervention_count,
+        'flu_count': flu_count,
+        'covid_count': covid_count,
+        'sick_count': sick_count,
+        'days_since_last_fragility': days_since_last_fragility,
+        'fragility_recovery_days': fragility_recovery_days
+    }, index=calendar)
+
+def build_daily_injury_series_optimized(injuries, calendar, career_calendar=None):
+    """Enhanced daily injury series building with complete feature set
+    
+    Args:
+        injuries: DataFrame with player injuries
+        calendar: Full calendar for generating daily features (may extend beyond career end)
+        career_calendar: Optional career calendar (start to career end) for injury_frequency calculation.
+                       If provided, used to match training logic where injury_frequency was based on
+                       full career period, not extended calendar.
+    """
     if injuries.empty:
         # Return empty DataFrame with correct structure
         n_days = len(calendar)
@@ -1778,13 +1960,22 @@ def build_daily_injury_series_optimized(injuries, calendar):
     
     daily['avg_injury_duration'] = avg_duration
     
-    # Calculate injury frequency (injuries per year)
-    total_injuries = len(injuries)
-    if total_injuries > 0 and len(calendar) > 0:
-        years_span = len(calendar) / 365.25
-        injury_frequency = total_injuries / years_span
-    else:
-        injury_frequency = 0.0
+    # Calculate injury frequency (injuries per year) - FIXED: Calculate up to each reference date
+    # Previously calculated using full career period, now calculates up to each date
+    injury_frequency = [0.0] * len(calendar)
+    for i, date in enumerate(calendar):
+        # Count injuries up to this date
+        past_injuries = injuries[injuries['fromDate'] <= date]
+        if len(past_injuries) > 0:
+            # Calculate years from start to this date
+            days_span = (date - calendar[0]).days + 1  # +1 to include both start and end dates
+            years_span = days_span / 365.25
+            if years_span > 0:
+                injury_frequency[i] = len(past_injuries) / years_span
+            else:
+                injury_frequency[i] = 0.0
+        else:
+            injury_frequency[i] = 0.0
     
     daily['injury_frequency'] = injury_frequency
     
@@ -1832,7 +2023,8 @@ def generate_daily_features_for_player_enhanced(
     player_id: int, 
     player_row: pd.Series, 
     player_matches: pd.DataFrame, 
-    player_injuries: pd.DataFrame,
+    player_physio_injuries: pd.DataFrame,
+    player_non_physio_injuries: pd.DataFrame,
     player_career: Optional[pd.DataFrame] = None,
     global_end_date_cap: Optional[pd.Timestamp] = None
 ) -> pd.DataFrame:
@@ -1860,8 +2052,11 @@ def generate_daily_features_for_player_enhanced(
     if not isinstance(player_matches, pd.DataFrame):
         raise ValueError(f"Player {player_id}: player_matches must be a DataFrame")
     
-    if not isinstance(player_injuries, pd.DataFrame):
-        raise ValueError(f"Player {player_id}: player_injuries must be a DataFrame")
+    if not isinstance(player_physio_injuries, pd.DataFrame):
+        raise ValueError(f"Player {player_id}: player_physio_injuries must be a DataFrame")
+    
+    if not isinstance(player_non_physio_injuries, pd.DataFrame):
+        raise ValueError(f"Player {player_id}: player_non_physio_injuries must be a DataFrame")
     
     if not isinstance(player_career, pd.DataFrame):
         raise ValueError(f"Player {player_id}: player_career must be a DataFrame")
@@ -1879,9 +2074,10 @@ def generate_daily_features_for_player_enhanced(
     if not player_matches.empty:
         last_match_date = player_matches['date'].max()
         
-        # Check if player has any injuries after their last match
-        if not player_injuries.empty:
-            latest_injury_date = player_injuries['fromDate'].max()
+        # Check if player has any injuries after their last match (check both physio and non-physio)
+        all_injuries = pd.concat([player_physio_injuries, player_non_physio_injuries], ignore_index=True) if not player_physio_injuries.empty or not player_non_physio_injuries.empty else pd.DataFrame()
+        if not all_injuries.empty:
+            latest_injury_date = all_injuries['fromDate'].max()
             
             # If player has injuries after their last match, extend to include those injuries
             if latest_injury_date > last_match_date:
@@ -1916,8 +2112,9 @@ def generate_daily_features_for_player_enhanced(
             print(f"   📅 Player {player_id} calendar respects career end: {end_date}")
     else:
         # If no matches, check if player has injuries to determine end date
-        if not player_injuries.empty:
-            latest_injury_date = player_injuries['fromDate'].max()
+        all_injuries = pd.concat([player_physio_injuries, player_non_physio_injuries], ignore_index=True) if not player_physio_injuries.empty or not player_non_physio_injuries.empty else pd.DataFrame()
+        if not all_injuries.empty:
+            latest_injury_date = all_injuries['fromDate'].max()
             injury_end_year = latest_injury_date.year
             if latest_injury_date.month >= 7:  # If injury is in second half of year
                 injury_end_year = latest_injury_date.year + 1
@@ -1930,17 +2127,32 @@ def generate_daily_features_for_player_enhanced(
     
     start_date = pd.Timestamp(start_date)
     end_date = pd.Timestamp(end_date)
+    
+    # Store career end date BEFORE applying global_end_date_cap
+    # This is the natural career end (last match/injury season end)
+    career_end_date = end_date
 
     if global_end_date_cap is not None:
         cap_date = pd.Timestamp(global_end_date_cap)
         if end_date > cap_date:
             print(f"   ⏱️  Clamping calendar end from {end_date} to {cap_date} (global cap)")
             end_date = cap_date
+        elif end_date < cap_date:
+            print(f"   ⏱️  Extending calendar end from {end_date} to {cap_date} (global cap)")
+            end_date = cap_date
 
     if start_date > end_date:
         print(f"   ⚠️  Start date {start_date} exceeds end date {end_date}. Adjusting to single-day calendar.")
         end_date = start_date
-
+    
+    # Ensure career_end_date is valid (at least >= start_date)
+    if start_date > career_end_date:
+        career_end_date = start_date
+    
+    # Create two calendars:
+    # 1. career_calendar: from start to career end (for injury_frequency calculation to match training)
+    # 2. calendar: from start to end_date (may extend beyond career end to today for generating features)
+    career_calendar = pd.date_range(start=start_date, end=career_end_date, freq='D')
     calendar = pd.date_range(start=start_date, end=end_date, freq='D')
     
     # Build feature series
@@ -1952,11 +2164,12 @@ def generate_daily_features_for_player_enhanced(
         profile_series=profile_series,
         player_career=player_career
     )
-    injury_series = build_daily_injury_series_optimized(player_injuries, calendar)
+    injury_series = build_daily_injury_series_optimized(player_physio_injuries, calendar, career_calendar=career_calendar)
+    non_physio_injury_series = build_daily_non_physio_injury_features(player_non_physio_injuries, calendar)
     interaction_series = build_daily_interaction_features_optimized(profile_series, match_series, injury_series)
     
     # Combine all features
-    daily_features = pd.concat([profile_series, match_series, injury_series, interaction_series], axis=1)
+    daily_features = pd.concat([profile_series, match_series, injury_series, non_physio_injury_series, interaction_series], axis=1)
     
     # Remove duplicate columns
     daily_features = daily_features.loc[:, ~daily_features.columns.duplicated()]
@@ -1993,6 +2206,12 @@ def generate_daily_features_for_player_enhanced(
         'lower_leg_injuries', 'knee_injuries', 'upper_leg_injuries',
         'hip_injuries', 'upper_body_injuries', 'head_injuries',
         'illness_count', 'other_injuries', 'physio_injury_ratio', 'cum_matches_injured',
+        
+        # NON-PHYSIO INJURY FEATURES (11) - Signals and fragility indicators
+        'competitive_pace_recovery_count', 'effort_management_count', 'muscle_fatigue_count',
+        'days_since_last_signal', 'operation_count', 'intervention_count',
+        'flu_count', 'covid_count', 'sick_count', 'days_since_last_fragility',
+        'fragility_recovery_days',
         
         # ENHANCED COMPETITION & SEASON FEATURES (6)
         'competition_importance', 'avg_competition_importance', 'month',
@@ -2051,6 +2270,54 @@ def generate_daily_features_for_player_enhanced(
     daily_features.insert(1, 'date', daily_features.index)
     
     return daily_features
+
+
+def generate_incremental_features_for_player(
+    player_id: int,
+    player_row: pd.Series,
+    player_matches: pd.DataFrame,
+    player_physio_injuries: pd.DataFrame,
+    player_non_physio_injuries: pd.DataFrame,
+    player_career: Optional[pd.DataFrame],
+    existing_file_path: Path,
+    global_end_date_cap: Optional[pd.Timestamp] = None
+) -> Optional[pd.DataFrame]:
+    """
+    Regenerate the full daily features and return only rows beyond the existing file.
+    This guarantees continuity for derived features (e.g., seniority_days).
+    """
+    if not existing_file_path.exists():
+        return None
+    
+    try:
+        existing_df = pd.read_csv(existing_file_path, parse_dates=['date'])
+        if existing_df.empty:
+            return None
+        last_date = pd.to_datetime(existing_df['date'].max())
+    except Exception as e:
+        print(f"   ⚠️  Error reading existing file: {e}")
+        return None
+    
+    full_features = generate_daily_features_for_player_enhanced(
+        player_id=player_id,
+        player_row=player_row,
+        player_matches=player_matches,
+        player_physio_injuries=player_physio_injuries,
+        player_non_physio_injuries=player_non_physio_injuries,
+        player_career=player_career if isinstance(player_career, pd.DataFrame) else pd.DataFrame(),
+        global_end_date_cap=global_end_date_cap,
+    )
+    
+    if full_features is None or full_features.empty:
+        return None
+    
+    full_features['date'] = pd.to_datetime(full_features['date'])
+    new_rows = full_features[full_features['date'] > last_date].copy()
+    if new_rows.empty:
+        return None
+    
+    return new_rows
+
 
 def check_disk_space(output_dir: str, estimated_size_mb: float) -> bool:
     """
@@ -2209,7 +2476,8 @@ def run_preflight_checks(output_dir: str, num_players: int) -> bool:
 def generate_features_for_all_players(
     output_dir: str = 'daily_features_output',
     max_players: Optional[int] = None,
-    random_seed: Optional[int] = None
+    random_seed: Optional[int] = None,
+    force_rebuild: bool = False
 ):
     """
     Generate daily features for players in the dataset.
@@ -2239,7 +2507,7 @@ def generate_features_for_all_players(
     career = preprocess_career_data(data.get('career'))
     
     # Preprocess data
-    players, injuries, matches = preprocess_data_optimized(players, injuries, matches)
+    players, physio_injuries, non_physio_injuries, matches = preprocess_data_optimized(players, injuries, matches)
     
     # Get all non-goalkeeper player IDs
     all_player_ids = players['id'].tolist()
@@ -2291,13 +2559,18 @@ def generate_features_for_all_players(
                 except ValueError:
                     pass
     
-    # Filter out already processed players
-    players_to_process = [pid for pid in selected_player_ids if pid not in existing_files]
-    skipped_count = len(selected_player_ids) - len(players_to_process)
-    
-    if skipped_count > 0:
-        print(f"⏭️  Skipping {skipped_count} already processed player(s)")
-        print(f"🔄 Processing {len(players_to_process)} remaining player(s)")
+    # Filter out already processed players (unless force_rebuild is True)
+    if force_rebuild:
+        print("♻️  Force rebuild mode: Regenerating all daily features files")
+        players_to_process = selected_player_ids
+        skipped_count = 0
+    else:
+        players_to_process = [pid for pid in selected_player_ids if pid not in existing_files]
+        skipped_count = len(selected_player_ids) - len(players_to_process)
+        
+        if skipped_count > 0:
+            print(f"⏭️  Skipping {skipped_count} already processed player(s)")
+            print(f"🔄 Processing {len(players_to_process)} remaining player(s)")
     
     if len(players_to_process) == 0:
         print("✅ All players have already been processed!")
@@ -2327,28 +2600,45 @@ def generate_features_for_all_players(
                 
             player_row = player_filter.iloc[0]
             player_matches = matches[matches['player_id'] == player_id].copy()
-            player_injuries = injuries[injuries['player_id'] == player_id].copy()
+            player_physio_injuries = physio_injuries[physio_injuries['player_id'] == player_id].copy()
+            player_non_physio_injuries = non_physio_injuries[non_physio_injuries['player_id'] == player_id].copy()
             player_career = None
             if career is not None:
                 id_col = 'player_id' if 'player_id' in career.columns else ('id' if 'id' in career.columns else None)
                 if id_col is not None:
                     player_career = career[career[id_col] == player_id].copy()
             
-            # Determine global end date cap (no calendars beyond last real match or today)
+            # Determine global end date cap - cap at Nov 9, 2025 for model training
             global_end_date_cap = None
+            target_end_date = pd.Timestamp('2025-11-09').normalize()
+            
             try:
                 today_cap = pd.Timestamp.today().normalize()
             except Exception:
                 today_cap = pd.Timestamp('today').normalize()
 
-            if matches is not None and not matches.empty:
-                max_match_date = matches['date'].max()
+            if player_matches is not None and not player_matches.empty:
+                max_match_date = player_matches['date'].max()
                 if pd.notna(max_match_date):
-                    global_end_date_cap = min(max_match_date, today_cap)
+                    # Use the minimum of: player's max match date, today, or target end date (Nov 9, 2025)
+                    global_end_date_cap = min(max_match_date, today_cap, target_end_date)
                 else:
-                    global_end_date_cap = today_cap
+                    global_end_date_cap = min(today_cap, target_end_date)
             else:
-                global_end_date_cap = today_cap
+                # No matches - consider player's injuries (physio + non-physio) to determine a reasonable end date
+                all_injuries = pd.concat(
+                    [player_physio_injuries, player_non_physio_injuries],
+                    ignore_index=True
+                ) if not player_physio_injuries.empty or not player_non_physio_injuries.empty else pd.DataFrame()
+
+                if not all_injuries.empty and 'fromDate' in all_injuries.columns:
+                    latest_injury_date = all_injuries['fromDate'].max()
+                    if pd.notna(latest_injury_date):
+                        global_end_date_cap = min(latest_injury_date, today_cap, target_end_date)
+                    else:
+                        global_end_date_cap = min(today_cap, target_end_date)
+                else:
+                    global_end_date_cap = min(today_cap, target_end_date)
 
             print(f"🗓️  Global calendar cap set to: {global_end_date_cap}")
             
@@ -2357,7 +2647,8 @@ def generate_features_for_all_players(
                 player_id,
                 player_row,
                 player_matches,
-                player_injuries,
+                player_physio_injuries,
+                player_non_physio_injuries,
                 player_career,
                 global_end_date_cap=global_end_date_cap
             )
@@ -2380,7 +2671,7 @@ def generate_features_for_all_players(
             
             # Enhanced console output
             pbar.write(f"✅ Player {player_id}: {daily_features.shape[0]} days, {daily_features.shape[1]} features")
-            pbar.write(f"   📊 Matches: {len(player_matches)}, Injuries: {len(player_injuries)}")
+            pbar.write(f"   📊 Matches: {len(player_matches)}, Physio Injuries: {len(player_physio_injuries)}, Non-Physio Injuries: {len(player_non_physio_injuries)}")
             pbar.write(f"   ⏱️  Time: {player_time:.1f}s | Avg: {avg_time_per_player:.1f}s | ETA: {eta_str}")
             pbar.write(f"   📁 Files generated: {files_generated}/{len(selected_player_ids)}")
             
@@ -2481,6 +2772,12 @@ Examples:
         help='Random seed for player selection (default: 42 when using --test or --max-players)'
     )
     
+    parser.add_argument(
+        '--force-rebuild',
+        action='store_true',
+        help='Force regeneration of all daily features files, even if they already exist'
+    )
+    
     args = parser.parse_args()
     
     # Determine max_players based on arguments
@@ -2495,7 +2792,8 @@ Examples:
     generate_features_for_all_players(
         output_dir=args.output_dir,
         max_players=max_players,
-        random_seed=args.seed
+        random_seed=args.seed,
+        force_rebuild=args.force_rebuild
     )
 
 def clean_club_label(value: Optional[str]) -> Optional[str]:

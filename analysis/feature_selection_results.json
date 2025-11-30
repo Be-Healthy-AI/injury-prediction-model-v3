@@ -1,0 +1,106 @@
+{
+  "correlation_filtered": {
+    "n_features": 1637,
+    "f1_score": 0.35351089588377727
+  },
+  "univariate_chi2_k50": {
+    "n_features": 50,
+    "f1_score": 0.3176178660049628
+  },
+  "univariate_chi2_k100": {
+    "n_features": 100,
+    "f1_score": 0.3423913043478261
+  },
+  "univariate_chi2_k150": {
+    "n_features": 150,
+    "f1_score": 0.2962962962962963
+  },
+  "univariate_chi2_k200": {
+    "n_features": 200,
+    "f1_score": 0.30601092896174864
+  },
+  "univariate_chi2_k300": {
+    "n_features": 300,
+    "f1_score": 0.33727810650887574
+  },
+  "univariate_mutual_info_k50": {
+    "n_features": 50,
+    "f1_score": 0.2780487804878049
+  },
+  "univariate_mutual_info_k100": {
+    "n_features": 100,
+    "f1_score": 0.24169184290030213
+  },
+  "univariate_mutual_info_k150": {
+    "n_features": 150,
+    "f1_score": 0.27647058823529413
+  },
+  "univariate_mutual_info_k200": {
+    "n_features": 200,
+    "f1_score": 0.314540059347181
+  },
+  "univariate_mutual_info_k300": {
+    "n_features": 300,
+    "f1_score": 0.2727272727272727
+  },
+  "univariate_f_test_k50": {
+    "n_features": 50,
+    "f1_score": 0.2872628726287263
+  },
+  "univariate_f_test_k100": {
+    "n_features": 100,
+    "f1_score": 0.239067055393586
+  },
+  "univariate_f_test_k150": {
+    "n_features": 150,
+    "f1_score": 0.17964071856287425
+  },
+  "univariate_f_test_k200": {
+    "n_features": 200,
+    "f1_score": 0.25153374233128833
+  },
+  "univariate_f_test_k300": {
+    "n_features": 300,
+    "f1_score": 0.2565597667638484
+  },
+  "rfe_k50": {
+    "n_features": 50,
+    "f1_score": 0.3526448362720403
+  },
+  "rfe_k100": {
+    "n_features": 100,
+    "f1_score": 0.294478527607362
+  },
+  "rfe_k150": {
+    "n_features": 150,
+    "f1_score": 0.20496894409937888
+  },
+  "rfe_k200": {
+    "n_features": 200,
+    "f1_score": 0.3157894736842105
+  },
+  "rfe_k300": {
+    "n_features": 300,
+    "f1_score": 0.19631901840490798
+  },
+  "tree_importance_k50": {
+    "n_features": 50,
+    "f1_score": 0.31382978723404253
+  },
+  "tree_importance_k100": {
+    "n_features": 100,
+    "f1_score": 0.27586206896551724
+  },
+  "tree_importance_k150": {
+    "n_features": 150,
+    "f1_score": 0.23423423423423423
+  },
+  "tree_importance_k200": {
+    "n_features": 200,
+    "f1_score": 0.19879518072289157
+  },
+  "tree_importance_k300": {
+    "n_features": 300,
+    "f1_score": 0.29608938547486036
+  }
+}

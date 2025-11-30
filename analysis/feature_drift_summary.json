@@ -1,0 +1,167 @@
+{
+  "total_features": 1690,
+  "drift_detected_count": 85,
+  "drift_detected_pct": 5.029585798816568,
+  "severity_breakdown": {
+    "none": 46,
+    "minimal": 31,
+    "mild": 27,
+    "moderate": 14,
+    "severe": 2
+  },
+  "type_breakdown": {
+    "categorical": {
+      "count": 1570,
+      "drift_count": 0,
+      "drift_pct": 0.0
+    },
+    "numeric": {
+      "count": 120,
+      "drift_count": 85,
+      "drift_pct": 70.83333333333334
+    }
+  },
+  "top_drifted_numeric": [
+    {
+      "feature": "teams_this_season_week_5",
+      "drift_severity": "severe",
+      "ks_pvalue": 0.0,
+      "cohens_d": -1.690173974279231,
+      "mean_diff_pct": -70.09071808906538
+    },
+    {
+      "feature": "national_team_this_season_week_5",
+      "drift_severity": "severe",
+      "ks_pvalue": 1.8861881639492914e-248,
+      "cohens_d": -1.0074654271708605,
+      "mean_diff_pct": -89.25415459902818
+    },
+    {
+      "feature": "month_week_5",
+      "drift_severity": "moderate",
+      "ks_pvalue": 0.0,
+      "cohens_d": 0.7788800167428623,
+      "mean_diff_pct": 31.864511222511467
+    },
+    {
+      "feature": "cum_competitions",
+      "drift_severity": "moderate",
+      "ks_pvalue": 4.774247233070103e-135,
+      "cohens_d": 0.7483624548366099,
+      "mean_diff_pct": 38.66712064492992
+    },
+    {
+      "feature": "season_team_diversity_week_5",
+      "drift_severity": "moderate",
+      "ks_pvalue": 3.759523389609268e-244,
+      "cohens_d": 0.7161591177215632,
+      "mean_diff_pct": 30.409117440047595
+    },
+    {
+      "feature": "seasons_count",
+      "drift_severity": "moderate",
+      "ks_pvalue": 5.386579802044857e-103,
+      "cohens_d": 0.664117285474881,
+      "mean_diff_pct": 40.5223978438426
+    },
+    {
+      "feature": "cum_teams",
+      "drift_severity": "moderate",
+      "ks_pvalue": 4.848928332419727e-108,
+      "cohens_d": 0.6373310082193752,
+      "mean_diff_pct": 31.658529911199157
+    },
+    {
+      "feature": "cum_matches_bench",
+      "drift_severity": "moderate",
+      "ks_pvalue": 3.4935543937691654e-96,
+      "cohens_d": 0.6014987563380065,
+      "mean_diff_pct": 56.24516204245688
+    },
+    {
+      "feature": "teams_last_season",
+      "drift_severity": "moderate",
+      "ks_pvalue": 1.3874940054430562e-190,
+      "cohens_d": 0.5942067998111056,
+      "mean_diff_pct": 24.144198628056518
+    },
+    {
+      "feature": "cum_team_losses_week_5",
+      "drift_severity": "moderate",
+      "ks_pvalue": 1.136869800185766e-98,
+      "cohens_d": 0.5700932513648956,
+      "mean_diff_pct": 38.41236989090044
+    },
+    {
+      "feature": "career_matches",
+      "drift_severity": "moderate",
+      "ks_pvalue": 1.2945911767861306e-100,
+      "cohens_d": 0.5493286483656827,
+      "mean_diff_pct": 37.64424708339522
+    },
+    {
+      "feature": "competition_experience",
+      "drift_severity": "moderate",
+      "ks_pvalue": 1.2945911767861306e-100,
+      "cohens_d": 0.5493286483656827,
+      "mean_diff_pct": 37.64424708339522
+    },
+    {
+      "feature": "cum_team_draws_week_5",
+      "drift_severity": "moderate",
+      "ks_pvalue": 6.2944164981409206e-99,
+      "cohens_d": 0.5308643748355815,
+      "mean_diff_pct": 34.78180154790756
+    },
+    {
+      "feature": "cum_team_points_week_5",
+      "drift_severity": "moderate",
+      "ks_pvalue": 1.9274253224414353e-96,
+      "cohens_d": 0.5136011090408379,
+      "mean_diff_pct": 38.02683968193457
+    },
+    {
+      "feature": "cum_team_wins_week_5",
+      "drift_severity": "moderate",
+      "ks_pvalue": 9.194602522544595e-95,
+      "cohens_d": 0.5063627880609116,
+      "mean_diff_pct": 38.47996677802836
+    },
+    {
+      "feature": "cup_competitions",
+      "drift_severity": "moderate",
+      "ks_pvalue": 1.3243423043198977e-123,
+      "cohens_d": 0.5015310398852071,
+      "mean_diff_pct": 39.682653972763234
+    },
+    {
+      "feature": "other_injuries",
+      "drift_severity": "mild",
+      "ks_pvalue": 2.4221569621220433e-63,
+      "cohens_d": 0.4895078411668181,
+      "mean_diff_pct": 122.70936146052571
+    },
+    {
+      "feature": "age_x_career_matches",
+      "drift_severity": "mild",
+      "ks_pvalue": 7.557327031093824e-101,
+      "cohens_d": 0.48939621912737047,
+      "mean_diff_pct": 45.336391053911285
+    },
+    {
+      "feature": "international_competitions",
+      "drift_severity": "mild",
+      "ks_pvalue": 2.145233393112936e-65,
+      "cohens_d": 0.4796386843978738,
+      "mean_diff_pct": 32.891351401536156
+    },
+    {
+      "feature": "days_since_last_fragility",
+      "drift_severity": "mild",
+      "ks_pvalue": 7.716980371096735e-65,
+      "cohens_d": 0.46454526371921223,
+      "mean_diff_pct": 18.333392695209977
+    }
+  ],
+  "top_drifted_categorical": []
+}

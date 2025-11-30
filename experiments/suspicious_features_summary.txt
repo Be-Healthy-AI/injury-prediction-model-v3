@@ -1,0 +1,75 @@
+FEATURES WITH HIGH CORRELATION DRIFT
+================================================================================
+
+RF Model:
+--------------------------------------------------------------------------------
+                      feature  importance  train_corr  val_corr  train_val_diff
+               cum_inj_starts    0.025253    0.225447  0.049796        0.175651
+    national_team_appearances    0.015486    0.160834  0.001002        0.159832
+days_since_last_injury_week_1    0.031695    0.215961  0.059601        0.156360
+                 hip_injuries    0.005442    0.149363  0.001019        0.148344
+   cum_minutes_played_numeric    0.023719    0.163418  0.018702        0.144716
+             cum_competitions    0.019783    0.188139  0.050752        0.137386
+     cum_disciplinary_actions    0.009826    0.118430  0.004522        0.113908
+          upper_body_injuries    0.002918    0.124578  0.013894        0.110684
+             cup_competitions    0.008501    0.138781  0.032273        0.106509
+        cum_red_cards_numeric    0.004159    0.112644  0.007349        0.105295
+             club_cum_minutes    0.013098    0.114571  0.014339        0.100231
+                knee_injuries    0.004487    0.129754  0.031041        0.098713
+          max_injury_severity    0.004651    0.137265  0.038834        0.098431
+            cum_matches_bench    0.015552    0.130266  0.036076        0.094190
+        competition_frequency    0.016316    0.102566  0.008535        0.094031
+        competition_diversity    0.013785    0.100792  0.007743        0.093049
+          current_club_Bayern    0.000538    0.100208  0.007663        0.092546
+             club_cum_assists    0.008513    0.105667  0.029674        0.075993
+     cum_matches_not_selected    0.014971    0.106783  0.031775        0.075007
+   physio_injury_ratio_week_1    0.008755    0.129278  0.056303        0.072975
+
+GB Model:
+--------------------------------------------------------------------------------
+                      feature  importance  train_corr  val_corr  train_val_diff
+               cum_inj_starts    0.012229    0.225447  0.049796        0.175651
+    national_team_appearances    0.013230    0.160834  0.001002        0.159832
+days_since_last_injury_week_1    0.026337    0.215961  0.059601        0.156360
+                 hip_injuries    0.004640    0.149363  0.001019        0.148344
+   cum_minutes_played_numeric    0.018424    0.163418  0.018702        0.144716
+             cum_competitions    0.018405    0.188139  0.050752        0.137386
+     cum_disciplinary_actions    0.008500    0.118430  0.004522        0.113908
+          upper_body_injuries    0.003274    0.124578  0.013894        0.110684
+             cup_competitions    0.008446    0.138781  0.032273        0.106509
+        cum_red_cards_numeric    0.005482    0.112644  0.007349        0.105295
+             club_cum_minutes    0.014125    0.114571  0.014339        0.100231
+                knee_injuries    0.005348    0.129754  0.031041        0.098713
+          max_injury_severity    0.003158    0.137265  0.038834        0.098431
+            cum_matches_bench    0.010642    0.130266  0.036076        0.094190
+        competition_frequency    0.018630    0.102566  0.008535        0.094031
+        competition_diversity    0.015271    0.100792  0.007743        0.093049
+          current_club_Bayern    0.000286    0.100208  0.007663        0.092546
+             club_cum_assists    0.008172    0.105667  0.029674        0.075993
+     cum_matches_not_selected    0.012008    0.106783  0.031775        0.075007
+   physio_injury_ratio_week_1    0.008220    0.129278  0.056303        0.072975
+
+LR Model:
+--------------------------------------------------------------------------------
+                      feature  importance  train_corr  val_corr  train_val_diff
+               cum_inj_starts    0.028452    0.225447  0.049796        0.175651
+    national_team_appearances    0.001096    0.160834  0.001002        0.159832
+days_since_last_injury_week_1    0.001069    0.215961  0.059601        0.156360
+                 hip_injuries    0.003408    0.149363  0.001019        0.148344
+   cum_minutes_played_numeric    0.000012    0.163418  0.018702        0.144716
+             cum_competitions    0.034259    0.188139  0.050752        0.137386
+     cum_disciplinary_actions    0.002509    0.118430  0.004522        0.113908
+          upper_body_injuries    0.001388    0.124578  0.013894        0.110684
+             cup_competitions    0.002661    0.138781  0.032273        0.106509
+        cum_red_cards_numeric    0.002941    0.112644  0.007349        0.105295
+             club_cum_minutes    0.000024    0.114571  0.014339        0.100231
+                knee_injuries    0.003088    0.129754  0.031041        0.098713
+          max_injury_severity    0.001621    0.137265  0.038834        0.098431
+            cum_matches_bench    0.002705    0.130266  0.036076        0.094190
+        competition_frequency    0.001249    0.102566  0.008535        0.094031
+        competition_diversity    0.000119    0.100792  0.007743        0.093049
+          current_club_Bayern    0.000800    0.100208  0.007663        0.092546
+             club_cum_assists    0.000934    0.105667  0.029674        0.075993
+     cum_matches_not_selected    0.001612    0.106783  0.031775        0.075007
+   physio_injury_ratio_week_1    0.000816    0.129278  0.056303        0.072975
+

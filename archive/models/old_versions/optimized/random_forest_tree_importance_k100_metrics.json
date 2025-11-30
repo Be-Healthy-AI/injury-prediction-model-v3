@@ -1,0 +1,70 @@
+{
+  "model_name": "random_forest",
+  "feature_set_name": "tree_importance_k100",
+  "best_params": {
+    "n_estimators": 200,
+    "max_depth": 10,
+    "min_samples_split": 8,
+    "min_samples_leaf": 1,
+    "max_features": "sqrt"
+  },
+  "best_f1": 0.43923865300146414,
+  "train": {
+    "accuracy": 0.8717703349282296,
+    "precision": 0.5398511057587038,
+    "recall": 0.9830542264752791,
+    "f1": 0.6969611307420495,
+    "roc_auc": 0.9735217624457351,
+    "gini": 0.9470435248914701,
+    "confusion_matrix": {
+      "tn": 24221,
+      "fp": 4203,
+      "fn": 85,
+      "tp": 4931
+    }
+  },
+  "validation_insample": {
+    "accuracy": 0.8626794258373206,
+    "precision": 0.5239602169981917,
+    "recall": 0.9242424242424242,
+    "f1": 0.6687824581650318,
+    "roc_auc": 0.9520716370154206,
+    "gini": 0.9041432740308413,
+    "confusion_matrix": {
+      "tn": 6053,
+      "fp": 1053,
+      "fn": 95,
+      "tp": 1159
+    }
+  },
+  "validation_outsample": {
+    "accuracy": 0.7389229720518065,
+    "precision": 0.32397408207343414,
+    "recall": 0.6818181818181818,
+    "f1": 0.43923865300146414,
+    "roc_auc": 0.7701027921557192,
+    "gini": 0.5402055843114384,
+    "confusion_matrix": {
+      "tn": 934,
+      "fp": 313,
+      "fn": 70,
+      "tp": 150
+    }
+  },
+  "gaps_insample": {
+    "accuracy": 0.009090909090909038,
+    "precision": 0.015890888760512034,
+    "recall": 0.05881180223285487,
+    "f1": 0.02817867257701767,
+    "roc_auc": 0.021450125430314437,
+    "gini": 0.042900250860628875
+  },
+  "gaps_outsample": {
+    "accuracy": 0.13284736287642318,
+    "precision": 0.21587702368526962,
+    "recall": 0.3012360446570973,
+    "f1": 0.2577224777405853,
+    "roc_auc": 0.20341897029001588,
+    "gini": 0.40683794058003175
+  }
+}

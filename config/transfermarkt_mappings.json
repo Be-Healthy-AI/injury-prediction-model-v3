@@ -1,0 +1,28 @@
+{
+  "foot_aliases": {
+    "Direito": "right",
+    "Rechts": "right",
+    "Right": "right",
+    "Esquerdo": "left",
+    "Links": "left",
+    "Left": "left",
+    "Both": "both",
+    "Both feet": "both",
+    "Ambidextrous": "both"
+  },
+  "position_aliases": {
+    "Defender - Centre-Back": "Centre Back",
+    "Defender - Left-Back": "Left Back",
+    "Defender - Right-Back": "Right Back",
+    "Midfield - Defensive Midfield": "Defensive Midfielder",
+    "Midfield - Central Midfield": "Central Midfielder",
+    "Midfield - Attacking Midfield": "Attacking Midfielder",
+    "Attack - Left Winger": "Left Winger",
+    "Attack - Right Winger": "Right Winger",
+    "Attack - Centre-Forward": "Centre Forward",
+    "Attack - Striker": "Centre Forward",
+    "Attack - Second-Striker": "Second Attacker"
+  },
+  "competition_type_overrides": {}
+}
+

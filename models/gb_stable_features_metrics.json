@@ -1,0 +1,67 @@
+{
+  "train": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "roc_auc": 1.0,
+    "gini": 1.0,
+    "confusion_matrix": {
+      "tn": 45144,
+      "fp": 0,
+      "fn": 0,
+      "tp": 5016
+    }
+  },
+  "validation_insample": {
+    "accuracy": 0.9881977671451355,
+    "precision": 0.9631490787269682,
+    "recall": 0.9170653907496013,
+    "f1": 0.9395424836601307,
+    "roc_auc": 0.9960468870692994,
+    "gini": 0.9920937741385989,
+    "confusion_matrix": {
+      "tn": 11242,
+      "fp": 44,
+      "fn": 104,
+      "tp": 1150
+    }
+  },
+  "validation_outsample": {
+    "accuracy": 0.9814208544770011,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "roc_auc": 0.783799193805028,
+    "gini": 0.5675983876100561,
+    "confusion_matrix": {
+      "tn": 11991,
+      "fp": 7,
+      "fn": 220,
+      "tp": 0
+    }
+  },
+  "gaps_insample": {
+    "accuracy": 0.01180223285486448,
+    "precision": 0.0368509212730318,
+    "recall": 0.08293460925039875,
+    "f1": 0.06045751633986929,
+    "roc_auc": 0.003953112930700553,
+    "gini": 0.007906225861401106
+  },
+  "gaps_outsample": {
+    "accuracy": 0.018579145522998886,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "roc_auc": 0.21620080619497195,
+    "gini": 0.4324016123899439
+  },
+  "auc_gap_insample": 0.003953112930700553,
+  "auc_gap_outsample": 0.21620080619497195,
+  "num_features": 712,
+  "stable_features_criteria": {
+    "max_drift": 0.05,
+    "min_train_corr": 0.01
+  }
+}
