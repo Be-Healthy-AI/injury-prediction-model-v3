@@ -26,12 +26,12 @@ from scripts.backtests.insight_utils import compute_shap_top_features  # noqa: E
 
 MODEL_CONFIG: Dict[str, Dict[str, Path]] = {
     "random_forest": {
-        "model": Path("models") / "model_v3_random_forest_final_100percent.pkl",
-        "columns": Path("models") / "model_v3_rf_final_columns.json",
+        "model": Path("models") / "rf_model_combined_trainval.joblib",
+        "columns": Path("models") / "rf_model_combined_trainval_columns.json",
     },
     "gradient_boosting": {
-        "model": Path("models") / "model_v3_gradient_boosting_final_100percent.pkl",
-        "columns": Path("models") / "model_v3_gb_final_columns.json",
+        "model": Path("models") / "gb_model_combined_trainval.joblib",
+        "columns": Path("models") / "gb_model_combined_trainval_columns.json",
     },
 }
 

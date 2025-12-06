@@ -174,3 +174,5 @@ These features show strong correlation with injuries in training but **much weak
 
 **Conclusion:** The performance gap is primarily explained by **feature drift** - features that are highly predictive in training but lose predictive power in validation. This is especially true for cumulative/career-level features and suggests a distribution shift between training and validation periods.
 
+
+

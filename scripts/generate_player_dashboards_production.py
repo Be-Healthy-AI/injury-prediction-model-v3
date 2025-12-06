@@ -8,9 +8,10 @@ severity) to create one PNG per player over a specified date range.
 from __future__ import annotations
 
 import argparse
+import glob
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,6 +25,22 @@ except ImportError:  # pragma: no cover - optional dependency
     HAS_SCIPY = False
 
 import sys
+import io
+
+# Try to import tqdm for progress bars, fallback to simple counter if not available
+try:
+    from tqdm import tqdm
+    HAS_TQDM = True
+except ImportError:
+    HAS_TQDM = False
+    def tqdm(iterable, desc="", unit=""):
+        return iterable
+
+# Fix Unicode encoding for Windows
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+if sys.stderr.encoding != 'utf-8':
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
@@ -112,6 +129,111 @@ def load_latest_feature_row(player_id: int, end_date: pd.Timestamp) -> pd.Series
     return df.iloc[-1]
 
 
+def load_injury_periods(player_id: int, start_date: pd.Timestamp, end_date: pd.Timestamp) -> List[Tuple[pd.Timestamp, pd.Timestamp]]:
+    """Load injury periods for a player within the date range.
+    
+    Returns a list of (start_date, end_date) tuples for each injury period.
+    """
+    # Try to load from daily features first (if inj_days column exists)
+    file_path = PRODUCTION_FEATURES_DIR / f"player_{player_id}_daily_features.csv"
+    if file_path.exists():
+        df = pd.read_csv(file_path, parse_dates=["date"])
+        df = df[(df["date"] >= start_date) & (df["date"] <= end_date)].sort_values("date")
+        
+        # Check if inj_days column exists
+        if "inj_days" in df.columns:
+            injury_periods = []
+            in_injury = False
+            period_start = None
+            
+            for _, row in df.iterrows():
+                if row["inj_days"] == 1 and not in_injury:
+                    # Start of injury period
+                    in_injury = True
+                    period_start = row["date"]
+                elif row["inj_days"] == 0 and in_injury:
+                    # End of injury period
+                    injury_periods.append((period_start, row["date"] - pd.Timedelta(days=1)))
+                    in_injury = False
+                    period_start = None
+            
+            # Handle case where injury extends to end of date range
+            if in_injury and period_start is not None:
+                injury_periods.append((period_start, end_date))
+            
+            return injury_periods
+    
+    # Fallback: try to load from raw injury data
+    try:
+        data_dir = ROOT_DIR / "original_data"
+        injury_files = glob.glob(str(data_dir / "*injuries*.xlsx"))
+        if injury_files:
+            injuries_df = pd.read_excel(injury_files[0], engine='openpyxl')
+            
+            # Try different possible column names for player_id
+            player_id_col = None
+            for col in ['player_id', 'Player ID', 'playerId', 'id']:
+                if col in injuries_df.columns:
+                    player_id_col = col
+                    break
+            
+            if player_id_col is None:
+                return []
+            
+            player_injuries = injuries_df[injuries_df[player_id_col] == player_id]
+            
+            if not player_injuries.empty:
+                injury_periods = []
+                for _, injury in player_injuries.iterrows():
+                    # Try different possible column names for dates
+                    from_date_col = None
+                    until_date_col = None
+                    
+                    for col in ['fromDate', 'From', 'from', 'From Date', 'start_date']:
+                        if col in injury.index:
+                            from_date_col = col
+                            break
+                    
+                    for col in ['untilDate', 'Until', 'until', 'Until Date', 'end_date']:
+                        if col in injury.index:
+                            until_date_col = col
+                            break
+                    
+                    if from_date_col is None:
+                        continue
+                    
+                    from_date = pd.to_datetime(injury[from_date_col], errors='coerce')
+                    until_date = pd.to_datetime(injury[until_date_col], errors='coerce') if until_date_col else None
+                    
+                    if pd.notna(from_date):
+                        # Handle missing until_date
+                        if pd.isna(until_date):
+                            # Use default recovery period (30 days for standard, 90 for severe)
+                            severity_col = None
+                            for col in ['injury_severity', 'Severity', 'severity']:
+                                if col in injury.index:
+                                    severity_col = col
+                                    break
+                            
+                            severity = injury[severity_col] if severity_col and pd.notna(injury[severity_col]) else 1
+                            if severity >= 4:
+                                until_date = from_date + pd.Timedelta(days=90)
+                            else:
+                                until_date = from_date + pd.Timedelta(days=30)
+                        
+                        # Only include injuries that overlap with our date range
+                        if from_date <= end_date and until_date >= start_date:
+                            period_start = max(from_date, start_date)
+                            period_end = min(until_date, end_date)
+                            injury_periods.append((period_start, period_end))
+                
+                return injury_periods
+    except Exception:
+        pass  # If loading fails, return empty list
+    
+    return []
+
+
 def create_player_dashboard(
     ctx: PlayerDashboardContext,
     pivot: pd.DataFrame,
@@ -119,6 +241,7 @@ def create_player_dashboard(
     insights: dict,
     trend_metrics: dict,
     output_dir: Path,
+    injury_periods: List[Tuple[pd.Timestamp, pd.Timestamp]] = None,
 ) -> Path:
     """Create dashboard PNG showing RF, GB, and Ensemble predictions."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -129,6 +252,20 @@ def create_player_dashboard(
     # Top panel – risk evolution (full width) with all three models
     ax_main = fig.add_subplot(gs[0, :])
     dates = pivot["reference_date"]
+    
+    # Add background shading for injury periods
+    if injury_periods:
+        first_label = True
+        for period_start, period_end in injury_periods:
+            # Only shade if the period overlaps with our date range
+            chart_start = dates.min()
+            chart_end = dates.max()
+            if period_start <= chart_end and period_end >= chart_start:
+                shade_start = max(period_start, chart_start)
+                shade_end = min(period_end, chart_end)
+                label = 'Injury Period' if first_label else ''
+                ax_main.axvspan(shade_start, shade_end, alpha=0.15, color='#FFB6C1', zorder=0, label=label)
+                first_label = False
     
     # Compute risk series for all three models
     risk_df_rf = compute_risk_series(pivot["rf_probability"])
@@ -141,8 +278,8 @@ def create_player_dashboard(
 
     # Model colors and styles
     model_configs = [
-        ("Random Forest", risk_indices_rf, "#2E86AB", "-", 2.5),
-        ("Gradient Boosting", risk_indices_gb, "#A23B72", "--", 2.5),
+        ("Random Forest", risk_indices_rf, "#2E86AB", "-", 1.5),
+        ("Gradient Boosting", risk_indices_gb, "#A23B72", "--", 1.5),
         ("Ensemble", risk_indices_ensemble, "#F18F01", "-", 3.0),
     ]
 
@@ -387,17 +524,35 @@ def main() -> int:
 
     successes = 0
     failures = 0
-
-    for idx, player_id in enumerate(players, 1):
+    
+    # Use progress bar if available
+    for idx, player_id in enumerate(tqdm(players, desc="Generating dashboards", unit="player", disable=not HAS_TQDM), 1):
         try:
+            if not HAS_TQDM:  # Only print if no progress bar
+                print(f"\n[{idx}/{len(players)}] Processing player {player_id}...")
+                sys.stdout.flush()
+            
             predictions = load_prediction_file(predictions_dir, player_id, suffix)
             player_name = predictions["player_name"].iloc[0] if "player_name" in predictions.columns else f"Player {player_id}"
+            
+            # Use full predictions range (no clipping - show all data from start_date)
+            predictions_window = predictions[
+                (predictions["reference_date"] >= start_date)
+                & (predictions["reference_date"] <= end_date)
+            ].copy()
+            if predictions_window.empty:
+                # Fallback: if no data in the range, use all predictions
+                predictions_window = predictions.copy()
+            
+            # Load injury periods for background shading
+            injury_periods = load_injury_periods(player_id, start_date, end_date)
+            
             feature_row = load_latest_feature_row(player_id, end_date)
             insights = predict_insights(feature_row, bodypart_pipeline, severity_pipeline)
-
-            # Use ensemble for risk_df and trend_metrics (for alert summary)
-            risk_df = compute_risk_series(predictions["ensemble_probability"])
-            trend_metrics = compute_trend_metrics(predictions["ensemble_probability"])
+            
+            # Use ensemble for risk_df and trend_metrics
+            risk_df = compute_risk_series(predictions_window["ensemble_probability"])
+            trend_metrics = compute_trend_metrics(predictions_window["ensemble_probability"])
             ctx = PlayerDashboardContext(
                 player_id=player_id,
                 player_name=player_name,
@@ -405,12 +560,22 @@ def main() -> int:
                 window_end=end_date,
                 suffix=suffix,
             )
-
-            create_player_dashboard(ctx, predictions, risk_df, insights, trend_metrics, output_dir)
-            print(f"[{idx}/{len(players)}] ✅ Dashboard generated for player {player_id}")
+            
+            create_player_dashboard(ctx, predictions_window, risk_df, insights, trend_metrics, output_dir, injury_periods)
+            if not HAS_TQDM:
+                print(f"   ✅ Dashboard generated: {ctx.chart_filename}")
+            else:
+                # For tqdm, update description
+                tqdm.write(f"✅ Player {player_id}: {ctx.chart_filename}")
+            sys.stdout.flush()
             successes += 1
         except Exception as exc:  # pylint: disable=broad-except
-            print(f"[{idx}/{len(players)}] ❌ Player {player_id}: {exc}")
+            error_msg = f"❌ Player {player_id}: {exc}"
+            if HAS_TQDM:
+                tqdm.write(error_msg)
+            else:
+                print(error_msg)
+            sys.stdout.flush()
             failures += 1
 
     print()
@@ -419,6 +584,7 @@ def main() -> int:
     print("=" * 70)
     print(f"✅ Successful dashboards: {successes}")
     print(f"❌ Failed dashboards: {failures}")
+    sys.stdout.flush()
 
     return 0 if failures == 0 else 1
 

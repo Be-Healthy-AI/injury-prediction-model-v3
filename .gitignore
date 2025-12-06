@@ -65,3 +65,7 @@ timelines_35day_enhanced_balanced_v3.csv
 # V2 Reference (temporary copy for setup)
 v2_reference/
 
+# Cleanup temporary folder
+to_delete/
+cleanup_log.txt
+cleanup_unnecessary_files.py

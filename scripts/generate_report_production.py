@@ -8,10 +8,18 @@ Creates a Markdown report summarizing the prediction results.
 from __future__ import annotations
 
 import argparse
+import io
+import sys
 from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+
+# Fix Unicode encoding for Windows
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+if sys.stderr.encoding != 'utf-8':
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 PRODUCTION_PREDICTIONS_DIR = ROOT_DIR / "production_predictions" / "predictions"

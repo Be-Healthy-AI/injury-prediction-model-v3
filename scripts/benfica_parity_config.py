@@ -298,14 +298,30 @@ def calculate_enhanced_features_dynamically(matches: pd.DataFrame, calendar: pd.
             'cum_disciplinary_actions': cum_disciplinary_actions
         }
 
-    # Calculate based on actual matches
-    for i, date in enumerate(calendar):
-        day_matches = matches[matches['date'] == date]
-        if not day_matches.empty:
-            # Use the actual competition importance from match data
-            competition_importance[i] = day_matches['competition_importance'].iloc[0]
-            # Calculate disciplinary action from match data
-            disciplinary_action[i] = day_matches['disciplinary_action'].iloc[0]
+    # Calculate based on actual matches - OPTIMIZED: use groupby and dict lookup instead of filtering in loop
+    if not matches.empty:
+        # Normalize match dates for consistent comparison
+        matches_copy = matches.copy()
+        matches_copy['date_normalized'] = pd.to_datetime(matches_copy['date']).dt.normalize()
+        
+        # Group matches by date and get first value for each date (much faster than looping)
+        matches_by_date = matches_copy.groupby('date_normalized').first()
+        
+        # Create a mapping from normalized date to values (using Timestamp as key)
+        date_to_comp_importance = {}
+        date_to_disc_action = {}
+        for date_idx, row in matches_by_date.iterrows():
+            date_normalized = pd.Timestamp(date_idx).normalize()
+            date_to_comp_importance[date_normalized] = row['competition_importance']
+            date_to_disc_action[date_normalized] = row['disciplinary_action']
+        
+        # Fast lookup using dictionary (O(1) instead of O(n) filtering)
+        for i, date in enumerate(calendar):
+            date_normalized = pd.Timestamp(date).normalize()
+            if date_normalized in date_to_comp_importance:
+                competition_importance[i] = date_to_comp_importance[date_normalized]
+            if date_normalized in date_to_disc_action:
+                disciplinary_action[i] = date_to_disc_action[date_normalized]
 
     # Calculate rolling averages and cumulative values
     competition_importance_series = pd.Series(competition_importance)
@@ -343,16 +359,38 @@ def calculate_injury_features_benfica_parity(injuries: pd.DataFrame, calendar: p
     
     # If historical pipeline did NOT calculate injury severity, return zeros
     if BENFICA_PARITY_CONFIG.get('injury_severity_calculation', True):
-        # Calculate normally (enhanced behavior)
+        # Calculate normally (enhanced behavior) - OPTIMIZED: use cumulative operations
         if not injuries.empty:
-            # Calculate severity features day-by-day
+            # Prepare injuries data once
+            injuries_copy = injuries.copy()
+            injuries_copy['fromDate'] = pd.to_datetime(injuries_copy['fromDate'])
+            injuries_copy = injuries_copy.sort_values('fromDate')
+            
+            def parse_days(days_str):
+                if pd.isna(days_str):
+                    return 0
+                try:
+                    return int(str(days_str).split()[0])
+                except:
+                    return 0
+            
+            injuries_copy['days_parsed'] = injuries_copy['days'].apply(parse_days)
+            injuries_copy['is_short_term'] = injuries_copy['days_parsed'] <= 7
+            
+            # Pre-calculate body part categories
+            body_part_categories = ['lower_leg', 'knee', 'upper_leg', 'hip', 'upper_body', 'head', 'illness', 'other']
+            
+            # Use cumulative approach - much faster than filtering for each date
             for i, date in enumerate(calendar):
-                past_injuries = injuries[injuries['fromDate'] <= date]
+                date_normalized = pd.Timestamp(date).normalize()
+                # Get all injuries up to this date (already sorted)
+                past_injuries = injuries_copy[injuries_copy['fromDate'] <= date_normalized]
+                
                 if not past_injuries.empty:
                     avg_injury_severity[i] = past_injuries['injury_severity'].mean()
                     max_injury_severity[i] = past_injuries['injury_severity'].max()
                     
-                    # Count injuries by body part
+                    # Count injuries by body part (vectorized)
                     body_part_counts = past_injuries['body_part_category'].value_counts()
                     lower_leg_injuries[i] = body_part_counts.get('lower_leg', 0)
                     knee_injuries[i] = body_part_counts.get('knee', 0)
@@ -363,20 +401,11 @@ def calculate_injury_features_benfica_parity(injuries: pd.DataFrame, calendar: p
                     illness_count[i] = body_part_counts.get('illness', 0)
                     other_injuries[i] = body_part_counts.get('other', 0)
                     
-                    # Calculate physio-injury ratio
-                    def parse_days(days_str):
-                        if pd.isna(days_str):
-                            return 0
-                        try:
-                            return int(str(days_str).split()[0])
-                        except:
-                            return 0
-                    
-                    past_injuries_days = past_injuries['days'].apply(parse_days)
-                    short_term_injuries = past_injuries[past_injuries_days <= 7]
+                    # Calculate physio-injury ratio (vectorized)
                     total_past_injuries = len(past_injuries)
                     if total_past_injuries > 0:
-                        physio_injury_ratio[i] = len(short_term_injuries) / total_past_injuries
+                        short_term_count = past_injuries['is_short_term'].sum()
+                        physio_injury_ratio[i] = short_term_count / total_past_injuries
     
     return {
         'avg_injury_severity': avg_injury_severity,
@@ -421,27 +450,35 @@ def calculate_national_team_features_benfica_parity(matches: pd.DataFrame, calen
             national_matches = national_matches.copy()
             national_matches['football_season'] = national_matches['date'].apply(get_football_season)
 
-            # Calculate national team features for each day
+            # OPTIMIZED: Pre-parse minutes_played once instead of in loop
+            def parse_minutes(minutes_val):
+                if pd.isna(minutes_val):
+                    return 0
+                try:
+                    return int(str(minutes_val).replace("'", ""))
+                except:
+                    return 0
+            
+            national_matches['minutes_played_parsed'] = national_matches['minutes_played'].apply(parse_minutes)
+            national_matches = national_matches.sort_values('date')
+            
+            # Pre-calculate season mappings
+            national_matches['date_normalized'] = pd.to_datetime(national_matches['date']).dt.normalize()
+            
+            # Calculate national team features for each day - OPTIMIZED: use sorted data
             for i, date in enumerate(calendar):
-                past_national_matches = national_matches[national_matches['date'] <= date]
+                date_normalized = pd.Timestamp(date).normalize()
+                past_national_matches = national_matches[national_matches['date_normalized'] <= date_normalized]
 
                 if not past_national_matches.empty:
                     national_team_appearances[i] = len(past_national_matches)
 
-                    # Calculate total minutes in national team
-                    total_national_minutes = 0
-                    for _, match in past_national_matches.iterrows():
-                        if pd.notna(match['minutes_played']):
-                            try:
-                                minutes = int(str(match['minutes_played']).replace("'", ""))
-                                total_national_minutes += minutes
-                            except:
-                                pass
-                    national_team_minutes[i] = total_national_minutes
+                    # Calculate total minutes in national team (vectorized)
+                    national_team_minutes[i] = past_national_matches['minutes_played_parsed'].sum()
 
                     # Calculate days since last national match
-                    last_national_date = past_national_matches['date'].max()
-                    days_since = (date - last_national_date).days
+                    last_national_date = past_national_matches['date_normalized'].max()
+                    days_since = (date_normalized - last_national_date).days
                     days_since_last_national_match[i] = days_since
 
                     # Calculate national team frequency (appearances per year)
@@ -454,13 +491,14 @@ def calculate_national_team_features_benfica_parity(matches: pd.DataFrame, calen
 
                     # Calculate national team intensity (minutes per appearance)
                     if len(past_national_matches) > 0:
-                        national_team_intensity[i] = total_national_minutes / len(past_national_matches)
+                        national_team_intensity[i] = national_team_minutes[i] / len(past_national_matches)
 
-                # Season-based counters
+                # Season-based counters (vectorized)
                 current_season = get_football_season(date)
                 prev_season = f"{date.year - 1}/{date.year}" if date.month >= 7 else f"{date.year - 2}/{date.year - 1}"
-                national_team_this_season[i] = len(past_national_matches[past_national_matches['football_season'] == current_season])
-                national_team_last_season[i] = len(past_national_matches[past_national_matches['football_season'] == prev_season])
+                if not past_national_matches.empty:
+                    national_team_this_season[i] = (past_national_matches['football_season'] == current_season).sum()
+                    national_team_last_season[i] = (past_national_matches['football_season'] == prev_season).sum()
 
     return {
         'national_team_appearances': national_team_appearances,
@@ -538,33 +576,51 @@ def calculate_complex_derived_features_benfica_parity(matches: pd.DataFrame, cal
             # Add football_season to matches for season-based calculations
             matches_copy['football_season'] = matches_copy['date'].apply(get_football_season)
 
+            # OPTIMIZED: Pre-calculate international competition flags and transfermarkt scores
+            matches_copy['is_international'] = matches_copy.apply(is_international_competition, axis=1)
+            matches_copy['is_bundesliga'] = matches_copy.apply(
+                lambda m: 'bundesliga' in str(m.get('competition', '')).lower() or
+                          'bundesliga' in str(get_competition_type(m.get('competition')) or '').lower(),
+                axis=1
+            )
+            matches_copy['transfermarkt_score_float'] = pd.to_numeric(matches_copy.get('transfermarkt_score', 0), errors='coerce')
+            matches_copy = matches_copy.sort_values('date')
+            matches_copy['date_normalized'] = pd.to_datetime(matches_copy['date']).dt.normalize()
+            
+            # Track cumulative sets for efficiency - simpler approach
+            all_teams_seen = set()
+            all_season_teams = {}  # season -> set of teams
+            all_competitions_seen = set()
+            all_international_competitions_seen = set()
+            
             for i, date in enumerate(calendar):
-                past_matches = matches_copy[matches_copy['date'] <= date]
+                date_normalized = pd.Timestamp(date).normalize()
+                past_matches = matches_copy[matches_copy['date_normalized'] <= date_normalized]
+                
                 if not past_matches.empty:
-                    competitions = past_matches['competition'].unique()
-                    cum_competitions[i] = len(competitions)
+                    # Rebuild sets from past_matches (simpler and still faster than iterrows in nested loops)
+                    all_competitions_seen = set(past_matches['competition'].unique())
+                    all_international_competitions_seen = set(past_matches[past_matches['is_international']]['competition'].unique())
+                    
+                    cum_competitions[i] = len(all_competitions_seen)
 
-                    # Calculate teams_this_season based on current season only
+                    # Calculate teams_this_season based on current season only - OPTIMIZED: use vectorized operations
                     current_season = get_football_season(date)
                     season_matches = past_matches[past_matches['football_season'] == current_season]
                     
-                    teams = set()
-                    season_teams = set()
-                    for _, match in past_matches.iterrows():
-                        teams.add(match['home_team'])
-                        teams.add(match['away_team'])
-                        if is_international_competition(match):
-                            seen_international_competitions.add(match.get('competition'))
+                    # Update season teams set - vectorized
+                    if current_season not in all_season_teams:
+                        all_season_teams[current_season] = set()
+                    if not season_matches.empty:
+                        # Vectorized: get all unique teams from home and away
+                        season_home_teams = set(season_matches['home_team'].dropna().unique())
+                        season_away_teams = set(season_matches['away_team'].dropna().unique())
+                        all_season_teams[current_season] = season_home_teams | season_away_teams
                     
-                    # Count teams only from current season
-                    for _, match in season_matches.iterrows():
-                        season_teams.add(match['home_team'])
-                        season_teams.add(match['away_team'])
-                    
-                    teams_this_season[i] = len(season_teams)
-                    season_team_diversity[i] = len(season_teams) / max(1, len(season_matches))
+                    teams_this_season[i] = len(all_season_teams[current_season])
+                    season_team_diversity[i] = len(all_season_teams[current_season]) / max(1, len(season_matches))
 
-                    competition_diversity[i] = len(competitions) / max(1, len(past_matches))
+                    competition_diversity[i] = len(all_competitions_seen) / max(1, len(past_matches))
 
                     if i > 0:
                         years_span = i / 365.25
@@ -572,28 +628,20 @@ def calculate_complex_derived_features_benfica_parity(matches: pd.DataFrame, cal
 
                     competition_experience[i] = len(past_matches)
 
-                    international_competitions[i] = len(seen_international_competitions)
-                    cup_competitions[i] = len([c for c in competitions if 'cup' in str(c).lower()])
+                    international_competitions[i] = len(all_international_competitions_seen)
+                    cup_competitions[i] = sum(1 for c in all_competitions_seen if 'cup' in str(c).lower())
 
+                    # Vectorized calculations
                     intensities = past_matches['intensity']
                     levels = past_matches['level']
                     competition_intensity[i] = float(intensities.mean()) if not intensities.empty else competition_intensity[i - 1] if i > 0 else 1.0
                     competition_level[i] = float(levels.mean()) if not levels.empty else competition_level[i - 1] if i > 0 else 1.0
                     competition_pressure[i] = float(past_matches['intensity'].iloc[-1])
 
-                    bundesliga_matches = past_matches[past_matches.apply(
-                        lambda m: 'bundesliga' in str(m.get('competition', '')).lower() or
-                                  'bundesliga' in str(get_competition_type(m.get('competition')) or '').lower(),
-                        axis=1
-                    )]
-                    scores = []
-                    for _, match in bundesliga_matches.iterrows():
-                        score = match.get('transfermarkt_score')
-                        if pd.notna(score):
-                            try:
-                                scores.append(float(score))
-                            except Exception:
-                                continue
+                    # OPTIMIZED: Use pre-calculated bundesliga flag
+                    bundesliga_matches = past_matches[past_matches['is_bundesliga']]
+                    scores = bundesliga_matches['transfermarkt_score_float'].dropna().tolist()
+                    
                     if scores:
                         transfermarkt_score_recent[i] = scores[-1]
                         transfermarkt_score_cum[i] = sum(scores)

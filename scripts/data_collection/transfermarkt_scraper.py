@@ -13,6 +13,7 @@ from dataclasses import dataclass
 import logging
 import re
 import time
+import traceback
 from typing import Any, Dict, Iterable, List, Optional
 
 import pandas as pd
@@ -55,6 +56,17 @@ class TransfermarktScraper:
         self._transfer_history_cache: Dict[int, Dict[str, any]] = {}
         self._club_cache: Dict[str, Dict[str, any]] = {}
         self._setup_session()
+    
+    def close(self) -> None:
+        """Close the HTTP session and clean up resources."""
+        if self.session:
+            try:
+                self.session.close()
+            except Exception:
+                pass
+            # Clear caches to free memory
+            self._transfer_history_cache.clear()
+            self._club_cache.clear()
 
     # ------------------------------------------------------------------
     # Public API
@@ -87,9 +99,12 @@ class TransfermarktScraper:
         if player_id in self._transfer_history_cache:
             return self._transfer_history_cache[player_id]
 
+        print(f"      [API] Fetching transfer history for player {player_id}...", end=" ", flush=True)
         url = f"{self.config.api_base_url}/transfer/history/player/{player_id}"
         payload = self._get_json(url, params={"locale": "en"})
         history = payload.get("data", {}).get("history", {}) if isinstance(payload, dict) else {}
+        transfers_count = len(history.get("terminated", []))
+        print(f"[OK] ({transfers_count} transfers)", flush=True)
         self._transfer_history_cache[player_id] = history
         return history
 
@@ -108,10 +123,32 @@ class TransfermarktScraper:
         return data
 
     def get_club_name(self, club_id: Optional[str]) -> Optional[str]:
-        profile = self.fetch_club_profile(club_id)
-        if not profile:
+        """Get club name by ID, with error handling to prevent hangs."""
+        try:
+            # Check cache first to avoid unnecessary API calls
+            club_key = str(club_id) if club_id else None
+            if club_key and club_key in self._club_cache:
+                return self._club_cache[club_key].get("name") or self._club_cache[club_key].get("baseDetails", {}).get("shortName")
+            
+            # Log API call if not in cache
+            if club_id:
+                print(f"      [API] Fetching club name for ID {club_id}...", end=" ", flush=True)
+            
+            profile = self.fetch_club_profile(club_id)
+            if not profile:
+                if club_id:
+                    print("(not found)", flush=True)
+                return None
+            
+            club_name = profile.get("name") or profile.get("baseDetails", {}).get("shortName")
+            if club_id and club_name:
+                print(f"[OK] {club_name}", flush=True)
+            return club_name
+        except Exception as e:
+            if club_id:
+                print(f"✗ Error: {e}", flush=True)
+            LOGGER.warning(f"Failed to get club name for club_id {club_id}: {e}")
             return None
-        return profile.get("name") or profile.get("baseDetails", {}).get("shortName")
 
     def get_latest_completed_transfer(self, player_id: int) -> Optional[Dict[str, Any]]:
         """Return the most recent completed transfer entry for the given player."""
@@ -192,12 +229,143 @@ class TransfermarktScraper:
             )
         return players
 
+    def fetch_league_clubs(
+        self,
+        competition_slug: str,
+        competition_id: Any,
+        season_id: int,
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch all clubs that participated in a league/competition for a given season.
+        
+        Args:
+            competition_slug: URL slug (e.g., 'premier-league')
+            competition_id: Transfermarkt competition ID (can be int like 1, or str like 'GB1' for Premier League)
+            season_id: Season year (e.g., 2025 for 2025/26 season)
+        
+        Returns:
+            List of dicts with: {'club_id': int, 'club_slug': str, 'club_name': str}
+        
+        Example URL for Premier League 2024/25:
+        https://www.transfermarkt.com/premier-league/startseite/wettbewerb/GB1/plus/?saison_id=2024
+        """
+        # competition_id can be numeric (1) or string code (GB1) - convert to string for URL
+        competition_id_str = str(competition_id)
+        url = (
+            f"{self.config.base_url}/{competition_slug}/startseite/wettbewerb/{competition_id_str}"
+            f"/plus/?saison_id={season_id}"
+        )
+        
+        LOGGER.info(f"Fetching league clubs from: {url}")
+        print(f"    Making HTTP request to Transfermarkt...", end=" ", flush=True)
+        soup = self._fetch_soup(url)
+        print("[OK]", flush=True)
+        clubs: List[Dict[str, Any]] = []
+        seen_ids: set = set()
+        
+        # Try to find the standings table - it could be in different formats
+        # Look for table.items which is the standard Transfermarkt table format
+        standings_table = soup.select_one("table.items")
+        
+        if standings_table:
+            # Extract club links from the table
+            # Group by club_id first to find the best name for each club
+            club_candidates: Dict[int, Dict[str, Any]] = {}
+            
+            for anchor in standings_table.select("a[href*='/verein/']"):
+                href = anchor.get("href", "")
+                # Extract club ID from href (format: /slug/startseite/verein/{club_id} or /slug/kader/verein/{club_id})
+                match = re.search(r"/verein/(\d+)", href)
+                if not match:
+                    continue
+                
+                club_id = int(match.group(1))
+                
+                # Extract slug from href
+                parts = href.split("/")
+                if len(parts) >= 2:
+                    club_slug = parts[1]
+                else:
+                    continue
+                
+                # Get club name from anchor text
+                club_name = anchor.get_text(" ", strip=True)
+                
+                # Skip if name looks like a number, value, or is too short
+                if club_name:
+                    # Check if it's a valid club name (not a number, not a currency value, not too short)
+                    is_number = club_name.replace(",", "").replace(".", "").isdigit()
+                    is_currency = club_name.startswith("€") or club_name.startswith("$") or club_name.startswith("£")
+                    is_valid_name = (
+                        not is_number
+                        and not is_currency
+                        and len(club_name) > 2
+                        and not club_name.isdigit()
+                    )
+                    
+                    if is_valid_name:
+                        # Store candidate - prefer longer names (more likely to be full club name)
+                        if club_id not in club_candidates or len(club_name) > len(
+                            club_candidates[club_id].get("club_name", "")
+                        ):
+                            club_candidates[club_id] = {
+                                "club_id": club_id,
+                                "club_slug": club_slug,
+                                "club_name": club_name,
+                            }
+            
+            # Add all valid clubs
+            for club_id, club_info in club_candidates.items():
+                clubs.append(club_info)
+        
+        # If no clubs found in standings table, try alternative structure
+        # Some leagues might have a participants list instead
+        if not clubs:
+            # Look for club links in other sections
+            for anchor in soup.select("a[href*='/verein/']"):
+                href = anchor.get("href", "")
+                match = re.search(r"/verein/(\d+)", href)
+                if not match:
+                    continue
+                
+                club_id = int(match.group(1))
+                if club_id in seen_ids:
+                    continue
+                seen_ids.add(club_id)
+                
+                parts = href.split("/")
+                if len(parts) >= 2:
+                    club_slug = parts[1]
+                else:
+                    continue
+                
+                club_name = anchor.get_text(" ", strip=True)
+                if club_name and len(club_name) > 1:  # Filter out single characters/noise
+                    clubs.append({
+                        "club_id": club_id,
+                        "club_slug": club_slug,
+                        "club_name": club_name,
+                    })
+        
+        if not clubs:
+            LOGGER.warning(
+                "No clubs found for competition_slug=%s competition_id=%s season_id=%s",
+                competition_slug,
+                competition_id,
+                season_id,
+            )
+        else:
+            LOGGER.info(f"Found {len(clubs)} clubs for season {season_id}")
+        
+        return clubs
+
     def fetch_player_profile(
         self,
         player_slug: Optional[str],
         player_id: int,
     ) -> Dict[str, str]:
         """Return a dictionary with the key-value pairs from the player profile."""
+        print(f"      [API] Fetching profile page for player {player_id}...", end=" ", flush=True)
         slug = player_slug or "spieler"
         url = f"{self.config.base_url}/{slug}/profil/spieler/{player_id}"
         soup = self._fetch_soup(url)
@@ -237,8 +405,8 @@ class TransfermarktScraper:
                                 "nationalities": "nationality",  # Will be handled by transformer
                                 "joined": "joined_on",
                                 "na_equipa_desde": "joined_on",  # Portuguese
-                                "current_club": "signed_from",
-                                "clube_atual": "signed_from",  # Portuguese
+                                "current_club": "current_club",
+                                "clube_atual": "current_club",  # Portuguese
                             }
                             
                             # Apply mapping
@@ -305,11 +473,38 @@ class TransfermarktScraper:
         # Extract joined date and signed from (current club info)
         # Look for "Joined:" in the info table
         
-        # Fall back to header values when available.
+        # Extract player name from header - try multiple selectors
+        # Always try to extract name, even if it's already in data (to ensure it's set)
         header_name = soup.select_one("div.data-header__headline-wrapper h1")
-        if header_name:
-            data.setdefault("name", header_name.get_text(" ", strip=True))
+        if not header_name:
+            # Try alternative selectors
+            header_name = soup.select_one("h1.data-header__headline")
+        if not header_name:
+            header_name = soup.select_one("div.data-header h1")
+        if not header_name:
+            # Try title tag as last resort
+            title_tag = soup.select_one("title")
+            if title_tag:
+                title_text = title_tag.get_text(strip=True)
+                # Title format is usually "Player Name | Transfermarkt"
+                if "|" in title_text:
+                    name_text = title_text.split("|")[0].strip()
+                    # Remove suffixes like "- Player profile 25/26" or "- Player profile"
+                    name_text = re.sub(r'\s*-\s*Player profile(\s+\d+/\d+)?\s*$', '', name_text, flags=re.IGNORECASE)
+                    name_text = name_text.strip()
+                    if name_text:
+                        data["name"] = name_text
+        else:
+            name_text = header_name.get_text(" ", strip=True)
+            if name_text:
+                # Remove suffixes like "- Player profile 25/26" or "- Player profile"
+                # Pattern to match "- Player profile" followed by optional season (e.g., "25/26")
+                name_text = re.sub(r'\s*-\s*Player profile(\s+\d+/\d+)?\s*$', '', name_text, flags=re.IGNORECASE)
+                name_text = name_text.strip()
+                if name_text:
+                    data["name"] = name_text
         
+        print("[OK]", flush=True)
         return data
 
     def fetch_player_career(
@@ -330,7 +525,10 @@ class TransfermarktScraper:
                 return pd.DataFrame()
             
             rows = []
-            for transfer in transfers:
+            total_transfers = len(transfers)
+            print(f"      [INFO] Processing {total_transfers} transfers (2 API calls per transfer)...", flush=True)
+            
+            for idx, transfer in enumerate(transfers, 1):
                 # Skip loans if not included
                 if not include_loans:
                     transfer_type = transfer.get("typeDetails", {}).get("type", "")
@@ -341,9 +539,14 @@ class TransfermarktScraper:
                 season_info = details.get("season", {})
                 season_display = season_info.get("display", "") or season_info.get("nonCyclicalName", "")
                 
-                # Get club names
+                # Get club names (this is the slow part - 2 API calls per transfer with rate limiting)
                 source_id = transfer.get("transferSource", {}).get("clubId")
                 dest_id = transfer.get("transferDestination", {}).get("clubId")
+                
+                # Show progress for each transfer
+                if total_transfers > 3:  # Only show progress if there are multiple transfers
+                    print(f"      [Transfer {idx}/{total_transfers}] Fetching club names...", flush=True)
+                
                 source_name = self.get_club_name(source_id) if source_id else None
                 dest_name = self.get_club_name(dest_id) if dest_id else None
                 
@@ -393,8 +596,12 @@ class TransfermarktScraper:
                 return pd.DataFrame()
             
             return pd.DataFrame(rows)
+        except KeyboardInterrupt:
+            # Re-raise keyboard interrupts
+            raise
         except Exception as e:
             LOGGER.warning(f"Failed to fetch career data for player {player_id}: {e}")
+            LOGGER.debug(f"Career fetch error traceback: {traceback.format_exc()}")
             return pd.DataFrame()
 
     def fetch_player_injuries(
@@ -403,6 +610,7 @@ class TransfermarktScraper:
         player_id: int,
     ) -> pd.DataFrame:
         """Fetch the injury history table from all pages."""
+        print(f"      [API] Fetching injuries page for player {player_id}...", end=" ", flush=True)
         slug = player_slug or "spieler"
         base_url = f"{self.config.base_url}/{slug}/verletzungen/spieler/{player_id}"
         
@@ -440,34 +648,97 @@ class TransfermarktScraper:
                 continue
             
             # Extract club information from this page
-            table = page_soup.select_one("table.items")
-            page_clubs = []
-            if table:
-                rows = table.select("tbody tr")
-                for row in rows:
-                    # Look for club links in the row
-                    club_links = row.select('a[href*="/verein/"]')
-                    club_names = []
-                    for link in club_links:
-                        href = link.get("href", "")
-                        link_text = link.get_text(strip=True)
-                        if link_text and "/verein/" in href:
-                            club_names.append(link_text)
-                    page_clubs.append(" / ".join(club_names) if club_names else None)
+            # First check if pd.read_html already extracted a club column (check common names)
+            club_col = None
+            for col_name in ["Club", "Verein", "Team", "Clubs"]:
+                if col_name in page_df.columns:
+                    club_col = col_name
+                    break
+            
+            if club_col:
+                # Already extracted, rename to "Club" for consistency
+                if club_col != "Club":
+                    page_df["Club"] = page_df[club_col]
+            else:
+                # Manually extract club information from HTML
+                # The club column in injury tables is typically in a specific position
+                # We need to identify which column contains clubs by looking at the table structure
+                table = page_soup.select_one("table.items")
+                page_clubs = []
+                if table:
+                    # First, try to identify the club column from the header
+                    headers = table.select("thead th")
+                    club_col_idx = None
+                    for idx, header in enumerate(headers):
+                        header_text = header.get_text(strip=True).lower()
+                        if any(term in header_text for term in ["club", "verein", "team"]):
+                            club_col_idx = idx
+                            break
+                    
+                    rows = table.select("tbody tr")
+                    for row in rows:
+                        club_names = []
+                        
+                        # If we found the club column index, extract from that column
+                        if club_col_idx is not None:
+                            cells = row.select("td")
+                            if club_col_idx < len(cells):
+                                club_cell = cells[club_col_idx]
+                                # Look for club links in this cell
+                                club_links = club_cell.select('a[href*="/verein/"]')
+                                for link in club_links:
+                                    link_text = link.get_text(strip=True)
+                                    if link_text:
+                                        club_names.append(link_text)
+                                # If no links, try the cell text itself (might be plain text club name)
+                                if not club_names:
+                                    cell_text = club_cell.get_text(strip=True)
+                                    # Only use if it doesn't look like an injury type or other data
+                                    if cell_text and not any(skip in cell_text.lower() for skip in 
+                                                             ['injury', 'muscle', 'knee', 'ankle', 'shoulder', 'back', 
+                                                              'hamstring', 'groin', 'calf', 'thigh', 'foot', 'wrist',
+                                                              'fracture', 'strain', 'tear', 'rupture', 'sprain',
+                                                              'dislocation', 'bruise', 'contusion', 'laceration']):
+                                        club_names.append(cell_text)
+                        else:
+                            # No header found, search the entire row for club links
+                            club_links = row.select('a[href*="/verein/"]')
+                            for link in club_links:
+                                href = link.get("href", "")
+                                link_text = link.get_text(strip=True)
+                                if link_text and "/verein/" in href:
+                                    club_name = link_text.strip()
+                                    if club_name and club_name not in club_names:
+                                        club_names.append(club_name)
+                        
+                        page_clubs.append(" / ".join(club_names) if club_names else None)
+                    
+                    # Ensure we have the same number of clubs as rows
+                    if len(page_clubs) == len(page_df):
+                        page_df["Club"] = page_clubs
+                    elif len(page_clubs) > 0:
+                        # Try to align: pad with None if needed
+                        while len(page_clubs) < len(page_df):
+                            page_clubs.append(None)
+                        page_df["Club"] = page_clubs[:len(page_df)]
+                    else:
+                        # No clubs found, create empty column
+                        page_df["Club"] = None
             
             all_dfs.append(page_df)
-            all_clubs.extend(page_clubs)
         
         # Combine all pages
         if not all_dfs:
+            print("(no injuries)", flush=True)
             return pd.DataFrame()
         
         combined_df = pd.concat(all_dfs, ignore_index=True)
         
-        # Add clubs column if we found any
-        if all_clubs and any(c for c in all_clubs if c):
-            combined_df["Club"] = all_clubs[:len(combined_df)]
+        # Ensure Club column exists (even if empty)
+        if "Club" not in combined_df.columns:
+            combined_df["Club"] = None
         
+        print(f"[OK] ({len(combined_df)} injuries)", flush=True)
         return combined_df
 
     def fetch_player_match_log(
@@ -486,6 +757,8 @@ class TransfermarktScraper:
             competition_id: Transfermarkt competition id (0 = all).
             club_id: Transfermarkt club id (0 = all clubs).
         """
+        season_str = f"season {season}" if season else "all seasons"
+        print(f"      [API] Fetching match log for player {player_id} ({season_str})...", end=" ", flush=True)
         slug = player_slug or "spieler"
         season_segment = f"/saison/{season}" if season else ""
         url = (
@@ -534,6 +807,8 @@ class TransfermarktScraper:
                         table_df = table_df[mask].copy()
                         
                         if not table_df.empty:
+                            LOGGER.info(f"  Processing table with {len(table_df)} rows for competition: {competition_name}")
+                            
                             # Extract home and away teams from the .1 columns
                             # The table has "Home team" (empty) and "Home team.1" (actual team)
                             if "Home team.1" in table_df.columns:
@@ -547,6 +822,122 @@ class TransfermarktScraper:
                                     table_df[col] = table_df[col].astype(str).str.replace(r'\s*\(\d+\.\)\s*', '', regex=True)
                                     table_df[col] = table_df[col].replace('nan', pd.NA)
                             
+                            # Map position column (Pos. -> Position) - transformer also handles this
+                            if "Pos." in table_df.columns and "Position" not in table_df.columns:
+                                table_df["Position"] = table_df["Pos."]
+                            
+                            # ============================================================
+                            # APPLY DIRECT COLUMN MAPPING (Unnamed: 8 -> Goals, etc.)
+                            # ============================================================
+                            mapping = {
+                                "Unnamed: 8": "Goals",
+                                "Unnamed: 9": "Assists",
+                                "Unnamed: 10": "Own goals",
+                                "Unnamed: 11": "Yellow cards",
+                                "Unnamed: 12": "Second yellow cards",
+                                "Unnamed: 13": "Red cards",
+                                "Unnamed: 14": "Sub on",
+                                "Unnamed: 15": "Sub off",
+                                "Unnamed: 16": "Minutes played",
+                                "Unnamed: 17": "TM-Whoscored grade",
+                            }
+                            
+                            # Apply mappings
+                            for source_col, target_col in mapping.items():
+                                if source_col in table_df.columns:
+                                    # Clean the data: remove invalid texts
+                                    series = table_df[source_col].copy()
+                                    series_str = series.astype(str)
+                                    
+                                    # Filter out invalid texts
+                                    invalid_texts = [
+                                        'on the bench',
+                                        'not in squad',
+                                        'suspended',
+                                        'injured',
+                                        'Squad:',
+                                        'Starting eleven:',
+                                    ]
+                                    
+                                    for invalid in invalid_texts:
+                                        mask = series_str.str.contains(invalid, case=False, na=False)
+                                        series.loc[mask] = pd.NA
+                                    
+                                    # For time-based columns, handle time formats like "88'", "45 + 1'", and "90+3'"
+                                    # This includes substitutions, minutes played, and card times
+                                    if target_col in ["Sub on", "Sub off", "Minutes played", "Yellow cards", 
+                                                      "Second yellow cards", "Red cards"]:
+                                        def extract_time(val):
+                                            if pd.isna(val) or str(val) == 'nan':
+                                                return pd.NA
+                                            val_str = str(val).strip()
+                                            
+                                            # Handle "90+3'" or "45 + 1'" format (injury time)
+                                            if "+" in val_str:
+                                                import re
+                                                parts = re.split(r'\s*\+\s*', val_str)
+                                                if len(parts) == 2:
+                                                    base_min = re.findall(r'\d+', parts[0])
+                                                    extra_min = re.findall(r'\d+', parts[1])
+                                                    if base_min and extra_min:
+                                                        total = int(base_min[0]) + int(extra_min[0])
+                                                        # For substitution times, return as string with quote
+                                                        if target_col in ["Sub on", "Sub off"]:
+                                                            return f"{total}'"
+                                                        # For minutes played and cards, return as integer
+                                                        else:
+                                                            return total
+                                            
+                                            # Remove quotes and extract number
+                                            val_str = val_str.replace("'", "").replace('"', '').strip()
+                                            # If it contains comma, take first part (for multiple values)
+                                            if ',' in val_str:
+                                                val_str = val_str.split(',')[0].strip()
+                                            # Handle multiple times separated by space (e.g., "45' 90'" for two yellow cards)
+                                            # For cards, we want the first occurrence (minute of first card)
+                                            if ' ' in val_str and target_col in ["Yellow cards", "Second yellow cards", "Red cards"]:
+                                                # Extract first time value
+                                                import re
+                                                first_match = re.search(r'\d+', val_str)
+                                                if first_match:
+                                                    val_str = first_match.group(0)
+                                            
+                                            try:
+                                                num = float(val_str)
+                                                # For substitution times, return as string with quote
+                                                if target_col in ["Sub on", "Sub off"]:
+                                                    return f"{int(num)}'"
+                                                # For minutes played and cards, return as integer
+                                                else:
+                                                    return int(num)
+                                            except (ValueError, TypeError):
+                                                return pd.NA
+                                            return pd.NA
+                                        
+                                        series = series.apply(extract_time)
+                                    
+                                    # Only map if target column doesn't already exist
+                                    if target_col not in table_df.columns:
+                                        table_df[target_col] = series
+                                        LOGGER.info(f"  Mapped {source_col} -> {target_col}")
+                                    else:
+                                        LOGGER.info(f"  Warning: {target_col} already exists, skipping {source_col}")
+                                else:
+                                    LOGGER.info(f"  Warning: {source_col} not found in DataFrame")
+                            
+                            # Check for existing columns with alternative names and rename them
+                            # Handle own goals column name variations
+                            own_goals_col_found = None
+                            for col_name in ["Own goals", "Own goal", "OG", "Golos próprios", "Golo próprio", "Eigentore", "Eigentor"]:
+                                if col_name in table_df.columns:
+                                    own_goals_col_found = col_name
+                                    break
+                            
+                            if own_goals_col_found and own_goals_col_found != "Own goals":
+                                LOGGER.info(f"  Found own goals column as '{own_goals_col_found}', renaming to 'Own goals'")
+                                table_df["Own goals"] = table_df[own_goals_col_found]
+                                
+                            
                             # Add season column if we have it
                             if season:
                                 table_df["Season"] = f"{season-1}/{str(season)[-2:]}"
@@ -556,10 +947,24 @@ class TransfermarktScraper:
                             match_tables.append(table_df)
         
         if not match_tables:
+            print("(no matches)", flush=True)
             return pd.DataFrame()
         
         # Combine all competition tables
         combined = pd.concat(match_tables, ignore_index=True)
+        print(f"[OK] ({len(combined)} matches)", flush=True)
+        
+        # After combining, ensure Position column exists (map Pos. -> Position if needed)
+        # The transformer handles both, but we ensure Position exists for consistency
+        if "Pos." in combined.columns and "Position" not in combined.columns:
+            combined["Position"] = combined["Pos."]
+        
+        # Remove duplicate columns if both Pos. and Position exist
+        if "Pos." in combined.columns and "Position" in combined.columns:
+            combined = combined.drop(columns=["Pos."])
+        
+        # Direct column mapping is applied per table, no final pass remapping needed
+        # The mapping is already correct and should not be overwritten
         return combined
 
     def fetch_competition_directory(self, url: str) -> pd.DataFrame:

@@ -386,7 +386,7 @@ def preprocess_data_optimized(players, injuries, matches):
     # Map column names to match expected format
     players = players.rename(columns={
         'foot': 'dominant_foot',
-        'signed_from': 'previous_club'
+        'current_club': 'previous_club'
     })
     
     # Add missing columns with default values

@@ -81,24 +81,39 @@ def main(argv: Optional[List[str]] = None) -> None:
         players = players[: args.max_players]
 
     profiles, careers, injuries, matches = [], [], [], []
+    
+    total_players = len(players)
+    print(f"\n{'='*60}")
+    print(f"Starting data collection for {total_players} players")
+    print(f"{'='*60}\n")
 
-    for player in players:
+    for idx, player in enumerate(players, 1):
+        player_id = player["player_id"]
+        player_slug = player.get("player_slug")
+        player_name = player["player_name"]
+        
+        print(f"[{idx}/{total_players}] Processing: {player_name} (ID: {player_id})")
+        print(f"  Fetching profile...", end=" ", flush=True)
         player_id = player["player_id"]
         player_slug = player.get("player_slug")
         player_name = player["player_name"]
         profile_dict = scraper.fetch_player_profile(player_slug, player_id)
         profile_dict.setdefault("name", player_name)
+        print("✓")
         
+        print(f"  Fetching career...", end=" ", flush=True)
         career_df = scraper.fetch_player_career(player_slug, player_id)
+        print(f"✓ ({len(career_df)} transfers)")
 
         # Enrich signed_from/joined_on using official transfer history API
         latest_transfer = scraper.get_latest_completed_transfer(player_id)
         if latest_transfer:
             transfer_details = latest_transfer.get("details", {})
-            source_id = latest_transfer.get("transferSource", {}).get("clubId")
-            source_name = scraper.get_club_name(source_id)
-            if source_name:
-                profile_dict["signed_from"] = source_name
+            # Use transferDestination (club player joined) for current_club, not transferSource (club player left)
+            dest_id = latest_transfer.get("transferDestination", {}).get("clubId")
+            dest_name = scraper.get_club_name(dest_id)
+            if dest_name:
+                profile_dict["current_club"] = dest_name
             joined_date = transfer_details.get("date")
             if joined_date and not profile_dict.get("joined_on"):
                 profile_dict["joined_on"] = joined_date.split("T", 1)[0]
@@ -106,15 +121,18 @@ def main(argv: Optional[List[str]] = None) -> None:
         profiles.append(transform_profile(player_id, profile_dict))
         careers.append(transform_career(player_id, player_name, career_df))
 
+        print(f"  Fetching injuries...", end=" ", flush=True)
         injuries_df = scraper.fetch_player_injuries(player_slug, player_id)
         # Enrich injuries with club data from career history if not already present
         if not injuries_df.empty and not career_df.empty and "Club" not in injuries_df.columns:
             injuries_df = _enrich_injuries_with_clubs(injuries_df, career_df)
         injuries.append(transform_injuries(player_id, injuries_df))
+        print(f"✓ ({len(injuries_df)} injuries)")
 
         # Determine all available seasons for this player
         # Extract from career data and also try a wide range to catch all matches
         available_seasons = _get_all_available_seasons(career_df, profile_dict, as_of.year)
+        print(f"  Fetching match data ({len(available_seasons)} seasons)...", end=" ", flush=True)
         match_df = fetch_multiple_match_logs(scraper, player_slug, player_id, available_seasons)
         transformed_matches = transform_matches(player_id, player_name, match_df)
         filtered_matches = transformed_matches[
@@ -122,6 +140,11 @@ def main(argv: Optional[List[str]] = None) -> None:
             | (transformed_matches["date"] <= pd.Timestamp(as_of))
         ]
         matches.append(filtered_matches)
+        # Show stats extraction status
+        stats_count = filtered_matches["position"].notna().sum() if "position" in filtered_matches.columns else 0
+        goals_count = filtered_matches["goals"].notna().sum() if "goals" in filtered_matches.columns else 0
+        print(f"✓ ({len(filtered_matches)} matches, {stats_count} with position, {goals_count} with goals)")
+        print()  # Blank line between players
 
     profile_table = pd.concat(profiles, ignore_index=True) if profiles else pd.DataFrame()
     career_table = pd.concat(careers, ignore_index=True) if careers else pd.DataFrame()
@@ -141,8 +164,13 @@ def main(argv: Optional[List[str]] = None) -> None:
         "teams_data": teams_table,
         "competition_data": competitions_table,
     }
+    print(f"\n{'='*60}")
+    print("Exporting data files...")
+    print(f"{'='*60}\n")
+    
     for name, df in exports.items():
         path = output_dir / f"{as_of.strftime('%Y%m%d')}_{name}.csv"
+        print(f"  Writing {name}...", end=" ", flush=True)
         # Use UTF-8 with BOM for Excel compatibility on Windows
         df_to_write = df.copy()
         
@@ -188,6 +216,9 @@ def main(argv: Optional[List[str]] = None) -> None:
         else:
             df_to_write.to_csv(path, index=False, encoding="utf-8-sig", na_rep="")
         print(f"Wrote {path} ({len(df_to_write):,} rows)")
+    
+    # Close the scraper session to allow clean exit
+    scraper.close()
 
 
 def _enrich_injuries_with_clubs(injuries_df: pd.DataFrame, career_df: pd.DataFrame) -> pd.DataFrame:

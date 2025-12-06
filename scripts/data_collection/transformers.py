@@ -42,7 +42,7 @@ PROFILE_COLUMNS = [
     "height",
     "foot",
     "joined_on",
-    "signed_from",
+    "current_club",
 ]
 
 CAREER_COLUMNS = ["id", "name", "Season", "Date", "From", "To", "VM", "Value"]
@@ -87,17 +87,55 @@ COMPETITION_COLUMNS = ["competition", "country", "type"]
 
 def transform_profile(player_id: int, profile: Dict[str, Any]) -> pd.DataFrame:
     """Convert a profile dictionary into the canonical 10-column shape."""
+    # Format dates as YYYY-MM-DD strings (not datetime objects)
+    def _format_date(value: Any) -> Optional[str]:
+        if value is None:
+            return None
+        # If it's already a string in YYYY-MM-DD format, return it
+        if isinstance(value, str):
+            # Check if it's already in YYYY-MM-DD format
+            if len(value) == 10 and value.count('-') == 2:
+                # Validate it's a valid date format
+                try:
+                    pd.to_datetime(value, format="%Y-%m-%d")
+                    return value
+                except:
+                    pass
+            # If it's a datetime string with time component, extract just the date part
+            if ' ' in value:
+                date_part = value.split(' ')[0]
+                if len(date_part) == 10 and date_part.count('-') == 2:
+                    try:
+                        pd.to_datetime(date_part, format="%Y-%m-%d")
+                        return date_part
+                    except:
+                        pass
+        # Try to parse the date
+        dt = _to_datetime(value)
+        if dt is None:
+            return None
+        # Format datetime to YYYY-MM-DD
+        if isinstance(dt, pd.Timestamp):
+            return dt.strftime("%Y-%m-%d")
+        elif hasattr(dt, 'strftime'):
+            return dt.strftime("%Y-%m-%d")
+        # Fallback: convert to string and take first 10 characters
+        dt_str = str(dt)
+        if len(dt_str) >= 10:
+            return dt_str[:10]
+        return None
+    
     row = {
         "id": player_id,
         "name": profile.get("name"),
         "position": _normalize_position(profile.get("position")),
-        "date_of_birth": _to_datetime(profile.get("date_of_birth")),
+        "date_of_birth": _format_date(profile.get("date_of_birth")),
         "nationality1": _coalesce_nationalities(profile, idx=0),
         "nationality2": _coalesce_nationalities(profile, idx=1),
         "height": _parse_height(profile.get("height")),
         "foot": _normalize_foot(profile.get("foot")),
-        "joined_on": _to_datetime(profile.get("joined_on")),
-        "signed_from": profile.get("signed_from"),
+        "joined_on": _format_date(profile.get("joined_on")),
+        "current_club": profile.get("current_club"),
     }
     return pd.DataFrame([row], columns=PROFILE_COLUMNS)
 
@@ -168,16 +206,31 @@ def transform_injuries(player_id: int, injuries: pd.DataFrame) -> pd.DataFrame:
     }
     df = df.rename(columns=rename_map)
     df["player_id"] = player_id
-    df["fromDate"] = _to_datetime_series(df.get("fromDate"))
-    df["untilDate"] = _to_datetime_series(df.get("untilDate"))
+    
+    # Step 1: Convert to datetime (needed for season derivation)
+    fromDate_dt = _to_datetime_series(df.get("fromDate"))
+    untilDate_dt = _to_datetime_series(df.get("untilDate"))
+    
+    # Step 2: Derive season using datetime version (before converting to string)
+    if "season" not in df.columns:
+        df["season"] = _derive_season(fromDate_dt)  # Uses datetime, not string
+    
+    # Step 3: Convert to date format (YYYY-MM-DD strings) for final output
+    df["fromDate"] = fromDate_dt.dt.strftime("%Y-%m-%d").replace("NaT", None)
+    df["untilDate"] = untilDate_dt.dt.strftime("%Y-%m-%d").replace("NaT", None)
+    
     df["days"] = _to_numeric(df.get("days"))
+    
     # Convert lost_games to integers (round to nearest integer, NaN stays NaN)
     lost_games_numeric = _to_numeric(df.get("lost_games"))
-    df["lost_games"] = lost_games_numeric.round().astype("Int64")  # Nullable integer type
+    lost_games_rounded = lost_games_numeric.round()
+    df["lost_games"] = lost_games_rounded.astype("Int64")  # Nullable integer type
+    # Ensure any remaining float values are properly converted to integer
+    df["lost_games"] = df["lost_games"].apply(lambda x: int(x) if pd.notna(x) and not pd.isna(x) else pd.NA)
+    
     if "clubs" not in df.columns:
         df["clubs"] = None
-    if "season" not in df.columns:
-        df["season"] = _derive_season(df["fromDate"])
+    
     return df[INJURY_COLUMNS]
 
 
@@ -198,9 +251,16 @@ def transform_matches(
         "Away team": "away_team",
         "Result": "result",
         "Position": "position",
+        "Pos.": "position",  # Alternative column name
         "Goals": "goals",
         "Assists": "assists",
         "Own goals": "own_goals",
+        "Own goal": "own_goals",  # Handle singular form
+        "OG": "own_goals",  # Handle abbreviation
+        "Golos próprios": "own_goals",  # Portuguese
+        "Golo próprio": "own_goals",  # Portuguese singular
+        "Eigentore": "own_goals",  # German
+        "Eigentor": "own_goals",  # German singular
         "Yellow cards": "yellow_cards",
         "Second yellow cards": "second_yellow_cards",
         "Red cards": "red_cards",
@@ -230,15 +290,82 @@ def transform_matches(
             df[col] = _to_numeric(df[col])
         else:
             df[col] = pd.NA
+    
+    # Convert goals, assists, and own_goals to integers (round to nearest integer, NaN stays NaN)
+    for col in ["goals", "assists", "own_goals"]:
+        if col in df.columns:
+            # Round to nearest integer and convert to nullable integer type
+            df[col] = df[col].round().astype("Int64")
+            # Ensure proper integer conversion (handle any edge cases)
+            df[col] = df[col].apply(lambda x: int(x) if pd.notna(x) else pd.NA)
+    
+    # Convert time-based columns to integers (handling injury time format like "90+3'" -> 93)
+    time_based_cols = ["yellow_cards", "second_yellow_cards", "red_cards", 
+                       "substitutions_on", "substitutions_off", "minutes_played"]
+    for col in time_based_cols:
+        if col in df.columns:
+            # Parse minute values (handles "90+3'" -> 93, "903.0" -> 93, etc.)
+            df[col] = df[col].apply(lambda x: _parse_minute_value(x) if pd.notna(x) else pd.NA)
+            # Convert to nullable integer type
+            df[col] = df[col].astype("Int64")
+        else:
+            df[col] = pd.NA
+    
     # Normalize position column if it exists
     if "position" in df.columns:
         df["position"] = df["position"].apply(_normalize_position)
-    if "minutes_played" in df.columns:
-        df["minutes_played"] = df["minutes_played"].apply(_normalize_minutes)
+    
+    # Remove duplicate columns before reindexing (can happen if both "Position" and "Pos." exist)
+    df = df.loc[:, ~df.columns.duplicated()]
+    
+    # Include all match columns with stats
+    DESIRED_COLUMNS = [
+        "season",
+        "player_id", 
+        "player_name",
+        "competition",
+        "journey",
+        "date",
+        "home_team",
+        "away_team",
+        "result",
+        "position",
+        "goals",
+        "assists",
+        "own_goals",
+        "yellow_cards",
+        "second_yellow_cards",
+        "red_cards",
+        "substitutions_on",
+        "substitutions_off",
+        "minutes_played",
+        "transfermarkt_score",
+    ]
+    desired = df.reindex(columns=DESIRED_COLUMNS)
+    
+    # Derive season from match dates instead of using Transfermarkt's Season column
+    # This ensures consistency: matches from 2024/25 season show "2024/25" in season column
+    if "date" in desired.columns and "season" in desired.columns:
+        # Derive season from dates (format: "2024/25" - 4-digit start year, 2-digit end year)
+        def _derive_season_from_date(ts: pd.Timestamp) -> Optional[str]:
+            if pd.isna(ts):
+                return None
+            year = ts.year
+            if ts.month >= 7:
+                start, end = year, year + 1
+            else:
+                start, end = year - 1, year
+            return f"{start}/{str(end)[-2:]}"
+        
+        derived_seasons = desired["date"].apply(_derive_season_from_date)
+        # Only update where we have valid dates
+        mask = desired["date"].notna()
+        desired.loc[mask, "season"] = derived_seasons[mask]
+        # For rows without dates, keep original season value if available
+        desired["season"] = desired["season"].astype(str)
     else:
-        df["minutes_played"] = None
-    desired = df.reindex(columns=MATCH_COLUMNS)
-    desired["season"] = desired["season"].astype(str)
+        desired["season"] = desired["season"].astype(str)
+    
     return desired
 
 
@@ -485,12 +612,127 @@ def _flag_unknown_physio(injury: Any) -> float:
     return float("nan")
 
 
-def _normalize_minutes(value: Any) -> Optional[str]:
+def _parse_minute_value(value: Any) -> Optional[int]:
+    """
+    Parse minute values to integer, handling injury time format.
+    
+    Handles formats like:
+    - "90'" -> 90
+    - "90+3'" -> 93 (90 minutes + 3 minutes injury time)
+    - "120+5'" -> 125 (120 minutes + 5 minutes injury time)
+    - 903.0 (from pandas parsing "90+3'") -> 93
+    - 1205.0 (from pandas parsing "120+5'") -> 125
+    
+    Returns:
+        Integer minute value or None if invalid/missing
+    """
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return None
+    
+    # Handle numeric values that might be from "90 + 3'" -> 903.0
+    if isinstance(value, (int, float)) and not pd.isna(value):
+        # Check if it looks like it came from "90 + 3'" format (903, 1202, etc.)
+        if value > 100 and value < 10000:
+            # Try to split: 903 -> 90 + 3, 1202 -> 120 + 2
+            # Most common: 90 + X -> 90X, 120 + X -> 120X
+            if value >= 900 and value < 1000:
+                # Likely 90 + X format
+                extra = int(value % 100)
+                base = 90
+                if extra < 10:  # Reasonable extra time (0-9 minutes)
+                    return base + extra
+            elif value >= 1200 and value < 1300:
+                # Likely 120 + X format (extra time)
+                extra = int(value % 100)
+                base = 120
+                if extra < 10:  # Reasonable extra time (0-9 minutes)
+                    return base + extra
+        # Otherwise, treat as regular minutes (must be reasonable)
+        int_val = int(value)
+        if 0 <= int_val <= 150:  # Reasonable minute range
+            return int_val
+        return None
+    
     text = str(value).strip()
+    
+    # Handle "90 + 3'" or "90+3'" format (extra time)
+    if "+" in text:
+        # Extract base minutes and extra time
+        import re
+        parts = re.split(r'\s*\+\s*', text)
+        if len(parts) == 2:
+            base_min = re.findall(r'\d+', parts[0])
+            extra_min = re.findall(r'\d+', parts[1])
+            if base_min and extra_min:
+                total = int(base_min[0]) + int(extra_min[0])
+                if 0 <= total <= 150:  # Reasonable range
+                    return total
+    
+    # Handle standard format "90'" or "90"
+    import re
+    digits = re.findall(r'\d+', text)
+    if digits:
+        minute_val = int(digits[0])
+        if 0 <= minute_val <= 150:  # Reasonable range
+            return minute_val
+    
+    return None
+
+
+def _normalize_minutes(value: Any) -> Optional[str]:
+    """
+    Normalize minutes played values.
+    Handles formats like:
+    - "90'" -> "90'"
+    - "120'" -> "120'"
+    - "90 + 3'" -> "93'" (adds extra time)
+    - "90+3'" -> "93'"
+    - 903.0 (from "90 + 3'" converted by pandas) -> "93'"
+    - "23'" -> "23'" (yellow card minute, but should be handled separately)
+    """
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    
+    # Handle numeric values that might be from "90 + 3'" -> 903.0
+    if isinstance(value, (int, float)) and not pd.isna(value):
+        # Check if it looks like it came from "90 + 3'" format (903, 1202, etc.)
+        # These would be base_minutes * 100 + extra_time
+        if value > 100 and value < 10000:
+            # Try to split: 903 -> 90 + 3, 1202 -> 120 + 2
+            # Most common: 90 + X -> 90X, 120 + X -> 120X
+            if value >= 900 and value < 1000:
+                # Likely 90 + X format
+                extra = int(value % 100)
+                base = 90
+                if extra < 10:  # Reasonable extra time
+                    return f"{base + extra}'"
+            elif value >= 1200 and value < 1300:
+                # Likely 120 + X format
+                extra = int(value % 100)
+                base = 120
+                if extra < 10:  # Reasonable extra time
+                    return f"{base + extra}'"
+        # Otherwise, treat as regular minutes
+        return f"{int(value)}'"
+    
+    text = str(value).strip()
+    
+    # Handle "90 + 3'" or "90+3'" format (extra time)
+    if "+" in text:
+        # Extract base minutes and extra time
+        parts = re.split(r'\s*\+\s*', text)
+        if len(parts) == 2:
+            base_min = re.findall(r'\d+', parts[0])
+            extra_min = re.findall(r'\d+', parts[1])
+            if base_min and extra_min:
+                total = int(base_min[0]) + int(extra_min[0])
+                return f"{total}'"
+    
+    # Handle standard format "90'"
     if text.endswith("'"):
         return text
+    
+    # Extract digits if present
     digits = re.findall(r"[0-9]+", text)
     return f"{digits[0]}'" if digits else None
 
