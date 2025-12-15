@@ -1,0 +1,50 @@
+{
+  "model_id": "lgbm_muscular_v1",
+  "steps": [
+    {
+      "order": 1,
+      "name": "Scrape Transfermarkt data",
+      "scripts": [
+        "code/transfermarkt/transfermarkt_scraper.py",
+        "code/transfermarkt/transformers.py",
+        "code/transfermarkt/run_transfermarkt_pipeline.py"
+      ]
+    },
+    {
+      "order": 2,
+      "name": "Generate daily features from Transfermarkt exports",
+      "scripts": [
+        "code/daily_features/create_daily_features_v3.py",
+        "code/daily_features/create_daily_features_transfermarkt.py"
+      ]
+    },
+    {
+      "order": 3,
+      "name": "Create 35-day muscular timelines (season by season, v4)",
+      "scripts": [
+        "code/timelines/create_35day_timelines_season_by_season_v4.py"
+      ]
+    },
+    {
+      "order": 4,
+      "name": "Train baseline models (including winner LGBM)",
+      "scripts": [
+        "code/modeling/train_models_seasonal_combined.py"
+      ]
+    },
+    {
+      "order": 5,
+      "name": "Decision-based evaluation (Precision@K, Recall@K)",
+      "scripts": [
+        "code/modeling/evaluate_winner_model_decision_based.py"
+      ]
+    },
+    {
+      "order": 6,
+      "name": "Ensemble comparison (LGBM + RF, analysis only)",
+      "scripts": [
+        "code/modeling/ensemble_decision_based.py"
+      ]
+    }
+  ]
+}

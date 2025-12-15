@@ -1,0 +1,5 @@
+{
+  "model_id": "lgbm_muscular_v1",
+  "note": "Add entries here for upstream raw datasets not stored in this bundle (e.g. external TransferMarkt exports).",
+  "entries": []
+}

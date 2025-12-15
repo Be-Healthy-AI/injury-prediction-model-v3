@@ -1,0 +1,53 @@
+{
+  "model_id": "lgbm_muscular_v1",
+  "evaluation": {
+    "framework": "team-week Top-K decision-based evaluation on season 2025_2026",
+    "k_values": [1, 2, 3, 5, 7, 10, 15, 20],
+    "team_weeks": 5783,
+    "total_injuries": 990
+  },
+  "metrics": {
+    "K=1": {
+      "precision_at_k": 0.021,
+      "recall_at_k": 0.123,
+      "false_alerts_per_injury": 46.4
+    },
+    "K=2": {
+      "precision_at_k": 0.020,
+      "recall_at_k": 0.233,
+      "false_alerts_per_injury": 49.0
+    },
+    "K=3": {
+      "precision_at_k": 0.020,
+      "recall_at_k": 0.317,
+      "false_alerts_per_injury": 54.0
+    },
+    "K=5": {
+      "precision_at_k": 0.018,
+      "recall_at_k": 0.429,
+      "false_alerts_per_injury": 66.2
+    },
+    "K=7": {
+      "precision_at_k": 0.017,
+      "recall_at_k": 0.466,
+      "false_alerts_per_injury": 84.4
+    },
+    "K=10": {
+      "precision_at_k": 0.017,
+      "recall_at_k": 0.527,
+      "false_alerts_per_injury": 90.4
+    },
+    "K=15": {
+      "precision_at_k": 0.016,
+      "recall_at_k": 0.602,
+      "false_alerts_per_injury": 100.1
+    },
+    "K=20": {
+      "precision_at_k": 0.016,
+      "recall_at_k": 0.683,
+      "false_alerts_per_injury": 101.5
+    }
+  }
+}
+
+

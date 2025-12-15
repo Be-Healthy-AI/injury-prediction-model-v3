@@ -1,0 +1,22 @@
+{
+  "window_size_days": 35,
+  "buffer_days": 34,
+  "date_format": "%Y%m%d",
+  "date_display_format": "%Y-%m-%d",
+  "ensemble_weights": {
+    "gradient_boosting": 0.7,
+    "random_forest": 0.3
+  },
+  "risk_thresholds": {
+    "low": 0.3,
+    "medium": 0.5,
+    "high": 1.0
+  }
+}
+
+
+
+
+
+
+

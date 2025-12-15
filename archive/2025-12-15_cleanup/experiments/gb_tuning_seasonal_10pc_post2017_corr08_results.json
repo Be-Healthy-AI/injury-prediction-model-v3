@@ -1,0 +1,178 @@
+{
+  "model_name": "gb",
+  "best_hyperparameters": {
+    "n_estimators": 300,
+    "max_depth": 8,
+    "learning_rate": 0.05,
+    "min_samples_split": 25,
+    "min_samples_leaf": 10,
+    "subsample": 0.7,
+    "max_features": "log2"
+  },
+  "optimization": {
+    "n_trials": 10,
+    "best_test_gini": 0.5995708386358054,
+    "best_trial_number": 9,
+    "tuning_time_seconds": 711.121383
+  },
+  "train_metrics": {
+    "accuracy": 0.9163876368319381,
+    "precision": 0.9277310924369748,
+    "recall": 0.1777205408886027,
+    "f1": 0.2982977573628749,
+    "roc_auc": 0.9256846216827747,
+    "gini": 0.8513692433655493,
+    "confusion_matrix": {
+      "tn": 111644,
+      "fp": 172,
+      "fn": 10216,
+      "tp": 2208
+    }
+  },
+  "test_metrics": {
+    "accuracy": 0.9897455001764637,
+    "precision": 0.049766718506998445,
+    "recall": 0.03232323232323232,
+    "f1": 0.03919167176974893,
+    "roc_auc": 0.794583325359691,
+    "gini": 0.589166650719382,
+    "confusion_matrix": {
+      "tn": 151405,
+      "fp": 611,
+      "fn": 958,
+      "tp": 32
+    }
+  },
+  "trial_history": [
+    {
+      "trial": 0,
+      "test_gini": 0.5768107344362474,
+      "params": {
+        "n_estimators": 300,
+        "max_depth": 8,
+        "learning_rate": 0.15,
+        "min_samples_split": 15,
+        "min_samples_leaf": 15,
+        "subsample": 0.7999999999999999,
+        "max_features": "log2"
+      }
+    },
+    {
+      "trial": 1,
+      "test_gini": 0.5953255186322757,
+      "params": {
+        "n_estimators": 200,
+        "max_depth": 10,
+        "learning_rate": 0.05,
+        "min_samples_split": 20,
+        "min_samples_leaf": 5,
+        "subsample": 0.7999999999999999,
+        "max_features": "log2"
+      }
+    },
+    {
+      "trial": 2,
+      "test_gini": 0.5457381679121496,
+      "params": {
+        "n_estimators": 200,
+        "max_depth": 10,
+        "learning_rate": 0.1,
+        "min_samples_split": 15,
+        "min_samples_leaf": 10,
+        "subsample": 0.7999999999999999,
+        "max_features": "sqrt"
+      }
+    },
+    {
+      "trial": 3,
+      "test_gini": 0.5331091676686879,
+      "params": {
+        "n_estimators": 150,
+        "max_depth": 10,
+        "learning_rate": 0.15,
+        "min_samples_split": 15,
+        "min_samples_leaf": 10,
+        "subsample": 0.8999999999999999,
+        "max_features": "sqrt"
+      }
+    },
+    {
+      "trial": 4,
+      "test_gini": 0.5597165675808713,
+      "params": {
+        "n_estimators": 300,
+        "max_depth": 8,
+        "learning_rate": 0.15,
+        "min_samples_split": 20,
+        "min_samples_leaf": 15,
+        "subsample": 0.8999999999999999,
+        "max_features": "log2"
+      }
+    },
+    {
+      "trial": 5,
+      "test_gini": 0.5556636648561182,
+      "params": {
+        "n_estimators": 200,
+        "max_depth": 10,
+        "learning_rate": 0.15,
+        "min_samples_split": 15,
+        "min_samples_leaf": 10,
+        "subsample": 0.7999999999999999,
+        "max_features": "log2"
+      }
+    },
+    {
+      "trial": 6,
+      "test_gini": 0.53539814788236,
+      "params": {
+        "n_estimators": 250,
+        "max_depth": 8,
+        "learning_rate": 0.15,
+        "min_samples_split": 20,
+        "min_samples_leaf": 15,
+        "subsample": 0.7,
+        "max_features": "sqrt"
+      }
+    },
+    {
+      "trial": 7,
+      "test_gini": 0.5565661349841964,
+      "params": {
+        "n_estimators": 300,
+        "max_depth": 8,
+        "learning_rate": 0.125,
+        "min_samples_split": 15,
+        "min_samples_leaf": 5,
+        "subsample": 0.7999999999999999,
+        "max_features": "sqrt"
+      }
+    },
+    {
+      "trial": 8,
+      "test_gini": 0.5868415831294738,
+      "params": {
+        "n_estimators": 150,
+        "max_depth": 8,
+        "learning_rate": 0.15,
+        "min_samples_split": 15,
+        "min_samples_leaf": 10,
+        "subsample": 0.7,
+        "max_features": "log2"
+      }
+    },
+    {
+      "trial": 9,
+      "test_gini": 0.5995708386358054,
+      "params": {
+        "n_estimators": 300,
+        "max_depth": 8,
+        "learning_rate": 0.05,
+        "min_samples_split": 25,
+        "min_samples_leaf": 10,
+        "subsample": 0.7,
+        "max_features": "log2"
+      }
+    }
+  ]
+}

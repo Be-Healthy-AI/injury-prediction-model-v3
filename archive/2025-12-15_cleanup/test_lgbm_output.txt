@@ -1,0 +1,23 @@
+Testing LightGBM import and basic functionality...
+✅ LightGBM imported successfully
+
+Loading test data...
+   Data shape: (1000, 463)
+   Target ratio: 7.5%
+
+Creating LightGBM model...
+✅ Model created successfully
+
+Testing training (10 trees only)...
+✅ Training completed successfully
+
+Testing prediction...
+✅ Prediction completed successfully
+
+Calculating metrics...
+   Accuracy: 0.9040
+   Precision: 0.4386
+   Recall: 1.0000
+   F1-Score: 0.6098
+
+✅✅✅ ALL TESTS PASSED - LightGBM is working correctly!

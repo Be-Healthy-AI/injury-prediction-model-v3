@@ -103,3 +103,5 @@ But this is **not necessary** for functionality - it's just for code clarity.
 
 **The script IS running from scratch exclusively on TransferMarkt data.** The "benfica_parity" naming is just a legacy convention and doesn't indicate any Benfica-specific dependencies. The script is fully functional as-is, with optional enhancements possible for teams/competitions mappings.
 
+
+

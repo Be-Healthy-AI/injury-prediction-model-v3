@@ -1,0 +1,71 @@
+{
+  "model_id": "lgbm_muscular_v1",
+  "entries": [
+    {
+      "path": "model/model.joblib",
+      "size_bytes": 775188,
+      "sha256": "ae37b03974804d8bf3d794e5220d1d1d6bd073df6905bdaf8ce18c247d02d4f9",
+      "description": "core model artifact"
+    },
+    {
+      "path": "model/columns.json",
+      "size_bytes": 58766,
+      "sha256": "b866130307fa4b64815a414133fbfede03e629a4b6306fc9dc16b480518bfe49",
+      "description": "core model artifact"
+    },
+    {
+      "path": "code/daily_features/create_daily_features_transfermarkt.py",
+      "size_bytes": 41448,
+      "sha256": "fcf2f80f9478964fa496ccb2d1ecdaecb1c3329b7a4006b690f9900706de4bc8",
+      "description": "pipeline code snapshot"
+    },
+    {
+      "path": "code/daily_features/create_daily_features_v3.py",
+      "size_bytes": 153462,
+      "sha256": "3f0c312e6ba5572392707e8727935409f22c3d17b5bbfc57af952e7164d164d0",
+      "description": "pipeline code snapshot"
+    },
+    {
+      "path": "code/modeling/ensemble_decision_based.py",
+      "size_bytes": 15543,
+      "sha256": "3ccd4f67d75289d9b70afbb5a2471026f06032e43d282a24316b578573fcd900",
+      "description": "pipeline code snapshot"
+    },
+    {
+      "path": "code/modeling/evaluate_winner_model_decision_based.py",
+      "size_bytes": 21759,
+      "sha256": "88eb1cbba11aca64460c37ff63446ac8a2d3d77262466d95fd545ce6f5687641",
+      "description": "pipeline code snapshot"
+    },
+    {
+      "path": "code/modeling/train_models_seasonal_combined.py",
+      "size_bytes": 38980,
+      "sha256": "9def7aa94907d8bf4688893a219e74922868c0e08a3a81f51620a0ae846e0bc8",
+      "description": "pipeline code snapshot"
+    },
+    {
+      "path": "code/timelines/create_35day_timelines_season_by_season_v4.py",
+      "size_bytes": 75346,
+      "sha256": "7a0702e1bdd44b5326553dc29931df230849a7e9925178b9620c3925166afbeb",
+      "description": "pipeline code snapshot"
+    },
+    {
+      "path": "code/transfermarkt/run_transfermarkt_pipeline.py",
+      "size_bytes": 16269,
+      "sha256": "b10e78552d25b79e9a618e4ea1db427532bd7f29b22a80b753ef0609c09dd6bc",
+      "description": "pipeline code snapshot"
+    },
+    {
+      "path": "code/transfermarkt/transfermarkt_scraper.py",
+      "size_bytes": 53453,
+      "sha256": "48c075151664165ccf56d7ceb9c92be738c64b60868ad434332302f21978c0b3",
+      "description": "pipeline code snapshot"
+    },
+    {
+      "path": "code/transfermarkt/transformers.py",
+      "size_bytes": 29748,
+      "sha256": "f37a858c042e0b09325489d594cc73877431d72f36e6c9335e1cd571ca37bcec",
+      "description": "pipeline code snapshot"
+    }
+  ]
+}

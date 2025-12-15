@@ -1,0 +1,1034 @@
+{
+  "Abdominal muscle strain": {
+    "injury_class": "muscular",
+    "body_part": "upper_body"
+  },
+  "Abdominal problems": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Achilles heel problems": {
+    "injury_class": "muscular",
+    "body_part": "lower_leg"
+  },
+  "Achilles tendon contusion": {
+    "injury_class": "muscular",
+    "body_part": "lower_leg"
+  },
+  "Achilles tendon irritation": {
+    "injury_class": "muscular",
+    "body_part": "lower_leg"
+  },
+  "Achilles tendon problems": {
+    "injury_class": "muscular",
+    "body_part": "lower_leg"
+  },
+  "Achilles tendon rupture": {
+    "injury_class": "muscular",
+    "body_part": "lower_leg"
+  },
+  "Achilles tendon surgery": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Acromioclavicular joint dislocation": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Adductor injury": {
+    "injury_class": "muscular",
+    "body_part": "upper_leg"
+  },
+  "Adductor pain": {
+    "injury_class": "muscular",
+    "body_part": "upper_leg"
+  },
+  "Adductor tear": {
+    "injury_class": "muscular",
+    "body_part": "upper_leg"
+  },
+  "allergic reaction": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "angina": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Ankle injury": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Ankle ligament tear": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Ankle problems": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Ankle sprain": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Ankle surgery": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Appendectomy": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Appendicitis": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Arch problems": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Arm injury": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Back injury": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Back problems": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Blood poisoning": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Bone bruise": {
+    "injury_class": "skeletal",
+    "body_part": "unknown"
+  },
+  "Bone edema": {
+    "injury_class": "skeletal",
+    "body_part": "unknown"
+  },
+  "Bone inflammation": {
+    "injury_class": "skeletal",
+    "body_part": "unknown"
+  },
+  "Bone splintering": {
+    "injury_class": "skeletal",
+    "body_part": "unknown"
+  },
+  "Broken ankle": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Broken arm": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Broken cheekbone": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Broken collarbone": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Broken fibula": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Broken finger": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Broken foot": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Broken hand": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Broken jaw": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Broken kneecap": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Broken leg": {
+    "injury_class": "skeletal",
+    "body_part": "upper_leg"
+  },
+  "Broken nose bone": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Broken shoulder": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Broken thumb": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Broken tibia": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Broken toe": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "bronchitis": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "bruise": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Bruise on ankle": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Bruise on the ankle joint": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Bruised back": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Bruised knee": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Bruised ribs": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Bursitis": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Calf injury": {
+    "injury_class": "muscular",
+    "body_part": "lower_leg"
+  },
+  "Calf muscle tear": {
+    "injury_class": "muscular",
+    "body_part": "lower_leg"
+  },
+  "Calf problems": {
+    "injury_class": "muscular",
+    "body_part": "lower_leg"
+  },
+  "Calf stiffness": {
+    "injury_class": "muscular",
+    "body_part": "lower_leg"
+  },
+  "Calf strain": {
+    "injury_class": "muscular",
+    "body_part": "lower_leg"
+  },
+  "Capsular injury": {
+    "injury_class": "skeletal",
+    "body_part": ""
+  },
+  "Cartilage damage": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Cervical spine injury": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Cheekbone bruise": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Chest injury": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "chickenpox": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Circulation problems": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Coccyx bruise": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "cold": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Collateral ligament injury": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Collateral ligament tear": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Compression of the spine": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "concussion": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Contracture": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "Corona virus": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Crack bruise": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Cruciate ligament injury": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Cruciate ligament strain": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Cruciate ligament surgery": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Cruciate ligament tear": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Cut": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Cyst in the knee": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Dead leg": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Dental surgery": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Depression": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Dislocation fracture of the ankle joint": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Dislocation of the kneecap": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Edema in the knee": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Elbow injury": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Eye injury": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Eyebow fracture": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Facial fracture": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Facial injury": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "fatigue fracture": {
+    "injury_class": "skeletal",
+    "body_part": "unknown"
+  },
+  "Femoral fracture": {
+    "injury_class": "skeletal",
+    "body_part": "upper_leg"
+  },
+  "Fever": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Finger injury": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Fissure of the fibula": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Fitness": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "flu": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Foot bruise": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Foot injury": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Foot surgery": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Forearm fracture": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Fracture of fibula shaft": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Fracture of the eye socket": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Groin injury": {
+    "injury_class": "muscular",
+    "body_part": "hips"
+  },
+  "Groin problems": {
+    "injury_class": "muscular",
+    "body_part": "hips"
+  },
+  "Groin strain": {
+    "injury_class": "muscular",
+    "body_part": "hips"
+  },
+  "Groin surgery": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Hairline crack in foot": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Hairline fracture in the fibula": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Hamstring injury": {
+    "injury_class": "muscular",
+    "body_part": "upper_leg"
+  },
+  "Hamstring muscle injury": {
+    "injury_class": "muscular",
+    "body_part": "upper_leg"
+  },
+  "Hamstring strain": {
+    "injury_class": "muscular",
+    "body_part": "upper_leg"
+  },
+  "Hand injury": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Head injury": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "heart problems": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Heel injury": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Heel problems": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Heel spur": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Herniated disc": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Hip bruise": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Hip flexor problems": {
+    "injury_class": "muscular",
+    "body_part": "hips"
+  },
+  "Hip injury": {
+    "injury_class": "skeletal",
+    "body_part": "hips"
+  },
+  "Hip problems": {
+    "injury_class": "skeletal",
+    "body_part": "hips"
+  },
+  "Ill": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "infection": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "inflamed wound": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "inflammation": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Inflammation in the head of the fibula": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Inflammation in the knee": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Inflammation of ligaments in the knee": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Inflammation of pubic bone": {
+    "injury_class": "skeletal",
+    "body_part": "hips"
+  },
+  "Inflammation of the pancreas": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Inflammation of the sole of the foot": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "influenza": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Inguinal hernia": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Injury to abdominal muscles": {
+    "injury_class": "muscular",
+    "body_part": "upper_body"
+  },
+  "Injury to the ankle": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Inner ankle ligament tear": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Inner knee ligament tear": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Inner ligament injury": {
+    "injury_class": "skeletal",
+    "body_part": "unknown"
+  },
+  "Inner ligament stretch of the knee": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Insect bite": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Internal ligament strain": {
+    "injury_class": "skeletal",
+    "body_part": "unknown"
+  },
+  "Internal ligament tear": {
+    "injury_class": "skeletal",
+    "body_part": "unknown"
+  },
+  "Intestinal surgery": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Kidney problems": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Knee bruise": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Knee collateral ligament strain": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Knee collateral ligament tear": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Knee injury": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Knee medial ligament tear": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Knee problems": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Knee surgery": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Knock": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Laceration": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "laceration wound": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Left hip flexor problems": {
+    "injury_class": "muscular",
+    "body_part": "hips"
+  },
+  "Leg injury": {
+    "injury_class": "skeletal",
+    "body_part": "upper_leg"
+  },
+  "Ligament injury": {
+    "injury_class": "skeletal",
+    "body_part": "unknown"
+  },
+  "Ligament stretching": {
+    "injury_class": "skeletal",
+    "body_part": "unknown"
+  },
+  "Longitudinal tendon tear": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "Lower leg fracture": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Lumbago": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Lumbar vertebra problems": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Lung contusion": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Lymphatic cancer": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "malaria": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Meniscus damage": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Meniscus injury": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Meniscus irritation": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Meniscus tear": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Metacarpal fracture": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Metatarsal bruise": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Metatarsal fracture": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "minor knock": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Mononucleation": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Muscle contusion": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "Muscle fatigue": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "Muscle fiber tear": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "Muscle injury": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "muscle stiffness": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "Muscle strain": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "Muscle tear": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "muscular problems": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "Neck bruise": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Neck injury": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Nose injury": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Nose surgery": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "open wound": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Outer ligament problems": {
+    "injury_class": "skeletal",
+    "body_part": "unknown"
+  },
+  "Outer ligament tear": {
+    "injury_class": "skeletal",
+    "body_part": "unknown"
+  },
+  "Overstretching": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "Partial muscle tear": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "Patellar tendon irritation": {
+    "injury_class": "muscular",
+    "body_part": "knees"
+  },
+  "Patellar tendon problems": {
+    "injury_class": "muscular",
+    "body_part": "knees"
+  },
+  "Patellar tendon rupture": {
+    "injury_class": "muscular",
+    "body_part": "knees"
+  },
+  "Patellar tendon tear": {
+    "injury_class": "muscular",
+    "body_part": "knees"
+  },
+  "Pelvic contusion": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Pelvic injury": {
+    "injury_class": "skeletal",
+    "body_part": "hips"
+  },
+  "Peroneus tendon injury": {
+    "injury_class": "muscular",
+    "body_part": "lower_leg"
+  },
+  "pinched nerve": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "pneumonia": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Pneumothorax": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Pubalgia": {
+    "injury_class": "muscular",
+    "body_part": "hips"
+  },
+  "Pubic bone bruise": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Quarantine": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Rest": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Rib fracture": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Right hip flexor problems": {
+    "injury_class": "muscular",
+    "body_part": "hips"
+  },
+  "Scaphoid fracture": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Sciatica problems": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Shin bruise": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Shin injury": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Shingles": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Shoulder injury": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Skin disease": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Skull fracture": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "sprain": {
+    "injury_class": "skeletal",
+    "body_part": ""
+  },
+  "Stomach flu": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Stomach problems": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "strain": {
+    "injury_class": "muscular",
+    "body_part": ""
+  },
+  "Strain in the thigh and gluteal muscles": {
+    "injury_class": "muscular",
+    "body_part": "upper_leg"
+  },
+  "Stress reaction of the bone": {
+    "injury_class": "skeletal",
+    "body_part": "unknown"
+  },
+  "surgery": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Syndesmosis ligament tear": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Syndesmotic ligament tear": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Tear of the lateral meniscus": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Tendon irritation": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "Tendon rupture": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "Tendon tear": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "Tendonitis": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "Thigh problems": {
+    "injury_class": "muscular",
+    "body_part": "upper_leg"
+  },
+  "Thumb injury": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Tibia and fibula fracture": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Tibial head contusion": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Toe injury": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Toe joint capsular tear": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Tonsillitis": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Toothache": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Torn ankle ligaments": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Torn knee ligaments": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Torn lateral ankle ligament": {
+    "injury_class": "skeletal",
+    "body_part": "lower_leg"
+  },
+  "Torn lateral knee ligament": {
+    "injury_class": "skeletal",
+    "body_part": "knees"
+  },
+  "Torn ligaments": {
+    "injury_class": "skeletal",
+    "body_part": "unknown"
+  },
+  "Torn muscle bundle": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "Torn muscle fiber": {
+    "injury_class": "muscular",
+    "body_part": "unknown"
+  },
+  "Torn muscle fiber in the adductor area": {
+    "injury_class": "muscular",
+    "body_part": "upper_leg"
+  },
+  "Torn thigh muscle": {
+    "injury_class": "muscular",
+    "body_part": "upper_leg"
+  },
+  "tuberculosis": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "unknown injury": {
+    "injury_class": "unknown",
+    "body_part": "unknown"
+  },
+  "Vein occlusion": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Vertebral injury": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Virus": {
+    "injury_class": "no_injury",
+    "body_part": ""
+  },
+  "Whiplash": {
+    "injury_class": "other",
+    "body_part": ""
+  },
+  "Wrist fracture": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  },
+  "Wrist injury": {
+    "injury_class": "skeletal",
+    "body_part": "upper_body"
+  }
+}
