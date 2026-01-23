@@ -194,34 +194,61 @@ def load_combined_seasonal_datasets(target_ratio=0.50, exclude_season='2025_2026
     Load and combine all seasonal datasets with specified target ratio.
     
     Args:
-        target_ratio: Target ratio (0.10, 0.25, or 0.50)
+        target_ratio: Target ratio (0.10, 0.25, 0.50, or None for natural/unbalanced ratio)
         exclude_season: Season to exclude (default: '2025_2026' for test)
         min_season: Minimum season to include (e.g., '2017_2018'). If None, includes all seasons.
     
     Returns:
         Combined DataFrame
     """
-    ratio_str = f"{int(target_ratio * 100):02d}pc"
-    pattern = f'timelines_35day_season_*_{ratio_str}_v4_muscular.csv'
-    
-    files = glob.glob(pattern)
-    season_files = []
-    
-    for filepath in files:
-        filename = os.path.basename(filepath)
-        if 'season_' in filename:
-            parts = filename.split('season_')
-            if len(parts) > 1:
-                season_part = parts[1].split(f'_{ratio_str}')[0]
-                if season_part != exclude_season:
-                    # Filter by minimum season if specified
-                    if min_season is None or season_part >= min_season:
-                        season_files.append((season_part, filepath))
+    if target_ratio is None:
+        # Natural ratio: files without _XXpc suffix
+        pattern = 'timelines_35day_season_*_v4_muscular.csv'
+        files = glob.glob(pattern)
+        season_files = []
+        
+        for filepath in files:
+            filename = os.path.basename(filepath)
+            # Exclude files with ratio suffixes (10pc, 25pc, 50pc)
+            if '_10pc_' in filename or '_25pc_' in filename or '_50pc_' in filename:
+                continue
+            if 'season_' in filename:
+                parts = filename.split('season_')
+                if len(parts) > 1:
+                    # Extract season from pattern: timelines_35day_season_YYYY_YYYY_v4_muscular.csv
+                    season_part = parts[1].split('_v4_muscular')[0]
+                    if season_part != exclude_season:
+                        # Filter by minimum season if specified
+                        if min_season is None or season_part >= min_season:
+                            season_files.append((season_part, filepath))
+    else:
+        # Balanced ratio: files with _XXpc suffix
+        ratio_str = f"{int(target_ratio * 100):02d}pc"
+        pattern = f'timelines_35day_season_*_{ratio_str}_v4_muscular.csv'
+        
+        files = glob.glob(pattern)
+        season_files = []
+        
+        for filepath in files:
+            filename = os.path.basename(filepath)
+            if 'season_' in filename:
+                parts = filename.split('season_')
+                if len(parts) > 1:
+                    season_part = parts[1].split(f'_{ratio_str}')[0]
+                    if season_part != exclude_season:
+                        # Filter by minimum season if specified
+                        if min_season is None or season_part >= min_season:
+                            season_files.append((season_part, filepath))
     
     # Sort chronologically
     season_files.sort(key=lambda x: x[0])
     
-    print(f"\n📂 Loading {len(season_files)} season files with {target_ratio:.0%} target ratio...")
+    if target_ratio is None:
+        ratio_display = "natural (unbalanced)"
+    else:
+        ratio_display = f"{target_ratio:.0%}"
+    
+    print(f"\n📂 Loading {len(season_files)} season files with {ratio_display} target ratio...")
     if min_season:
         print(f"   (Filtering: Only seasons >= {min_season})")
     

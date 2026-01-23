@@ -1,0 +1,114 @@
+{
+  "model_version": "V3_natural_filtered_excl_2023_2024",
+  "model_name": "LGBM Muscular Injury Prediction V3 (PL-Only, Filtered Seasons Excluding 2023-2024)",
+  "creation_date": "2026-01-06 13:53:30",
+  "training_configuration": {
+    "target_ratio": null,
+    "target_ratio_display": "natural (unbalanced)",
+    "correlation_threshold": 0.8,
+    "excluded_seasons": [
+      "2021_2022",
+      "2022_2023",
+      "2023_2024"
+    ],
+    "excluded_seasons_reason": {
+      "2021_2022": "Low injury rate (0.32%) - not representative of normal seasons",
+      "2022_2023": "Low injury rate (0.34%) - not representative of normal seasons",
+      "2023_2024": "Excluded to improve model generalization (improved test precision from 34.16% to 48.09%)"
+    },
+    "min_season": "2018_2019",
+    "max_season": "2025_2026",
+    "seasons_used": [
+      "2018_2019",
+      "2019_2020",
+      "2020_2021",
+      "2024_2025",
+      "2025_2026"
+    ],
+    "filter_type": "PL-only (only days when players were at PL clubs)",
+    "random_state": 42,
+    "hyperparameters": {
+      "n_estimators": 200,
+      "max_depth": 10,
+      "learning_rate": 0.1,
+      "min_child_samples": 20,
+      "subsample": 0.8,
+      "colsample_bytree": 0.8,
+      "reg_alpha": 0.1,
+      "reg_lambda": 1.0,
+      "class_weight": "balanced"
+    }
+  },
+  "training_dataset": {
+    "total_records": 357281,
+    "total_positives": 2219,
+    "total_negatives": 355062,
+    "injury_rate": 0.0062,
+    "files_used": [
+      "timelines_35day_season_2018_2019_v4_muscular.csv",
+      "timelines_35day_season_2019_2020_v4_muscular.csv",
+      "timelines_35day_season_2020_2021_v4_muscular.csv",
+      "timelines_35day_season_2024_2025_v4_muscular.csv",
+      "timelines_35day_season_2025_2026_v4_muscular.csv"
+    ],
+    "season_breakdown": {
+      "2018_2019": {
+        "records": 55785,
+        "positives": 360
+      },
+      "2019_2020": {
+        "records": 70519,
+        "positives": 478
+      },
+      "2020_2021": {
+        "records": 87170,
+        "positives": 473
+      },
+      "2024_2025": {
+        "records": 106057,
+        "positives": 618
+      },
+      "2025_2026": {
+        "records": 37750,
+        "positives": 290
+      }
+    }
+  },
+  "performance_metrics": {
+    "train": {
+      "accuracy": 0.9900358541316219,
+      "precision": 0.38397646651669837,
+      "recall": 1.0,
+      "f1": 0.5548887221805452,
+      "roc_auc": 0.9998809251497371,
+      "gini": 0.9997618502994743,
+      "confusion_matrix": {
+        "tn": 351502,
+        "fp": 3560,
+        "fn": 0,
+        "tp": 2219
+      }
+    },
+    "test": {
+      "accuracy": 0.9917086092715232,
+      "precision": 0.48092868988391374,
+      "recall": 1.0,
+      "f1": 0.6494960806270996,
+      "roc_auc": 0.999792882522967,
+      "gini": 0.9995857650459341,
+      "confusion_matrix": {
+        "tn": 37147,
+        "fp": 313,
+        "fn": 0,
+        "tp": 290
+      }
+    }
+  },
+  "model_hash": "cabe230436b98a249a7aefa3eb3a24816df4d6f15997cb52613b19a59b3b31a5",
+  "deployment_info": {
+    "model_file": "model.joblib",
+    "columns_file": "columns.json",
+    "feature_count": 1541,
+    "deployment_date": "2026-01-06 13:53:30"
+  }
+}

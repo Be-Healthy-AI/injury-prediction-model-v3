@@ -1,0 +1,40 @@
+{
+  "club_name": "Manchester City",
+  "country": "England",
+  "player_ids": [
+    51471,
+    85941,
+    116648,
+    177476,
+    186590,
+    241641,
+    258004,
+    315858,
+    351749,
+    357565,
+    392757,
+    406635,
+    418560,
+    445939,
+    460939,
+    466805,
+    475959,
+    486049,
+    566799,
+    578391,
+    583255,
+    601883,
+    607223,
+    661207,
+    701057,
+    743413,
+    743591,
+    763079,
+    843595
+  ],
+  "models": {
+    "lgbm_muscular_v2": "../../../models/lgbm_muscular_v2/model.joblib",
+    "lgbm_columns": "../../../models/lgbm_muscular_v2/columns.json"
+  },
+  "default_date_range_days": 7
+}

@@ -1,0 +1,36 @@
+{
+  "club_name": "Arsenal FC",
+  "country": "England",
+  "player_ids": [
+    144028,
+    148367,
+    192279,
+    262749,
+    309400,
+    316264,
+    325443,
+    335721,
+    338424,
+    357662,
+    363205,
+    420243,
+    423440,
+    433177,
+    435338,
+    479999,
+    495666,
+    502821,
+    503987,
+    646750,
+    655488,
+    659813,
+    890719,
+    890721,
+    1187629
+  ],
+  "models": {
+    "lgbm_muscular_v2": "../../../models/lgbm_muscular_v2/model.joblib",
+    "lgbm_columns": "../../../models/lgbm_muscular_v2/columns.json"
+  },
+  "default_date_range_days": 7
+}

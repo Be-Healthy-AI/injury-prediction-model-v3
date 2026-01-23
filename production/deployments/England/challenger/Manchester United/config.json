@@ -1,0 +1,38 @@
+{
+  "club_name": "Manchester United",
+  "country": "England",
+  "player_ids": [
+    16306,
+    34130,
+    177907,
+    183288,
+    240306,
+    326031,
+    336077,
+    339340,
+    340456,
+    346483,
+    357147,
+    413039,
+    435648,
+    476701,
+    480762,
+    503883,
+    517894,
+    536835,
+    627442,
+    654253,
+    820374,
+    911424,
+    923831,
+    926952,
+    1042886,
+    1078163,
+    1283997
+  ],
+  "models": {
+    "lgbm_muscular_v2": "../../../models/lgbm_muscular_v2/model.joblib",
+    "lgbm_columns": "../../../models/lgbm_muscular_v2/columns.json"
+  },
+  "default_date_range_days": 7
+}

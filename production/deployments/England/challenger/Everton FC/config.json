@@ -1,0 +1,35 @@
+{
+  "club_name": "Everton FC",
+  "country": "England",
+  "player_ids": [
+    68390,
+    118534,
+    126665,
+    130164,
+    173504,
+    203460,
+    215810,
+    357658,
+    404842,
+    424015,
+    475188,
+    505219,
+    584769,
+    595809,
+    608832,
+    623570,
+    661053,
+    696589,
+    711544,
+    748319,
+    866655,
+    937941,
+    938146,
+    1107733
+  ],
+  "models": {
+    "lgbm_muscular_v2": "../../../models/lgbm_muscular_v2/model.joblib",
+    "lgbm_columns": "../../../models/lgbm_muscular_v2/columns.json"
+  },
+  "default_date_range_days": 7
+}

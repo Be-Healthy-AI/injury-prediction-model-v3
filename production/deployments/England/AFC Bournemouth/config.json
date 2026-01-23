@@ -1,0 +1,36 @@
+{
+  "club_name": "AFC Bournemouth",
+  "country": "England",
+  "player_ids": [
+    52570,
+    61841,
+    188077,
+    249089,
+    251106,
+    277033,
+    330659,
+    332705,
+    399434,
+    463605,
+    465555,
+    469781,
+    532776,
+    582078,
+    611793,
+    654539,
+    711337,
+    719673,
+    741257,
+    855256,
+    955357,
+    989112,
+    994604,
+    998101,
+    1009658
+  ],
+  "models": {
+    "lgbm_muscular_v2": "../../../models/lgbm_muscular_v2/model.joblib",
+    "lgbm_columns": "../../../models/lgbm_muscular_v2/columns.json"
+  },
+  "default_date_range_days": 7
+}

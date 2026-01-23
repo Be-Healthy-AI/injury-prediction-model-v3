@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 from datetime import datetime
 import sys
 from pathlib import Path
@@ -56,8 +57,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--country",
-        default="england",
-        help="Country name (e.g., 'england') - used for output folder. Default: england",
+        default="England",
+        help="Country name (e.g., 'England') - used for output folder. Default: England",
     )
     parser.add_argument(
         "--league",
@@ -98,6 +99,14 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         "--max-players-per-club",
         type=int,
         help="Limit number of players per club for testing (optional)",
+    )
+    parser.add_argument(
+        "--clubs",
+        type=str,
+        default=None,
+        help="Comma-separated list of club names (e.g., 'Chelsea FC,Liverpool FC'). "
+             "If provided, only fetch data for players in these clubs' config.json files. "
+             "Club names must match folder names in production/deployments/{country}/",
     )
     return parser.parse_args(argv)
 
@@ -141,6 +150,41 @@ def get_latest_data_folder(country: str) -> Optional[Path]:
     # Sort by date (most recent first)
     date_folders.sort(reverse=True)
     return date_folders[0][1]
+
+
+def load_clubs_player_ids(country: str, clubs: List[str]) -> Dict[str, Set[int]]:
+    """
+    Load player IDs from multiple clubs' config.json files.
+    
+    Args:
+        country: Country name (e.g., 'England')
+        clubs: List of club names (e.g., ['Chelsea FC', 'Liverpool FC'])
+    
+    Returns:
+        Dict mapping club_name -> set of player_ids
+    """
+    clubs_player_ids = {}
+    
+    for club in clubs:
+        club = club.strip()  # Remove whitespace
+        config_path = PRODUCTION_ROOT / "deployments" / country / club / "config.json"
+        
+        if not config_path.exists():
+            print(f"Warning: Config file not found for {club}: {config_path}")
+            print(f"  Skipping {club}")
+            continue
+        
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            player_ids = set(config.get('player_ids', []))
+            clubs_player_ids[club] = player_ids
+            print(f"Loaded {len(player_ids)} player IDs from {club} ({config_path})")
+        except Exception as e:
+            print(f"Warning: Could not load player IDs from {club}: {e}")
+            continue
+    
+    return clubs_player_ids
 
 
 def check_existing_daily_features(player_id: int, country: str) -> Optional[Path]:
@@ -294,9 +338,32 @@ def main(argv: Optional[List[str]] = None) -> None:
     )
     match_data_dir = output_dir / "match_data"
     previous_seasons_dir = PRODUCTION_ROOT / "raw_data" / args.country.lower().replace(" ", "_") / "previous_seasons"
+    
+    # Get latest folder BEFORE creating output_dir (to find the previous update)
+    last_update_dir = get_latest_data_folder(args.country)
+    
+    # Now create the directories
     output_dir.mkdir(parents=True, exist_ok=True)
     match_data_dir.mkdir(parents=True, exist_ok=True)
     previous_seasons_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Copy teams_data.csv from last update if it exists
+    if last_update_dir and last_update_dir != output_dir:
+        last_teams_data_path = last_update_dir / "teams_data.csv"
+        current_teams_data_path = output_dir / "teams_data.csv"
+        
+        if last_teams_data_path.exists() and not current_teams_data_path.exists():
+            shutil.copy2(last_teams_data_path, current_teams_data_path)
+            print(f"Copied teams_data.csv from {last_update_dir.name} to {output_dir.name}")
+        elif last_teams_data_path.exists() and current_teams_data_path.exists():
+            print(f"teams_data.csv already exists in {output_dir.name}, skipping copy")
+        elif not last_teams_data_path.exists():
+            print(f"Warning: teams_data.csv not found in {last_update_dir.name}, cannot copy")
+    else:
+        if not last_update_dir:
+            print("No previous update folder found, teams_data.csv will not be copied")
+        elif last_update_dir == output_dir:
+            print(f"Warning: Latest folder is the same as output folder ({output_dir.name}), cannot copy teams_data.csv")
     
     # Determine current season
     current_season_key = _get_current_season_key()
@@ -329,6 +396,32 @@ def main(argv: Optional[List[str]] = None) -> None:
         print(f"Warning: Injury mappings file not found: {mapping_file}")
         print(f"  Injury classification will use defaults")
     
+    # Parse clubs argument if provided
+    target_clubs = None
+    target_player_ids = None
+    clubs_player_ids_map = {}
+    
+    if args.clubs:
+        clubs_list = [c.strip() for c in args.clubs.split(',')]
+        print(f"\nFiltering to clubs: {', '.join(clubs_list)}")
+        
+        # Load player IDs for each club
+        clubs_player_ids_map = load_clubs_player_ids(args.country, clubs_list)
+        
+        if not clubs_player_ids_map:
+            print("ERROR: No valid clubs found. Please check club names and config files.")
+            return
+        
+        # Combine all player IDs from all clubs
+        target_player_ids = set()
+        for club, player_ids in clubs_player_ids_map.items():
+            target_player_ids.update(player_ids)
+        
+        print(f"Total unique players across all clubs: {len(target_player_ids)}")
+        
+        # Also filter clubs list to only include target clubs (optional optimization)
+        target_clubs = set(clubs_list)
+    
     print(f"\n{'='*80}")
     print(f"League-Wide Transfermarkt Pipeline")
     print(f"{'='*80}")
@@ -339,6 +432,8 @@ def main(argv: Optional[List[str]] = None) -> None:
     print(f"Seasons: {seasons}")
     print(f"As of date: {as_of:%Y-%m-%d}")
     print(f"Output: {output_dir}")
+    if target_clubs:
+        print(f"Clubs filter: {', '.join(sorted(target_clubs))}")
     print(f"{'='*80}\n")
     
     # Step 1: Get all clubs per season
@@ -373,6 +468,19 @@ def main(argv: Optional[List[str]] = None) -> None:
     if args.max_clubs:
         unique_clubs = unique_clubs[: args.max_clubs]
         print(f"Limited to {len(unique_clubs)} clubs for testing")
+    
+    # Filter to only target clubs if --clubs is specified
+    if target_clubs:
+        # Filter to only the specified clubs
+        original_club_count = len(unique_clubs)
+        unique_clubs = [c for c in unique_clubs if c["club_name"] in target_clubs]
+        if not unique_clubs:
+            print(f"ERROR: None of the specified clubs found in league")
+            print(f"  Requested: {', '.join(sorted(target_clubs))}")
+            available_clubs = [c['club_name'] for c in all_clubs.values()][:10]
+            print(f"  Available clubs (first 10): {', '.join(available_clubs)}...")
+            return
+        print(f"Filtered from {original_club_count} to {len(unique_clubs)} club(s): {', '.join([c['club_name'] for c in unique_clubs])}")
     
     # Step 2: Get players per club per season
     print(f"\nStep 2: Fetching players from squad pages...")
@@ -423,6 +531,21 @@ def main(argv: Optional[List[str]] = None) -> None:
         )
     
     print(f"\nTotal unique players: {len(master_players)}")
+    
+    # Filter to only target clubs' players if --clubs is specified
+    if target_player_ids:
+        # Filter master_players to only include target player IDs
+        original_count = len(master_players)
+        master_players = {
+            pid: player for pid, player in master_players.items()
+            if pid in target_player_ids
+        }
+        print(f"Filtered from {original_count} to {len(master_players)} players (from {len(clubs_player_ids_map)} club(s))")
+        
+        # Show breakdown by club
+        for club, club_player_ids in clubs_player_ids_map.items():
+            found_count = len([pid for pid in master_players.keys() if pid in club_player_ids])
+            print(f"  {club}: {found_count}/{len(club_player_ids)} players found")
     
     # Step 2.5: Compare with last update
     print(f"\nStep 2.5: Comparing with last update...")
@@ -506,6 +629,10 @@ def main(argv: Optional[List[str]] = None) -> None:
     removed_players_to_process = []
     if removed_player_ids and not existing_profiles.empty and "id" in existing_profiles.columns:
         for player_id in removed_player_ids:
+            # Only include removed players if they're in target_player_ids (if filtering)
+            if target_player_ids and player_id not in target_player_ids:
+                continue
+            
             player_row = existing_profiles[existing_profiles["id"] == player_id]
             if not player_row.empty:
                 player_name = player_row.iloc[0].get("name", f"Player {player_id}")
@@ -635,20 +762,39 @@ def main(argv: Optional[List[str]] = None) -> None:
             if col not in existing_injuries.columns:
                 if col == 'severity':
                     # Calculate severity for existing injuries based on days
-                    existing_injuries[col] = existing_injuries['days'].apply(calculate_severity_from_days)
+                    if 'days' in existing_injuries.columns:
+                        existing_injuries[col] = existing_injuries['days'].apply(calculate_severity_from_days)
+                    else:
+                        existing_injuries[col] = 'mild'  # Default if days column missing
                 elif col == 'injury_class':
                     # Try to map from injury_type if mappings are available
-                    existing_injuries[col] = existing_injuries['injury_type'].apply(
-                        lambda x: injury_mappings.get(str(x), {}).get('injury_class', 'unknown') 
-                        if pd.notna(x) and injury_mappings else 'unknown'
-                    )
+                    if 'injury_type' in existing_injuries.columns:
+                        existing_injuries[col] = existing_injuries['injury_type'].apply(
+                            lambda x: injury_mappings.get(str(x), {}).get('injury_class', 'unknown') 
+                            if pd.notna(x) and injury_mappings else 'unknown'
+                        )
+                    else:
+                        existing_injuries[col] = 'unknown'  # Default if injury_type column missing
                 elif col == 'body_part':
-                    existing_injuries[col] = existing_injuries['injury_type'].apply(
-                        lambda x: injury_mappings.get(str(x), {}).get('body_part', '') 
-                        if pd.notna(x) and injury_mappings else ''
-                    )
+                    if 'injury_type' in existing_injuries.columns:
+                        existing_injuries[col] = existing_injuries['injury_type'].apply(
+                            lambda x: injury_mappings.get(str(x), {}).get('body_part', '') 
+                            if pd.notna(x) and injury_mappings else ''
+                        )
+                    else:
+                        existing_injuries[col] = ''  # Default if injury_type column missing
         
         all_injuries = pd.concat([existing_injuries, updated_injuries_df], ignore_index=True)
+        
+        # Deduplicate injuries based on key fields
+        dedup_cols = ['player_id', 'fromDate', 'injury_type', 'untilDate']
+        if all(col in all_injuries.columns for col in dedup_cols):
+            before_dedup = len(all_injuries)
+            all_injuries = all_injuries.drop_duplicates(subset=dedup_cols, keep='first')
+            after_dedup = len(all_injuries)
+            if before_dedup > after_dedup:
+                print(f"    [DEDUP] Removed {before_dedup - after_dedup} duplicate injuries")
+        
         all_injuries.to_csv(injuries_path, index=False, encoding="utf-8-sig", sep=';')
         print(f"    [OK] Wrote {len(all_injuries)} injuries (updated {len(updated_injuries)} players, kept {len(existing_injuries)} from last update)")
     
@@ -710,11 +856,13 @@ def main(argv: Optional[List[str]] = None) -> None:
     print(f"   Current season: {current_season_key} ({_season_label(current_season_key)})")
     print(f"   Current season files → {match_data_dir}")
     print(f"   Old season files → {previous_seasons_dir}")
+    print(f"   Note: Previous season files will be skipped if they already exist (data doesn't change)")
     
     total_match_files = sum(len(p["seasons"]) for p in master_players.values())
     processed_files = 0
     current_season_files = 0
     old_season_files = 0
+    skipped_old_seasons = 0
     
     for player_idx, player in enumerate(master_players.values(), 1):
         player_id = player["player_id"]
@@ -740,14 +888,19 @@ def main(argv: Optional[List[str]] = None) -> None:
                 match_file_path = previous_seasons_dir / filename
                 is_current_season = False
             
-            if args.resume and match_file_path.exists():
-                dest_type = "current season" if is_current_season else "previous seasons"
-                print(f"    Season {season_label} ({season_idx}/{len(player_seasons)}): Skipping (file exists in {dest_type})")
+            # For previous seasons: Always skip if file exists (data doesn't change)
+            if not is_current_season and match_file_path.exists():
+                print(f"    Season {season_label} ({season_idx}/{len(player_seasons)}): Skipping (previous season file exists)")
                 processed_files += 1
-                if is_current_season:
-                    current_season_files += 1
-                else:
-                    old_season_files += 1
+                old_season_files += 1
+                skipped_old_seasons += 1
+                continue
+            
+            # For current season: Use --resume flag logic
+            if is_current_season and args.resume and match_file_path.exists():
+                print(f"    Season {season_label} ({season_idx}/{len(player_seasons)}): Skipping (file exists in current season)")
+                processed_files += 1
+                current_season_files += 1
                 continue
             
             print(f"    Season {season_label} ({season_idx}/{len(player_seasons)})...", end=" ", flush=True)
@@ -807,9 +960,9 @@ def main(argv: Optional[List[str]] = None) -> None:
     print(f"Pipeline completed!")
     print(f"  Clubs processed: {len(unique_clubs)}")
     print(f"  Players processed: {len(master_players)}")
-    print(f"  Match files created: {processed_files}")
+    print(f"  Match files processed: {processed_files}")
     print(f"    - Current season ({current_season_key}): {current_season_files}")
-    print(f"    - Previous seasons: {old_season_files}")
+    print(f"    - Previous seasons: {old_season_files} (skipped {skipped_old_seasons} existing files)")
     print(f"{'='*80}\n")
     
     scraper.close()

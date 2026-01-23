@@ -1,0 +1,40 @@
+{
+  "club_name": "Nottingham Forest",
+  "country": "England",
+  "player_ids": [
+    108725,
+    127202,
+    142310,
+    201574,
+    203853,
+    236490,
+    295313,
+    365108,
+    375885,
+    392768,
+    413507,
+    425902,
+    429014,
+    432164,
+    432914,
+    447661,
+    497291,
+    503680,
+    540664,
+    567576,
+    583199,
+    673492,
+    708072,
+    741238,
+    891353,
+    897481,
+    933017,
+    984096,
+    1005649
+  ],
+  "models": {
+    "lgbm_muscular_v2": "../../../models/lgbm_muscular_v2/model.joblib",
+    "lgbm_columns": "../../../models/lgbm_muscular_v2/columns.json"
+  },
+  "default_date_range_days": 7
+}

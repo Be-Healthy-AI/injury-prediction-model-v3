@@ -1,0 +1,40 @@
+{
+  "club_name": "Burnley FC",
+  "country": "England",
+  "player_ids": [
+    63200,
+    74960,
+    95424,
+    95795,
+    214666,
+    242606,
+    293281,
+    314241,
+    314367,
+    342046,
+    357162,
+    381963,
+    392179,
+    403898,
+    411537,
+    415970,
+    467623,
+    514285,
+    541628,
+    548729,
+    571743,
+    607224,
+    607226,
+    612517,
+    684210,
+    711999,
+    829299,
+    842341,
+    927768
+  ],
+  "models": {
+    "lgbm_muscular_v2": "../../../models/lgbm_muscular_v2/model.joblib",
+    "lgbm_columns": "../../../models/lgbm_muscular_v2/columns.json"
+  },
+  "default_date_range_days": 7
+}

@@ -193,10 +193,10 @@ def calculate_severity_from_days(days: Any) -> str:
     Calculate severity level based on number of days.
     
     Thresholds:
-    - mild: ≤7 days
-    - moderate: 8-45 days
-    - severe: 46-90 days
-    - critical: >90 days
+    - mild: ≤9 days
+    - moderate: 10-43 days
+    - severe: 44-92 days
+    - critical: ≥93 days
     
     Args:
         days: Number of days (can be int, float, str, or NaN)
@@ -209,11 +209,11 @@ def calculate_severity_from_days(days: Any) -> str:
     
     try:
         days_value = float(days)
-        if days_value <= 7:
+        if days_value <= 9:
             return 'mild'
-        elif days_value <= 45:
+        elif days_value <= 43:
             return 'moderate'
-        elif days_value <= 90:
+        elif days_value <= 92:
             return 'severe'
         else:
             return 'critical'
@@ -297,12 +297,22 @@ def transform_injuries(
         if pd.notna(x) else 'unknown'
     )
     
-    df["body_part"] = df["injury_type"].apply(
-        lambda x: injury_mappings.get(str(x), {}).get('body_part', '') 
-        if pd.notna(x) else ''
+    # Only calculate body_part and severity for injuries where injury_class is NOT in ('other', 'no_injury')
+    # This matches the behavior during model training - these fields were not calculated for 'other' and 'no_injury' classes
+    df["body_part"] = df.apply(
+        lambda row: (
+            injury_mappings.get(str(row['injury_type']), {}).get('body_part', '') 
+            if pd.notna(row['injury_type']) else ''
+        ) if pd.notna(row['injury_class']) and str(row['injury_class']).lower() not in ['other', 'no_injury'] else '',
+        axis=1
     )
     
-    df["severity"] = df["days"].apply(calculate_severity_from_days)
+    df["severity"] = df.apply(
+        lambda row: (
+            calculate_severity_from_days(row['days'])
+        ) if pd.notna(row['injury_class']) and str(row['injury_class']).lower() not in ['other', 'no_injury'] else '',
+        axis=1
+    )
     
     # Return all columns including the new ones
     extended_columns = INJURY_COLUMNS + ['injury_class', 'body_part', 'severity']

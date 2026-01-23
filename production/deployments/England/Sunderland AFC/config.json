@@ -1,0 +1,42 @@
+{
+  "club_name": "Sunderland AFC",
+  "country": "England",
+  "player_ids": [
+    111455,
+    123536,
+    131996,
+    181380,
+    240692,
+    282939,
+    348026,
+    353032,
+    392763,
+    420210,
+    473169,
+    475946,
+    494237,
+    502065,
+    503686,
+    515544,
+    568006,
+    570336,
+    633992,
+    646991,
+    654412,
+    658536,
+    661208,
+    696181,
+    727089,
+    743384,
+    876631,
+    937840,
+    947411,
+    967346,
+    1322090
+  ],
+  "models": {
+    "lgbm_muscular_v2": "../../../models/lgbm_muscular_v2/model.joblib",
+    "lgbm_columns": "../../../models/lgbm_muscular_v2/columns.json"
+  },
+  "default_date_range_days": 7
+}

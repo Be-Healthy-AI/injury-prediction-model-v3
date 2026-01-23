@@ -1,0 +1,105 @@
+{
+  "model_version": "V3_natural_filtered",
+  "model_name": "LGBM Muscular Injury Prediction V3 (PL-Only, Filtered Seasons)",
+  "creation_date": "2026-01-05 17:24:01",
+  "training_configuration": {
+    "target_ratio": null,
+    "target_ratio_display": "natural (unbalanced)",
+    "correlation_threshold": 0.8,
+    "excluded_seasons": [
+      "2021_2022",
+      "2022_2023"
+    ],
+    "excluded_seasons_reason": "Low injury rates (0.32% and 0.34%) - not representative of normal seasons",
+    "min_season": "2018_2019",
+    "max_season": "2025_2026",
+    "seasons_used": [
+      "2018_2019",
+      "2019_2020",
+      "2020_2021",
+      "2023_2024",
+      "2024_2025",
+      "2025_2026"
+    ],
+    "filter_type": "PL-only (only days when players were at PL clubs)",
+    "random_state": 42,
+    "hyperparameters": {
+      "n_estimators": 200,
+      "max_depth": 10,
+      "learning_rate": 0.1,
+      "min_child_samples": 20,
+      "subsample": 0.8,
+      "colsample_bytree": 0.8,
+      "reg_alpha": 0.1,
+      "reg_lambda": 1.0,
+      "class_weight": "balanced"
+    }
+  },
+  "training_dataset": {
+    "total_records": 392235,
+    "total_positives": 1994,
+    "total_negatives": 390241,
+    "injury_rate": 0.0051,
+    "files_used": [
+      "timelines_35day_season_2018_2019_v4_muscular.csv",
+      "timelines_35day_season_2019_2020_v4_muscular.csv",
+      "timelines_35day_season_2020_2021_v4_muscular.csv",
+      "timelines_35day_season_2023_2024_v4_muscular.csv",
+      "timelines_35day_season_2024_2025_v4_muscular.csv",
+      "timelines_35day_season_2025_2026_v4_muscular.csv"
+    ]
+  },
+  "test_dataset": {
+    "season": "2025_2026",
+    "file": "timelines_35day_season_2025_2026_v4_muscular.csv",
+    "filter_type": "PL-only"
+  },
+  "performance_metrics": {
+    "training": {
+      "accuracy": 0.9923974148150981,
+      "precision": 0.4007234726688103,
+      "recall": 1.0,
+      "f1": 0.5721664275466284,
+      "roc_auc": 0.9999327756409415,
+      "gini": 0.999865551281883,
+      "confusion_matrix": {
+        "tn": 387259,
+        "fp": 2982,
+        "fn": 0,
+        "tp": 1994
+      }
+    },
+    "test": {
+      "accuracy": 0.9934259674286569,
+      "precision": 0.47619047619047616,
+      "recall": 1.0,
+      "f1": 0.6451612903225806,
+      "roc_auc": 1.0,
+      "gini": 1.0,
+      "confusion_matrix": {
+        "tn": 13218,
+        "fp": 88,
+        "fn": 0,
+        "tp": 80
+      }
+    }
+  },
+  "model_files": {
+    "model_file": "model.joblib",
+    "columns_file": "columns.json",
+    "model_hash": "6ca411e6319f0afc3fe317591734658d7ace81a5236ac80083071b9d6242d0c7",
+    "training_metrics_file": "lgbm_v3_pl_only_metrics_train.json",
+    "test_metrics_file": "lgbm_v3_pl_only_metrics_test.json"
+  },
+  "reproducibility": {
+    "training_script": "code/modeling/train_v3_natural_filtered_seasons.py",
+    "filtering_script": "code/timelines/filter_timelines_pl_only.py",
+    "data_source": "V1 timelines filtered to PL-only",
+    "dependencies": {
+      "lightgbm": ">=3.0.0",
+      "pandas": ">=1.5.0",
+      "numpy": ">=1.20.0",
+      "scikit-learn": ">=1.0.0"
+    }
+  }
+}

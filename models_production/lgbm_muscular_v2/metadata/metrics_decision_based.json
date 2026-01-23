@@ -1,0 +1,110 @@
+{
+  "model_id": "lgbm_muscular_v2",
+  "evaluation_dataset": "Natural 2025_2026 season (muscular injuries only)",
+  "evaluation_approach": "Decision-based Top-K ranking per team-week",
+  "note": "This evaluation is on the same season that was included in training, so these metrics reflect in-sample performance rather than true generalization. For production monitoring, track performance on future seasons.",
+  "team_weeks_evaluated": 5783,
+  "total_injuries": 990,
+  "metrics_by_k": {
+    "1": {
+      "precision_at_k_mean": 0.0335,
+      "precision_at_k_median": 0.0,
+      "precision_at_k_p25": 0.0,
+      "precision_at_k_p75": 0.0,
+      "recall_at_k_overall": 0.1960,
+      "recall_at_k_mean": 0.2730,
+      "false_alerts_per_injury_overall": 28.81,
+      "false_alerts_per_injury_mean": 0.0,
+      "total_captured": 194
+    },
+    "2": {
+      "precision_at_k_mean": 0.0319,
+      "precision_at_k_median": 0.0,
+      "precision_at_k_p25": 0.0,
+      "precision_at_k_p75": 0.0,
+      "recall_at_k_overall": 0.3677,
+      "recall_at_k_mean": 0.4672,
+      "false_alerts_per_injury_overall": 30.71,
+      "false_alerts_per_injury_mean": 0.26,
+      "total_captured": 364
+    },
+    "3": {
+      "precision_at_k_mean": 0.0305,
+      "precision_at_k_median": 0.0,
+      "precision_at_k_p25": 0.0,
+      "precision_at_k_p75": 0.0,
+      "recall_at_k_overall": 0.5091,
+      "recall_at_k_mean": 0.5999,
+      "false_alerts_per_injury_overall": 33.26,
+      "false_alerts_per_injury_mean": 0.52,
+      "total_captured": 504
+    },
+    "5": {
+      "precision_at_k_mean": 0.0269,
+      "precision_at_k_median": 0.0,
+      "precision_at_k_p25": 0.0,
+      "precision_at_k_p75": 0.0,
+      "recall_at_k_overall": 0.6838,
+      "recall_at_k_mean": 0.7349,
+      "false_alerts_per_injury_overall": 41.18,
+      "false_alerts_per_injury_mean": 1.07,
+      "total_captured": 677
+    },
+    "7": {
+      "precision_at_k_mean": 0.0236,
+      "precision_at_k_median": 0.0,
+      "precision_at_k_p25": 0.0,
+      "precision_at_k_p75": 0.0,
+      "recall_at_k_overall": 0.7364,
+      "recall_at_k_mean": 0.7749,
+      "false_alerts_per_injury_overall": 52.98,
+      "false_alerts_per_injury_mean": 1.73,
+      "total_captured": 729
+    },
+    "10": {
+      "precision_at_k_mean": 0.0217,
+      "precision_at_k_median": 0.0,
+      "precision_at_k_p25": 0.0,
+      "precision_at_k_p75": 0.0,
+      "recall_at_k_overall": 0.8253,
+      "recall_at_k_mean": 0.8534,
+      "false_alerts_per_injury_overall": 57.39,
+      "false_alerts_per_injury_mean": 2.46,
+      "total_captured": 817
+    },
+    "15": {
+      "precision_at_k_mean": 0.0195,
+      "precision_at_k_median": 0.0,
+      "precision_at_k_p25": 0.0,
+      "precision_at_k_p75": 0.0,
+      "recall_at_k_overall": 0.8879,
+      "recall_at_k_mean": 0.9053,
+      "false_alerts_per_injury_overall": 67.52,
+      "false_alerts_per_injury_mean": 3.74,
+      "total_captured": 879
+    },
+    "20": {
+      "precision_at_k_mean": 0.0184,
+      "precision_at_k_median": 0.0,
+      "precision_at_k_p25": 0.0,
+      "precision_at_k_p75": 0.0,
+      "recall_at_k_overall": 0.9253,
+      "recall_at_k_mean": 0.9355,
+      "false_alerts_per_injury_overall": 74.66,
+      "false_alerts_per_injury_mean": 4.75,
+      "total_captured": 916
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+

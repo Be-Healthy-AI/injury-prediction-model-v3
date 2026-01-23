@@ -1,0 +1,5 @@
+{
+  "model_id": "lgbm_muscular_v2",
+  "note": "Raw data (Transfermarkt exports, daily features) are stored separately. See v1 bundle for data lineage.",
+  "entries": []
+}

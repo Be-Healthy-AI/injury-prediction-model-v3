@@ -1,0 +1,5 @@
+{
+  "model_id": "lgbm_muscular_v2",
+  "entries": [],
+  "note": "Timeline data references v1 bundle. For v2, training used all 10% timelines including the new 2025_2026_10pc file."
+}

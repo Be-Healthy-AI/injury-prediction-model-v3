@@ -1,0 +1,123 @@
+
+================================================================================
+FALSE NEGATIVE ANALYSIS REPORT
+================================================================================
+
+[SUMMARY] Prediction Categories:
+  True Negative: 11,825 (83.36%)
+  False Positive: 2,264 (15.96%)
+  False Negative: 82 (0.58%)
+  True Positive: 14 (0.10%)
+
+[FALSE NEGATIVES] Total: 82
+  Average predicted probability: 0.1115
+  Median predicted probability: 0.0823
+  Min predicted probability: 0.0062
+  Max predicted probability: 0.2959
+  Average days to injury: 2.94
+  Median days to injury: 3.00
+  Days to injury distribution:
+    Day 1.0: 17 cases
+    Day 2.0: 17 cases
+    Day 3.0: 17 cases
+    Day 4.0: 16 cases
+    Day 5.0: 15 cases
+
+[TRUE POSITIVES] Total: 14
+  Average predicted probability: 0.6162
+  Median predicted probability: 0.5489
+
+[TOP FEATURES - FALSE NEGATIVES]
+                            feature  mean_abs_shap  std_abs_shap  count  mean_shap  mean_value
+  days_since_last_upper_body_week_1       1.075429      0.474761     10  -1.075429 3561.000000
+                  teams_last_season       0.980552      0.366192      6  -0.980552   70.666667
+                 lower_leg_injuries       0.772458      0.359447     10  -0.772458    6.000000
+             assists_numeric_week_4       0.689384           NaN      1  -0.689384    2.000000
+   injury_history_x_recent_workload       0.638987      0.194000     78   0.593258 1468.897436
+                  cum_matches_bench       0.551663      0.185789     79   0.527314   63.886076
+   days_since_last_lower_leg_week_1       0.548896      0.367412     22  -0.012037 1469.136364
+                  goals_trend_slope       0.523993      0.054723      2  -0.523993   -0.400000
+early_substitution_off_count_week_2       0.511726      0.050753      8  -0.511726    1.000000
+    days_since_last_skeletal_week_1       0.467217      0.033804     15  -0.467217 3303.666667
+early_substitution_off_count_week_5       0.444835      0.076521      6   0.444835    1.000000
+    days_since_last_critical_week_1       0.441714      0.022528      5  -0.441714 2607.000000
+     days_since_last_unknown_week_1       0.404829      0.181765     11  -0.404829  712.636364
+          team_loss_rate_normalized       0.382305      0.018354      5  -0.382305    0.249072
+               nationality2_Ireland       0.374555      0.000000      5  -0.374555    1.000000
+    days_since_last_muscular_week_1       0.367633      0.162353     19  -0.367633  527.315789
+              competition_diversity       0.364501      0.102880      8  -0.364501    0.094968
+             competition_experience       0.362301      0.061175     18  -0.362301   33.777778
+                   assists_per_year       0.359061      0.008183      5  -0.359061  193.000000
+     substitution_efficiency_week_1       0.355251      0.150582      5  -0.355251    0.228571
+
+[TOP FEATURES - TRUE POSITIVES]
+                            feature  mean_abs_shap  std_abs_shap  count  mean_shap  mean_value
+   injury_history_x_recent_workload       0.864015      0.191608     14   0.864015 1293.142857
+                  cum_matches_bench       0.771772      0.137419     14   0.771772   72.714286
+        previous_club_Villarreal_CF       0.669105           NaN      1  -0.669105    1.000000
+           previous_club_SL_Benfica       0.528096      0.000000      4  -0.528096    1.000000
+early_substitution_off_count_week_2       0.442625           NaN      1  -0.442625    1.000000
+early_substitution_off_count_week_5       0.425003      0.054616      2   0.425003    1.000000
+       season_team_diversity_week_1       0.349595      0.080422     13   0.349595    0.939048
+  matches_this_season_to_last_ratio       0.330835      0.121898      5   0.330835    0.028889
+           minutes_per_match_week_1       0.314103      0.172903      3  -0.314103   85.696123
+         international_competitions       0.311052      0.015740      6   0.311052   69.000000
+   days_since_last_lower_leg_week_1       0.299148      0.050255     12   0.299148  404.500000
+   days_since_last_upper_leg_week_1       0.285665      0.020433      5   0.285665   95.000000
+     days_since_last_unknown_week_1       0.282731      0.038041      5  -0.282731  414.000000
+              competition_frequency       0.276959           NaN      1   0.276959   87.220534
+        days_since_last_mild_week_1       0.251288           NaN      1  -0.251288    7.000000
+             competition_experience       0.242151      0.019505      7  -0.242151   32.285714
+                avg_injury_severity       0.238939      0.034152      7   0.238939    1.807143
+               muscular_injury_days       0.231983      0.056087      7   0.231983  130.142857
+          teams_season_today_week_1       0.230640      0.015708      5   0.230640   21.600000
+                       month_week_1       0.226301           NaN      1   0.226301   12.000000
+
+[FEATURE COMPARISON]
+  Common top features: 3
+    cum_matches_bench, early_substitution_off_count_week_2, injury_history_x_recent_workload
+  FN-only top features: 7
+    assists_numeric_week_4, days_since_last_lower_leg_week_1, days_since_last_skeletal_week_1, days_since_last_upper_body_week_1, goals_trend_slope, lower_leg_injuries, teams_last_season
+  TP-only top features: 7
+    early_substitution_off_count_week_5, international_competitions, matches_this_season_to_last_ratio, minutes_per_match_week_1, previous_club_SL_Benfica, previous_club_Villarreal_CF, season_team_diversity_week_1
+
+[FALSE NEGATIVES - Player Distribution]
+  Unique players: 5
+  Players with multiple FN cases: 15
+  Top players with FN cases:
+    Player 1056993 (Estêvão): 10 cases
+    Player 284857 (Marc Cucurella): 10 cases
+    Player 335721 (Ben White): 5 cases
+    Player 1012534 (Yankuba Minteh): 5 cases
+    Player 502821 (Riccardo Calafiori): 5 cases
+    Player 475188 (Kiernan Dewsbury-Hall): 5 cases
+    Player 206746 (Kenny Tete): 5 cases
+    Player 256178 (Joe Gomez): 5 cases
+    Player 709726 (Hugo Ekitiké): 5 cases
+    Player 240306 (Bruno Fernandes): 5 cases
+
+[FALSE NEGATIVES - Club Distribution]
+club
+Chelsea FC                20
+Liverpool FC              12
+Arsenal FC                10
+Manchester City            9
+Manchester United          9
+Fulham FC                  7
+Brighton & Hove Albion     5
+Everton FC                 5
+Tottenham Hotspur          5
+
+[FALSE NEGATIVES - Date Distribution]
+pred_month
+2025-12    79
+2026-01     3
+Freq: M
+
+[SAVED] Detailed false negatives to: C:\Users\joao.henriques\IPM V3\production\deployments\England\false_negative_analysis_20260102_false_negatives.csv
+[SAVED] FN feature analysis to: C:\Users\joao.henriques\IPM V3\production\deployments\England\false_negative_analysis_20260102_fn_features.csv
+[SAVED] TP feature analysis to: C:\Users\joao.henriques\IPM V3\production\deployments\England\false_negative_analysis_20260102_tp_features.csv
+
+================================================================================
+ANALYSIS COMPLETE
+================================================================================

@@ -1,0 +1,32 @@
+{
+  "base_url": "https://fbref.com",
+  "rate_limit_seconds": 3.0,
+  "max_retries": 5,
+  "timeout_sec": 30,
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+  "leagues": {
+    "england": {
+      "premier_league": {
+        "fbref_league_slug": "Premier-League",
+        "fbref_league_id": "9"
+      },
+      "championship": {
+        "fbref_league_slug": "Championship",
+        "fbref_league_id": "10"
+      }
+    }
+  },
+  "scraping": {
+    "min_season": 2009,
+    "include_all_competitions": true,
+    "default_competitions": [
+      "Premier-League",
+      "Championship",
+      "FA-Cup",
+      "EFL-Cup",
+      "Champions-League",
+      "Europa-League"
+    ]
+  }
+}
+

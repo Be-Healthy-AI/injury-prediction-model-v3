@@ -1,0 +1,39 @@
+{
+  "club_name": "Tottenham Hotspur",
+  "country": "England",
+  "player_ids": [
+    192765,
+    257455,
+    258889,
+    263236,
+    286047,
+    294057,
+    354362,
+    355915,
+    378710,
+    410425,
+    428016,
+    431755,
+    483348,
+    487969,
+    488362,
+    543499,
+    553875,
+    556385,
+    557459,
+    566931,
+    568559,
+    568693,
+    670883,
+    725912,
+    743498,
+    801734,
+    866246,
+    922693
+  ],
+  "models": {
+    "lgbm_muscular_v2": "../../../models/lgbm_muscular_v2/model.joblib",
+    "lgbm_columns": "../../../models/lgbm_muscular_v2/columns.json"
+  },
+  "default_date_range_days": 7
+}

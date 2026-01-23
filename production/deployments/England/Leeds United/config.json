@@ -1,0 +1,37 @@
+{
+  "club_name": "Leeds United",
+  "country": "England",
+  "player_ids": [
+    99397,
+    194386,
+    236953,
+    297212,
+    306024,
+    314288,
+    319301,
+    338629,
+    344069,
+    346707,
+    346890,
+    352041,
+    362108,
+    369962,
+    371851,
+    381753,
+    392771,
+    393323,
+    410708,
+    413220,
+    465717,
+    489359,
+    542586,
+    627626,
+    883539,
+    983989
+  ],
+  "models": {
+    "lgbm_muscular_v2": "../../../models/lgbm_muscular_v2/model.joblib",
+    "lgbm_columns": "../../../models/lgbm_muscular_v2/columns.json"
+  },
+  "default_date_range_days": 7
+}

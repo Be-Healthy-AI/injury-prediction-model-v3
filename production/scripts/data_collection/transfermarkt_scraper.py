@@ -738,6 +738,33 @@ class TransfermarktScraper:
         if "Club" not in combined_df.columns:
             combined_df["Club"] = None
         
+        # Deduplicate injuries based on key fields
+        # Use Injury/Injury type, from/From, until/Until columns
+        injury_col = None
+        from_col = None
+        until_col = None
+        
+        for col in combined_df.columns:
+            col_lower = col.lower()
+            if col_lower in ['injury', 'injury type']:
+                injury_col = col
+            elif col_lower in ['from', 'fromdate']:
+                from_col = col
+            elif col_lower in ['until', 'untildate']:
+                until_col = col
+        
+        if injury_col and from_col:
+            dedup_cols = [injury_col, from_col]
+            if until_col:
+                dedup_cols.append(until_col)
+            
+            before_dedup = len(combined_df)
+            combined_df = combined_df.drop_duplicates(subset=dedup_cols, keep='first')
+            after_dedup = len(combined_df)
+            
+            if before_dedup > after_dedup:
+                print(f" (removed {before_dedup - after_dedup} duplicates)", end="", flush=True)
+        
         print(f"[OK] ({len(combined_df)} injuries)", flush=True)
         return combined_df
 

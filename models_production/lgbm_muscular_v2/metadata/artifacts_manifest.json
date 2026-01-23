@@ -1,0 +1,29 @@
+{
+  "model_id": "lgbm_muscular_v2",
+  "entries": [
+    {
+      "path": "model/model.joblib",
+      "size_bytes": 859844,
+      "sha256": "fd99bf9670350c07824e18a067369eded3cd3cac0ba683f110fd398aa8cf42d3",
+      "description": "core model artifact"
+    },
+    {
+      "path": "model/columns.json",
+      "size_bytes": 152536,
+      "sha256": "08922cf4294487926870317cdac0412f2fa8b6965a1fd91b240987090dd778b5",
+      "description": "core model artifact"
+    },
+    {
+      "path": "code/modeling/evaluate_winner_model_decision_based.py",
+      "size_bytes": 24377,
+      "sha256": "e94d7ce6f49c0474f47791d3e8d515938196284b7c9195c1ea46f6820e07ef46",
+      "description": "pipeline code snapshot"
+    },
+    {
+      "path": "code/modeling/train_lgbm_all_seasons_cv.py",
+      "size_bytes": 8476,
+      "sha256": "c80f93d788e7224fc047679220759e1002a08fde62195a41f360f19cd7ca9746",
+      "description": "pipeline code snapshot"
+    }
+  ]
+}

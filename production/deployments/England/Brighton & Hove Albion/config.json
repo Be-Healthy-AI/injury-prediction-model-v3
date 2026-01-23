@@ -1,0 +1,39 @@
+{
+  "club_name": "Brighton & Hove Albion",
+  "country": "England",
+  "player_ids": [
+    3333,
+    67063,
+    73564,
+    82873,
+    111195,
+    148153,
+    209212,
+    212847,
+    318508,
+    369316,
+    406556,
+    415381,
+    429915,
+    504849,
+    538977,
+    565093,
+    576314,
+    660860,
+    667287,
+    700106,
+    724537,
+    867688,
+    933018,
+    950091,
+    973085,
+    996897,
+    1012534,
+    1060087
+  ],
+  "models": {
+    "lgbm_muscular_v2": "../../../models/lgbm_muscular_v2/model.joblib",
+    "lgbm_columns": "../../../models/lgbm_muscular_v2/columns.json"
+  },
+  "default_date_range_days": 7
+}

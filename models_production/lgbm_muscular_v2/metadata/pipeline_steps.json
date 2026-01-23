@@ -1,0 +1,56 @@
+{
+  "model_id": "lgbm_muscular_v2",
+  "steps": [
+    {
+      "order": 1,
+      "name": "Scrape Transfermarkt data",
+      "scripts": [
+        "code/transfermarkt/transfermarkt_scraper.py",
+        "code/transfermarkt/transformers.py",
+        "code/transfermarkt/run_transfermarkt_pipeline.py"
+      ],
+      "note": "Same as v1 - see v1 bundle for code snapshots"
+    },
+    {
+      "order": 2,
+      "name": "Generate daily features from Transfermarkt exports",
+      "scripts": [
+        "code/daily_features/create_daily_features_v3.py",
+        "code/daily_features/create_daily_features_transfermarkt.py"
+      ],
+      "note": "Same as v1 - see v1 bundle for code snapshots"
+    },
+    {
+      "order": 3,
+      "name": "Create 35-day muscular timelines (season by season, v4)",
+      "scripts": [
+        "code/timelines/create_35day_timelines_season_by_season_v4.py"
+      ],
+      "note": "Same as v1 - see v1 bundle for code snapshots. For v2, also created 10% ratio timeline for 2025-2026."
+    },
+    {
+      "order": 4,
+      "name": "Create 10% target ratio timeline for 2025-2026",
+      "scripts": [
+        "scripts/create_10pc_timelines_2025_2026.py"
+      ],
+      "note": "New step for v2: balanced 2025-2026 to 10% target ratio to match other training seasons"
+    },
+    {
+      "order": 5,
+      "name": "Train LGBM v2 on ALL seasons (including 2025-2026)",
+      "scripts": [
+        "code/modeling/train_lgbm_all_seasons_cv.py"
+      ],
+      "note": "v2-specific: trains on all available data without external hold-out"
+    },
+    {
+      "order": 6,
+      "name": "Decision-based evaluation (Precision@K, Recall@K)",
+      "scripts": [
+        "code/modeling/evaluate_winner_model_decision_based.py"
+      ],
+      "note": "Evaluates on natural 2025-2026 (for monitoring, not true generalization)"
+    }
+  ]
+}

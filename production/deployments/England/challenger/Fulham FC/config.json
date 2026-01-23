@@ -1,0 +1,36 @@
+{
+  "club_name": "Fulham FC",
+  "country": "England",
+  "player_ids": [
+    72476,
+    123275,
+    127181,
+    204103,
+    206040,
+    206746,
+    226973,
+    242631,
+    245056,
+    260827,
+    262226,
+    272622,
+    279455,
+    333014,
+    349701,
+    381469,
+    392765,
+    392775,
+    401922,
+    461883,
+    494880,
+    735571,
+    900195,
+    1011131,
+    1069512
+  ],
+  "models": {
+    "lgbm_muscular_v2": "../../../models/lgbm_muscular_v2/model.joblib",
+    "lgbm_columns": "../../../models/lgbm_muscular_v2/columns.json"
+  },
+  "default_date_range_days": 7
+}

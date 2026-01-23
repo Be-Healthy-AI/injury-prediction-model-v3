@@ -1,0 +1,23 @@
+{
+  "analysis_date": "2026-01-20T16:43:22.975680",
+  "models_analyzed": [
+    "target1",
+    "target2",
+    "combined"
+  ],
+  "total_features": {
+    "target1": 919,
+    "target2": 919,
+    "combined": 919
+  },
+  "layer2_features_count": {
+    "target1": 37,
+    "target2": 37,
+    "combined": 37
+  },
+  "layer2_importance_ratio": {
+    "target1": 0.08353462225890164,
+    "target2": 0.07753143503247738,
+    "combined": 0.14858573824695917
+  }
+}

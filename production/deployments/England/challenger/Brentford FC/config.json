@@ -1,0 +1,39 @@
+{
+  "club_name": "Brentford FC",
+  "country": "England",
+  "player_ids": [
+    61651,
+    270171,
+    319859,
+    328658,
+    339556,
+    340321,
+    340325,
+    340918,
+    421637,
+    442248,
+    456292,
+    469050,
+    470596,
+    473050,
+    488935,
+    540941,
+    541231,
+    559263,
+    591949,
+    644401,
+    683620,
+    717411,
+    739443,
+    823231,
+    823486,
+    1011936,
+    1086375,
+    1091562
+  ],
+  "models": {
+    "lgbm_muscular_v2": "../../../models/lgbm_muscular_v2/model.joblib",
+    "lgbm_columns": "../../../models/lgbm_muscular_v2/columns.json"
+  },
+  "default_date_range_days": 7
+}

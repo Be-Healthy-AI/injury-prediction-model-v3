@@ -1,0 +1,36 @@
+{
+  "club_name": "West Ham United",
+  "country": "England",
+  "player_ids": [
+    29692,
+    120629,
+    123682,
+    181579,
+    283628,
+    314875,
+    341051,
+    342385,
+    380350,
+    400536,
+    415912,
+    444523,
+    474701,
+    477758,
+    522784,
+    525247,
+    605184,
+    698164,
+    745181,
+    817665,
+    880245,
+    922563,
+    1004203,
+    1107726,
+    1111589
+  ],
+  "models": {
+    "lgbm_muscular_v2": "../../../models/lgbm_muscular_v2/model.joblib",
+    "lgbm_columns": "../../../models/lgbm_muscular_v2/columns.json"
+  },
+  "default_date_range_days": 7
+}

@@ -1,0 +1,37 @@
+{
+  "club_name": "Wolverhampton Wanderers",
+  "country": "England",
+  "player_ids": [
+    110864,
+    136401,
+    171679,
+    249994,
+    292246,
+    345911,
+    429983,
+    438001,
+    450050,
+    588989,
+    606718,
+    661427,
+    667121,
+    683571,
+    683895,
+    698678,
+    716276,
+    724783,
+    735570,
+    800176,
+    848509,
+    863741,
+    1060740,
+    1064471,
+    1193867,
+    1230661
+  ],
+  "models": {
+    "lgbm_muscular_v2": "../../../models/lgbm_muscular_v2/model.joblib",
+    "lgbm_columns": "../../../models/lgbm_muscular_v2/columns.json"
+  },
+  "default_date_range_days": 7
+}

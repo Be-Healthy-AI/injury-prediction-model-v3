@@ -1,0 +1,48 @@
+{
+  "model_id": "lgbm_muscular_v2",
+  "description": "LightGBM model for muscular injury risk (35-day horizon), trained on ALL seasons (2008_2009-2025_2026) with 10% target ratio and correlation threshold 0.8. This is the production version trained on all available data including the previous test season.",
+  "algorithm": "LightGBM (LGBMClassifier)",
+  "target": {
+    "name": "target",
+    "description": "Muscular injury within 35 days"
+  },
+  "data": {
+    "train_seasons": "2008_2009-2025_2026 (10% target ratio, muscular only, ALL seasons including previous test season)",
+    "exclude_season_for_train": "None (all seasons included)",
+    "test_season": "Natural 2025_2026 (for evaluation only, not used in training)",
+    "corr_threshold": 0.8,
+    "target_ratio": 0.10,
+    "total_training_samples": 147990,
+    "total_training_positives": 14799,
+    "total_training_negatives": 133191
+  },
+  "hyperparameters": {
+    "n_estimators": 200,
+    "max_depth": 10,
+    "learning_rate": 0.1,
+    "min_child_samples": 20,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "reg_alpha": 0.1,
+    "reg_lambda": 1.0,
+    "class_weight": "balanced",
+    "random_state": 42
+  },
+  "training_approach": {
+    "cross_validation": false,
+    "validation_strategy": "Trained on all available data (no external hold-out)",
+    "note": "v1 remains the audited benchmark with external test set. v2 is for production deployment with maximum data utilization."
+  },
+  "artifacts": {
+    "model_path": "models_production/lgbm_muscular_v2/model/model.joblib",
+    "columns_path": "models_production/lgbm_muscular_v2/model/columns.json"
+  },
+  "created_at": "2025-12-15T18:05:51Z",
+  "notes": [
+    "Features were preprocessed using the prepare_data pipeline in scripts/train_models_seasonal_combined.py.",
+    "Final feature set size after correlation filtering: 4,059 features (LightGBM internally used 2,003 features).",
+    "This model version includes the 2025-2026 season in training (previously held out as test in v1).",
+    "Evaluation on natural 2025-2026 is for monitoring purposes only, not for model selection."
+  ]
+}
+

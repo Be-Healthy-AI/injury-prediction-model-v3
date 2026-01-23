@@ -1,0 +1,38 @@
+{
+  "club_name": "Newcastle United",
+  "country": "England",
+  "player_ids": [
+    29712,
+    95810,
+    134270,
+    135343,
+    142389,
+    183318,
+    184528,
+    192080,
+    199527,
+    333241,
+    340329,
+    361093,
+    388165,
+    397033,
+    398065,
+    427568,
+    455661,
+    503733,
+    503749,
+    503981,
+    520624,
+    521964,
+    583189,
+    609556,
+    670858,
+    900601,
+    922769
+  ],
+  "models": {
+    "lgbm_muscular_v2": "../../../models/lgbm_muscular_v2/model.joblib",
+    "lgbm_columns": "../../../models/lgbm_muscular_v2/columns.json"
+  },
+  "default_date_range_days": 7
+}
