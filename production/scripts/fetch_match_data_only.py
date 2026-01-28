@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 import pandas as pd
+import json
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PRODUCTION_ROOT = SCRIPT_DIR.parent
@@ -106,6 +107,7 @@ def main():
     output_dir = PRODUCTION_ROOT / "raw_data" / country_folder / args.as_of_date
     match_data_dir = output_dir / "match_data"
     previous_seasons_dir = PRODUCTION_ROOT / "raw_data" / country_folder / "previous_seasons"
+    checkpoint_path = output_dir / "match_extraction_checkpoint.json"
     
     # Create directories if they don't exist
     match_data_dir.mkdir(parents=True, exist_ok=True)
@@ -170,8 +172,55 @@ def main():
     
     print(f"  [OK] Expanded seasons for all players")
     
-    # Initialize scraper
-    scraper = TransfermarktScraper(ScraperConfig())
+    # Load checkpoint to determine starting point
+    last_fully_processed_idx = 0
+    if checkpoint_path.exists() and args.resume:
+        try:
+            with open(checkpoint_path, 'r', encoding='utf-8') as f:
+                checkpoint_data = json.load(f)
+                last_fully_processed_idx = checkpoint_data.get("last_fully_processed_player_idx", 0)
+                if last_fully_processed_idx > 0:
+                    print(f"\n[RESUME] Found checkpoint: Last fully processed player index: {last_fully_processed_idx}")
+        except Exception as e:
+            print(f"  Warning: Could not load checkpoint: {e}")
+    
+    # Convert master_players dict to list to maintain order and enable skipping
+    players_list = list(master_players.values())
+    
+    # Find player 248901's index to restart from that player
+    restart_player_id = 248901
+    restart_player_idx = 0
+    is_restart = False
+    for idx, player in enumerate(players_list, 1):
+        if player["player_id"] == restart_player_id:
+            restart_player_idx = idx - 1  # Convert to 0-based index for last_fully_processed
+            is_restart = True
+            print(f"\n[RESTART] Found player {restart_player_id} at index {idx}, will start from this player")
+            break
+    
+    # If restart player found, always update checkpoint to start from that player
+    if is_restart and restart_player_idx > 0:
+        last_fully_processed_idx = restart_player_idx
+        print(f"[RESTART] Updated checkpoint to start from player index {restart_player_idx + 1} (overriding previous checkpoint)")
+    
+    # Helper function to check if a player is fully processed
+    def is_player_fully_processed(player_id: int, player_seasons: List[int], current_season_key: int) -> bool:
+        """Check if all seasons for a player have match data files."""
+        for season in player_seasons:
+            season_label = _season_label(season)
+            filename = f"match_{player_id}_{season_label}.csv"
+            
+            if season == current_season_key:
+                match_file_path = match_data_dir / filename
+            else:
+                match_file_path = previous_seasons_dir / filename
+            
+            if not match_file_path.exists():
+                return False
+        return True
+    
+    # Initialize scraper with increased retries
+    scraper = TransfermarktScraper(ScraperConfig(max_retries=5))
     
     # Step 5: Extract match data
     print(f"\n{'='*80}")
@@ -181,25 +230,83 @@ def main():
     print(f"As of date: {as_of:%Y-%m-%d}")
     print(f"Output: {output_dir}")
     print(f"Current season: {current_season_key} ({_season_label(current_season_key)})")
-    print(f"Players: {len(master_players)}")
+    print(f"Players: {len(players_list)}")
+    if last_fully_processed_idx > 0:
+        print(f"Skipping first {last_fully_processed_idx} fully processed players")
     print(f"{'='*80}\n")
     
-    total_match_files = sum(len(p["seasons"]) for p in master_players.values())
+    total_match_files = sum(len(p["seasons"]) for p in players_list)
     processed_files = 0
     current_season_files = 0
     old_season_files = 0
     skipped_old_seasons = 0
     skipped_current_season = 0
+    skipped_fully_processed = 0
     
-    for player_idx, player in enumerate(master_players.values(), 1):
+    for player_idx, player in enumerate(players_list, 1):
+        # Skip players that were already fully processed
+        if player_idx <= last_fully_processed_idx:
+            # If this is a restart, always skip players before restart point
+            if is_restart:
+                skipped_fully_processed += 1
+                continue
+            # Verify they're still fully processed (in case files were deleted)
+            if is_player_fully_processed(player["player_id"], player["seasons"], current_season_key):
+                skipped_fully_processed += 1
+                continue
+            else:
+                # File was deleted, need to reprocess
+                print(f"[WARNING] Player {player_idx} was marked as processed but files are missing. Reprocessing...")
+        
+        # Check if current player is already fully processed (all seasons have files)
+        # If so, mark as processed and skip, but still process if some seasons are missing
+        if is_player_fully_processed(player["player_id"], player["seasons"], current_season_key):
+            # All seasons already exist, mark as fully processed and skip
+            last_fully_processed_idx = player_idx
+            skipped_fully_processed += 1
+            # Update checkpoint
+            checkpoint_data = {
+                "last_fully_processed_player_idx": player_idx,
+                "last_player_id": player["player_id"],
+                "processed_files": processed_files,
+                "timestamp": datetime.now().isoformat()
+            }
+            try:
+                with open(checkpoint_path, 'w', encoding='utf-8') as f:
+                    json.dump(checkpoint_data, f, indent=2)
+            except Exception:
+                pass
+            continue
         player_id = player["player_id"]
         player_slug = player.get("player_slug")
         player_name = player["player_name"]
         player_seasons = player["seasons"]
         
-        print(f"\n[{player_idx}/{len(master_players)}] {player_name} (ID: {player_id})")
+        # Progress logging every 50 players
+        if player_idx % 50 == 0:
+            progress_pct = (player_idx / len(players_list)) * 100
+            print(f"\n[PROGRESS] Processed {player_idx}/{len(players_list)} players ({progress_pct:.1f}%)")
+            print(f"  Match files processed: {processed_files}")
+            print(f"  Current season: {current_season_files}, Previous seasons: {old_season_files}")
+            print(f"  Fully processed players skipped: {skipped_fully_processed}")
+            # Save checkpoint with last fully processed player
+            checkpoint_data = {
+                "last_fully_processed_player_idx": last_fully_processed_idx,
+                "last_player_idx": player_idx,
+                "last_player_id": player_id,
+                "processed_files": processed_files,
+                "timestamp": datetime.now().isoformat()
+            }
+            try:
+                with open(checkpoint_path, 'w', encoding='utf-8') as f:
+                    json.dump(checkpoint_data, f, indent=2)
+            except Exception as e:
+                print(f"  Warning: Could not save checkpoint: {e}")
+        
+        print(f"\n[{player_idx}/{len(players_list)}] {player_name} (ID: {player_id})")
         print(f"  Seasons: {len(player_seasons)}")
         
+        player_has_new_data = False
         for season_idx, season in enumerate(player_seasons, 1):
             season_label = _season_label(season)
             filename = f"match_{player_id}_{season_label}.csv"
@@ -276,24 +383,58 @@ def main():
                 dest_type = "current season" if is_current_season else "previous seasons"
                 print(f"[OK] {len(filtered)} matches ({stats_str}) → {dest_type}")
                 processed_files += 1
+                player_has_new_data = True
                 if is_current_season:
                     current_season_files += 1
                 else:
                     old_season_files += 1
-                
+            except RuntimeError as e:
+                # Improved handling for RuntimeError (from scraper retries exhausted)
+                error_msg = str(e)
+                print(f"[RUNTIME ERROR] Request failed after retries for {player_name} (ID: {player_id}), season {season_label}")
+                print(f"  Error: {error_msg}")
+                print(f"  Skipping this season and continuing...")
+                import traceback
+                traceback.print_exc()
+                continue
             except Exception as e:
                 print(f"Error for {player_name} (ID: {player_id}), season {season_label}: {e}")
                 import traceback
                 traceback.print_exc()
                 continue
+        
+        # After processing all seasons for this player, check if fully processed
+        if not player_has_new_data and is_player_fully_processed(player_id, player_seasons, current_season_key):
+            # All seasons were skipped (already exist), mark as fully processed
+            last_fully_processed_idx = player_idx
+            checkpoint_data = {
+                "last_fully_processed_player_idx": player_idx,
+                "last_player_id": player_id,
+                "processed_files": processed_files,
+                "timestamp": datetime.now().isoformat()
+            }
+            try:
+                with open(checkpoint_path, 'w', encoding='utf-8') as f:
+                    json.dump(checkpoint_data, f, indent=2)
+            except Exception:
+                pass
     
     print(f"\n{'='*80}")
     print(f"Match data extraction completed!")
-    print(f"  Players processed: {len(master_players)}")
+    print(f"  Total players: {len(players_list)}")
+    print(f"  Players processed: {len(players_list) - skipped_fully_processed}")
+    print(f"  Fully processed players skipped: {skipped_fully_processed}")
     print(f"  Match files processed: {processed_files}")
     print(f"    - Current season ({current_season_key}): {current_season_files} (skipped {skipped_current_season})")
     print(f"    - Previous seasons: {old_season_files} (skipped {skipped_old_seasons} existing files)")
     print(f"{'='*80}\n")
+    
+    # Clean up checkpoint file on successful completion
+    if checkpoint_path.exists():
+        try:
+            checkpoint_path.unlink()
+        except Exception:
+            pass
     
     scraper.close()
     return 0

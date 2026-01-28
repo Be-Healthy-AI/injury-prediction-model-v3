@@ -513,9 +513,30 @@ def load_player_data(player_id: int, data_dir: str, reference_date: pd.Timestamp
         injuries = pd.DataFrame()
     
     # Load matches
+    matches = []
+    
+    # Load matches from previous seasons (player-specific files)
+    previous_seasons_dir = os.path.join(os.path.dirname(data_dir), 'previous_seasons')
+    logger.debug(f"Loading matches from previous seasons: {previous_seasons_dir}")
+    if os.path.exists(previous_seasons_dir):
+        # Files are named like match_{player_id}_{season}.csv
+        previous_match_files = glob.glob(os.path.join(previous_seasons_dir, f'match_{player_id}_*.csv'))
+        logger.info(f"Found {len(previous_match_files)} previous season match files for player {player_id}")
+        
+        for match_file in previous_match_files:
+            try:
+                logger.debug(f"Loading previous season match file: {os.path.basename(match_file)}")
+                df = pd.read_csv(match_file, encoding='utf-8-sig')
+                logger.debug(f"  Loaded {len(df)} rows from {os.path.basename(match_file)}")
+                if len(df) > 0:
+                    matches.append(df)
+            except Exception as e:
+                logger.warning(f"Error loading previous season match file {match_file}: {e}")
+                logger.debug(traceback.format_exc())
+    
+    # Load matches from current season (match-specific files, need filtering)
     match_data_dir = os.path.join(data_dir, 'match_data')
     logger.debug(f"Loading matches from: {match_data_dir}")
-    matches = []
     if os.path.exists(match_data_dir):
         # Load ALL match files (they're named by match_id, not player_id)
         match_files = glob.glob(os.path.join(match_data_dir, 'match_*.csv'))
@@ -809,92 +830,53 @@ def determine_calendar(
     Determine the date range for feature generation.
     
     CRITICAL: Calendar starts from FIRST SEASON START (01/07/YYYY) based on:
-    1. First match date (if available) - highest priority
-    2. Earliest career entry date (if available)
-    3. Date of birth (fallback)
+    1. First match date (if available) - ONLY source used
+    2. Date of birth (fallback only if no matches exist)
     
     This ensures daily features start from the beginning of the first available season
-    in terms of match data, avoiding unnecessary data from birth date.
+    in terms of match data ONLY. No career data is used.
     
     Args:
         matches: DataFrame with player matches
         injuries: DataFrame with player injuries
         reference_date: Reference date to cap the calendar
         player_row: Optional player row for fallback to DOB if no matches
-        career: Optional career DataFrame to determine earliest career start
+        career: Optional career DataFrame (NOT USED for start date determination)
     """
     logger.debug("=== Determining calendar ===")
     
-    # Collect potential start dates from different sources
-    potential_start_dates = []
-    
-    # 1. Use career data if available (most accurate for career start)
-    logger.info(f"[CALENDAR] Checking career data: career is None={career is None}, empty={career.empty if career is not None else 'N/A'}, has Date column={'Date' in career.columns if career is not None and not career.empty else 'N/A'}")
-    if career is not None and not career.empty and 'Date' in career.columns:
-        career_dates = career['Date'].dropna()
-        logger.info(f"[CALENDAR] Career dates found: {len(career_dates)} valid dates")
-        if len(career_dates) > 0:
-            earliest_career_date = career_dates.min()
-            logger.info(f"[CALENDAR] Earliest career date: {earliest_career_date} (type: {type(earliest_career_date)})")
-            if pd.notna(earliest_career_date):
-                # Get the season start (01/07/YYYY) for the earliest career entry
-                if earliest_career_date.month >= 7:
-                    career_start_date = pd.Timestamp(f'{earliest_career_date.year}-07-01')
-                else:
-                    career_start_date = pd.Timestamp(f'{earliest_career_date.year - 1}-07-01')
-                potential_start_dates.append(('career', career_start_date, earliest_career_date))
-                logger.info(f"[CALENDAR] Earliest career entry: {earliest_career_date.date()} -> season start: {career_start_date.date()}")
-            else:
-                logger.warning(f"[CALENDAR] Earliest career date is NaN")
-        else:
-            logger.warning(f"[CALENDAR] No valid career dates found after dropping NaN")
-    else:
-        logger.warning(f"[CALENDAR] Career data not available or invalid")
-    
-    # 2. Use match data if available
+    # FIXED: Calendar starts from FIRST SEASON START (01/07/YYYY), not first match date
+    # Use ONLY match data - no career data
     if not matches.empty and 'date' in matches.columns:
         first_match_date = matches['date'].min()
         if pd.notna(first_match_date):
             # Get the season start (01/07/YYYY) for the first match
             if first_match_date.month >= 7:
-                match_start_date = pd.Timestamp(f'{first_match_date.year}-07-01')
+                # Match is in second half of year, season started this year
+                start_date = pd.Timestamp(f'{first_match_date.year}-07-01')
             else:
-                match_start_date = pd.Timestamp(f'{first_match_date.year - 1}-07-01')
-            potential_start_dates.append(('match', match_start_date, first_match_date))
-            logger.debug(f"[CALENDAR] First match: {first_match_date.date()} -> season start: {match_start_date.date()}")
-    
-    # 3. Use date of birth as fallback
-    if player_row is not None and 'date_of_birth' in player_row and pd.notna(player_row['date_of_birth']):
-        dob = pd.to_datetime(player_row['date_of_birth'])
-        dob_start_date = pd.Timestamp(f'{dob.year}-07-01')
-        potential_start_dates.append(('dob', dob_start_date, dob))
-        logger.debug(f"[CALENDAR] Date of birth: {dob.date()} -> season start: {dob_start_date.date()}")
-    
-    # Choose the earliest start date from all sources, prioritizing match data
-    if potential_start_dates:
-        logger.info(f"[CALENDAR] Found {len(potential_start_dates)} potential start date sources: {[(s[0], s[1].date()) for s in potential_start_dates]}")
-        
-        # Priority order: match > career > dob (matches training version logic)
-        # First, try to find match data
-        match_entry = next((s for s in potential_start_dates if s[0] == 'match'), None)
-        if match_entry:
-            source_type, start_date, source_date = match_entry
-            logger.info(f"[CALENDAR] SELECTED {source_type} data (priority): calendar starts from {start_date.date()} (source date: {source_date.date()})")
+                # Match is in first half of year, season started previous year
+                start_date = pd.Timestamp(f'{first_match_date.year - 1}-07-01')
+            logger.info(f"[CALENDAR] Player starts from FIRST SEASON START: {start_date.date()} (first match: {first_match_date.date()})")
         else:
-            # If no match data, try career data
-            career_entry = next((s for s in potential_start_dates if s[0] == 'career'), None)
-            if career_entry:
-                source_type, start_date, source_date = career_entry
-                logger.info(f"[CALENDAR] SELECTED {source_type} data (priority): calendar starts from {start_date.date()} (source date: {source_date.date()})")
+            # Fallback if no valid dates
+            if player_row is not None and 'date_of_birth' in player_row and pd.notna(player_row['date_of_birth']):
+                dob = pd.to_datetime(player_row['date_of_birth'])
+                # Start from season start of birth year
+                start_date = pd.Timestamp(f'{dob.year}-07-01')
+                logger.warning(f"[CALENDAR] No valid match dates, using season start of birth year: {start_date.date()}")
             else:
-                # If no match or career data, sort by the season start date and take earliest
-                potential_start_dates.sort(key=lambda x: x[1])
-                source_type, start_date, source_date = potential_start_dates[0]
-                logger.info(f"[CALENDAR] SELECTED {source_type} data: calendar starts from {start_date.date()} (source date: {source_date.date()})")
+                start_date = pd.Timestamp('2000-07-01')
+                logger.warning(f"[CALENDAR] No matches or DOB found, using default: {start_date.date()}")
     else:
-        # Final fallback
-        start_date = pd.Timestamp('2000-07-01')
-        logger.warning(f"[CALENDAR] No data sources available, using default: {start_date.date()}")
+        # Fallback to player's birth date if no matches
+        if player_row is not None and 'date_of_birth' in player_row and pd.notna(player_row['date_of_birth']):
+            dob = pd.to_datetime(player_row['date_of_birth'])
+            start_date = pd.Timestamp(f'{dob.year}-07-01')
+            logger.warning(f"[CALENDAR] Player has no matches, using season start of birth year: {start_date.date()}")
+        else:
+            start_date = pd.Timestamp('2000-07-01')
+            logger.warning(f"[CALENDAR] No matches or DOB found, using default: {start_date.date()}")
     
     # Determine end date - SMART approach that respects career termination but includes all injuries
     if not matches.empty:

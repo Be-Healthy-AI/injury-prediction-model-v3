@@ -10,8 +10,11 @@ lightweight so downstream transformers can standardize values per schema.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
+import io
 import logging
 import re
+import threading
 import time
 import traceback
 from typing import Any, Dict, Iterable, List, Optional
@@ -741,6 +744,103 @@ class TransfermarktScraper:
         print(f"[OK] ({len(combined_df)} injuries)", flush=True)
         return combined_df
 
+    def get_available_seasons(
+        self,
+        player_slug: Optional[str],
+        player_id: int,
+    ) -> List[int]:
+        """
+        Get list of seasons available for a player on Transfermarkt.
+        
+        Args:
+            player_slug: Player URL slug (optional).
+            player_id: Numeric player identifier.
+            
+        Returns:
+            List of season years (e.g., [2025, 2024, 2023, ...]) that are available
+            on Transfermarkt for this player. Returns empty list if unable to determine.
+        """
+        try:
+            slug = player_slug or "spieler"
+            # Fetch the match log page without a season parameter to see all available seasons
+            url = (
+                f"{self.config.base_url}/{slug}/leistungsdatendetails/spieler/{player_id}"
+                "/verein/0/liga/0/wettbewerb//pos/0/trainer_id/0/plus/1"
+            )
+            soup = self._fetch_soup(url)
+            
+            # Look for the season dropdown/select element
+            # The select element typically has name="saison_id" or similar
+            season_select = soup.select_one('select[name*="saison"], select[name*="season"], select[id*="saison"], select[id*="season"]')
+            
+            if not season_select:
+                # Try alternative selectors - sometimes it's in a different format
+                season_select = soup.select_one('select.selectbox')
+                if not season_select:
+                    # Look for any select with season-related options
+                    all_selects = soup.select('select')
+                    for sel in all_selects:
+                        options = sel.find_all('option')
+                        # Check if options contain season-like values (e.g., "2025", "2024/25", etc.)
+                        for opt in options[:5]:  # Check first few options
+                            value = opt.get('value', '')
+                            text = opt.get_text(strip=True)
+                            if any(char.isdigit() for char in value) or any(char.isdigit() for char in text):
+                                sel_name = sel.get('name', '').lower()
+                                sel_id = sel.get('id', '').lower()
+                                if 'saison' in sel_name or 'season' in sel_name or 'saison' in sel_id or 'season' in sel_id:
+                                    season_select = sel
+                                    break
+                        if season_select:
+                            break
+            
+            available_seasons = []
+            if season_select:
+                options = season_select.find_all('option')
+                for option in options:
+                    value = option.get('value', '')
+                    text = option.get_text(strip=True)
+                    
+                    # Skip "All seasons" or empty options
+                    if not value and not text:
+                        continue
+                    if 'all' in text.lower() or 'todas' in text.lower() or 'todos' in text.lower():
+                        continue
+                    
+                    # Try to extract season year from value
+                    # Values might be like "2025", "2024", or empty for "All seasons"
+                    if value and value.isdigit():
+                        try:
+                            season_year = int(value)
+                            # Sanity check: seasons should be between 1990 and current year + 1
+                            current_year = datetime.now().year
+                            if 1990 <= season_year <= current_year + 1:
+                                available_seasons.append(season_year)
+                        except ValueError:
+                            continue
+                    # Also check option text for season patterns like "2024/25" or "2024"
+                    elif text and any(char.isdigit() for char in text):
+                        # Try to extract year from text like "2024/25" or "2024"
+                        year_match = re.search(r'(\d{4})', text)
+                        if year_match:
+                            try:
+                                season_year = int(year_match.group(1))
+                                current_year = datetime.now().year
+                                if 1990 <= season_year <= current_year + 1:
+                                    available_seasons.append(season_year)
+                            except ValueError:
+                                continue
+            
+            # Remove duplicates and sort descending
+            available_seasons = sorted(list(set(available_seasons)), reverse=True)
+            if available_seasons:
+                LOGGER.info(f"Found {len(available_seasons)} available seasons for player {player_id}: {available_seasons}")
+            return available_seasons
+            
+        except Exception as e:
+            LOGGER.warning(f"Failed to get available seasons for player {player_id}: {e}")
+            return []
+
     def fetch_player_match_log(
         self,
         player_slug: Optional[str],
@@ -794,7 +894,12 @@ class TransfermarktScraper:
                             break
                         parent = parent.parent
                     
-                    table_df = self._to_frame(table)
+                    try:
+                        table_df = self._to_frame(table)
+                    except Exception as e:
+                        LOGGER.warning(f"Failed to parse table for player {player_id}, season {season}: {e}")
+                        continue
+                    
                     if not table_df.empty:
                         # Filter out summary rows (they contain "Squad:" or "Starting eleven:")
                         # Check all columns for summary text
@@ -1070,8 +1175,42 @@ class TransfermarktScraper:
 
     @staticmethod
     def _to_frame(table_tag) -> pd.DataFrame:
-        dfs = pd.read_html(str(table_tag), flavor="bs4")
-        return dfs[0] if dfs else pd.DataFrame()
+        """Parse HTML table with timeout to prevent hanging."""
+        # Check table size - skip very large tables that might hang
+        table_html = str(table_tag)
+        if len(table_html) > 500000:  # Skip tables larger than 500KB
+            LOGGER.warning(f"Skipping very large table ({len(table_html)} bytes) to prevent hanging")
+            return pd.DataFrame()
+        
+        result = [None]
+        exception = [None]
+        
+        def parse_table():
+            try:
+                # Use StringIO to fix deprecation warning
+                table_io = io.StringIO(table_html)
+                dfs = pd.read_html(table_io, flavor="bs4")
+                result[0] = dfs[0] if dfs else pd.DataFrame()
+            except Exception as e:
+                exception[0] = e
+        
+        # Run parsing in a thread with timeout
+        thread = threading.Thread(target=parse_table)
+        thread.daemon = True
+        thread.start()
+        thread.join(timeout=30.0)  # 30 second timeout
+        
+        if thread.is_alive():
+            # Thread is still running, timeout occurred
+            # Note: We can't actually stop the thread, but we can return empty and let it finish in background
+            LOGGER.warning("HTML table parsing timed out after 30 seconds, skipping table")
+            return pd.DataFrame()
+        
+        if exception[0]:
+            LOGGER.warning(f"Failed to parse HTML table: {exception[0]}")
+            return pd.DataFrame()
+        
+        return result[0] if result[0] is not None else pd.DataFrame()
 
 
 def fetch_multiple_match_logs(

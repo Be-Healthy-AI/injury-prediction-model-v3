@@ -463,6 +463,12 @@ def main():
         default=None,
         help='Data date for filename (YYYYMMDD). If provided, overrides max date from timelines'
     )
+    parser.add_argument(
+        '--min-date',
+        type=str,
+        default=None,
+        help='Minimum reference date (YYYY-MM-DD). Only generate predictions from this date onwards'
+    )
     
     args = parser.parse_args()
     
@@ -553,6 +559,18 @@ def main():
     if 'reference_date' in timelines_df.columns:
         timelines_df['reference_date'] = pd.to_datetime(timelines_df['reference_date'], errors='coerce')
         print(f"[LOAD] Date range: {timelines_df['reference_date'].min().date()} to {timelines_df['reference_date'].max().date()}")
+        
+        # Filter by min_date if provided
+        if args.min_date:
+            min_date_ts = pd.to_datetime(args.min_date).normalize()
+            before_count = len(timelines_df)
+            timelines_df = timelines_df[timelines_df['reference_date'] >= min_date_ts].copy()
+            after_count = len(timelines_df)
+            if before_count > after_count:
+                print(f"[FILTER] Filtered timelines: removed {before_count - after_count} rows before {min_date_ts.date()}")
+                print(f"[FILTER] Remaining timelines: {after_count:,} rows")
+                if after_count > 0:
+                    print(f"[FILTER] Filtered date range: {timelines_df['reference_date'].min().date()} to {timelines_df['reference_date'].max().date()}")
     
     # Get timelines file modification time
     timelines_file_mtime = os.path.getmtime(timelines_file) if timelines_file.exists() else None
@@ -572,14 +590,18 @@ def main():
     )
     
     # Filter predictions by data_date if provided
+    # Note: data_date is the reference date of the calculation process, so we include all predictions up to that date
     if args.data_date:
         data_date_ts = pd.to_datetime(args.data_date, format='%Y%m%d').normalize()
+        print(f"\n[INFO] Using calculation reference date: {data_date_ts.date()}")
         before_count = len(predictions)
         predictions = predictions[predictions['reference_date'] <= data_date_ts].copy()
         after_count = len(predictions)
         if before_count > after_count:
-            print(f"\n[FILTER] Filtered predictions: removed {before_count - after_count} rows beyond {data_date_ts.date()}")
+            print(f"[FILTER] Filtered predictions: removed {before_count - after_count} rows beyond {data_date_ts.date()}")
             print(f"[FILTER] Remaining predictions: {after_count:,} rows")
+        else:
+            print(f"[INFO] All {after_count:,} predictions are within the calculation reference date range")
     
     # Save predictions
     print(f"\n[SAVE] Saving predictions to {output_file}...")

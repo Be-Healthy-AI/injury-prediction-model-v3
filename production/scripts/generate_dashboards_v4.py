@@ -87,15 +87,13 @@ class PlayerDashboardContext:
     player_name: str
     window_start: pd.Timestamp
     window_end: pd.Timestamp
-    suffix: str
-
-    @property
-    def entry_id(self) -> str:
-        return f"player_{self.player_id}_{self.suffix}"
+    reference_date: pd.Timestamp  # The calculation reference date (YYYYMMDD format for filename)
 
     @property
     def chart_filename(self) -> str:
-        return f"{self.entry_id}_v4_probabilities.png"
+        """Generate filename: player_{player_id}_{reference_date_YYYYMMDD}_v4_probabilities.png"""
+        ref_date_str = self.reference_date.strftime("%Y%m%d")
+        return f"player_{self.player_id}_{ref_date_str}_v4_probabilities.png"
 
 
 def parse_date_range(args: argparse.Namespace) -> tuple[pd.Timestamp, pd.Timestamp, str]:
@@ -154,31 +152,106 @@ def find_latest_prediction_file(predictions_dir: Path, player_id: int) -> Option
     return latest_file
 
 
-def determine_players(predictions_dir: Path, suffix: str, specific_players: Optional[List[int]], model_version: str = "v4") -> List[int]:
-    """Determine which players to process."""
-    if specific_players:
-        return specific_players
-    
-    # For V4, we read from aggregated predictions file
-    # Find latest predictions file
-    pattern = "predictions_lgbm_v4_*.csv"
-    prediction_files = list(predictions_dir.glob(pattern))
-    
-    if not prediction_files:
+def load_latest_feature_row(player_id: int, features_dir: Path, end_date: pd.Timestamp) -> pd.Series:
+    """Load the latest feature row for a player up to end_date."""
+    file_path = features_dir / f"player_{player_id}_daily_features.csv"
+    if not file_path.exists():
+        raise FileNotFoundError(f"Daily features not found: {file_path}")
+    df = pd.read_csv(file_path, parse_dates=["date"])
+    df = df[df["date"] <= end_date].sort_values("date")
+    if df.empty:
+        raise ValueError(f"No feature rows available up to {end_date.date()} for player {player_id}")
+    return df.iloc[-1]
+
+
+def load_injury_periods(
+    player_id: int, 
+    features_dir: Path, 
+    start_date: pd.Timestamp, 
+    end_date: pd.Timestamp,
+    country: str = "england"
+) -> List[Tuple[pd.Timestamp, pd.Timestamp, str]]:
+    """Load injury periods for a player from injuries_data.csv, including injury_class."""
+    # Get latest raw data folder
+    latest_raw_data = get_latest_raw_data_folder(country.lower().replace(" ", "_"))
+    if latest_raw_data is None:
         return []
     
-    # Get latest file
-    latest_file = max(prediction_files, key=lambda p: p.stat().st_mtime)
+    injuries_file = latest_raw_data / "injuries_data.csv"
+    if not injuries_file.exists():
+        return []
     
     try:
-        df = pd.read_csv(latest_file, low_memory=False)
-        if 'player_id' in df.columns:
-            players = sorted(df['player_id'].unique().tolist())
-            return players
+        # Load injuries data
+        df = pd.read_csv(injuries_file, sep=';', encoding='utf-8-sig', low_memory=False)
+        
+        # Parse dates explicitly to handle various formats
+        df['fromDate'] = pd.to_datetime(df['fromDate'], errors='coerce')
+        df['untilDate'] = pd.to_datetime(df['untilDate'], errors='coerce')
+        
+        # Filter for this player
+        player_injuries = df[df['player_id'] == player_id].copy()
+        if player_injuries.empty:
+            return []
+        
+        # Filter injuries that overlap with the date range
+        injury_periods = []
+        for _, row in player_injuries.iterrows():
+            injury_start = pd.to_datetime(row['fromDate'])
+            if pd.isna(injury_start):
+                continue  # Skip if start date is invalid
+            
+            injury_start = injury_start.normalize()
+            injury_end = row.get('untilDate')
+            
+            if pd.notna(injury_end):
+                injury_end = pd.to_datetime(injury_end).normalize()
+            else:
+                # If no end date, use the end_date as the injury end (ongoing injury)
+                injury_end = end_date
+            
+            # Get injury_class (default to 'unknown' if missing)
+            injury_class = str(row.get('injury_class', 'unknown')).lower().strip()
+            
+            # Check if injury overlaps with the date range
+            if injury_start <= end_date and injury_end >= start_date:
+                # Clip to the actual date range
+                period_start = max(injury_start, start_date)
+                period_end = min(injury_end, end_date)
+                injury_periods.append((period_start, period_end, injury_class))
+        
+        return sorted(injury_periods, key=lambda x: x[0])
     except Exception as e:
-        print(f"[WARN] Could not read predictions file {latest_file}: {e}")
+        print(f"[WARN] Could not load injury periods for player {player_id}: {e}")
+        return []
+
+
+def load_player_profile(player_id: int, country: str = "england") -> pd.Series:
+    """Load player profile from latest raw data folder."""
+    latest_raw_data = get_latest_raw_data_folder(country.lower().replace(" ", "_"))
+    if latest_raw_data is None or not latest_raw_data.exists():
+        return pd.Series()
     
-    return []
+    profile_file = latest_raw_data / "players_profile.csv"
+    if not profile_file.exists():
+        return pd.Series()
+    
+    try:
+        df = pd.read_csv(profile_file, sep=';', encoding='utf-8-sig')
+        # Try 'player_id' first, then fallback to 'id'
+        if 'player_id' in df.columns:
+            player_row = df[df['player_id'] == player_id]
+        elif 'id' in df.columns:
+            player_row = df[df['id'] == player_id]
+        else:
+            return pd.Series()
+        
+        if player_row.empty:
+            return pd.Series()
+        return player_row.iloc[0]
+    except Exception as e:
+        print(f"[WARN] Could not load profile for player {player_id}: {e}")
+        return pd.Series()
 
 
 def create_player_dashboard(
@@ -188,48 +261,253 @@ def create_player_dashboard(
     insights: dict,
     trend_metrics: dict,
     output_dir: Path,
-    injury_periods: List[Tuple[pd.Timestamp, pd.Timestamp]] = None,
+    injury_periods: List[Tuple[pd.Timestamp, pd.Timestamp, str]] = None,
+    player_profile: Optional[pd.Series] = None,
 ) -> Path:
-    """Create dashboard for a single player (reuse V3 logic)."""
-    # This function is complex - we'll reuse the V3 implementation
-    # For now, create a simplified version
-    fig, axes = plt.subplots(2, 1, figsize=(14, 10))
+    """Create dashboard PNG showing predictions with 4-level risk classification for V4."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    fig = plt.figure(figsize=(12, 8))
+    gs = fig.add_gridspec(2, 3, height_ratios=[2.0, 1.0], hspace=0.5, wspace=0.45)
+
+    # Top panel – risk evolution (full width)
+    ax_main = fig.add_subplot(gs[0, :])
+    dates = pivot["reference_date"]
     
-    # Plot 1: Risk evolution
-    ax1 = axes[0]
-    dates = pd.to_datetime(pivot['reference_date'])
-    probabilities = pivot['injury_probability'].values
+    # Get actual date range from predictions
+    actual_start = dates.min()
+    actual_end = dates.max()
     
-    ax1.plot(dates, probabilities, 'b-', linewidth=2, label='Injury Probability')
-    ax1.fill_between(dates, 0, probabilities, alpha=0.3, color='blue')
-    ax1.set_xlabel('Date')
-    ax1.set_ylabel('Injury Probability')
-    ax1.set_title(f'{ctx.player_name} (ID: {ctx.player_id}) - Injury Risk Evolution')
-    ax1.grid(True, alpha=0.3)
-    ax1.legend()
+    # Add background shading for injury periods with different colors for muscular vs non-muscular
+    if injury_periods:
+        first_muscular_label = True
+        first_non_muscular_label = True
+        for period_start, period_end, injury_class in injury_periods:
+            chart_start = dates.min()
+            chart_end = dates.max()
+            if period_start <= chart_end and period_end >= chart_start:
+                shade_start = max(period_start, chart_start)
+                shade_end = min(period_end, chart_end)
+                
+                # Determine color based on injury_class
+                is_muscular = injury_class == 'muscular'
+                if is_muscular:
+                    color = '#AA5555'  # Darker red for muscular injuries
+                    label = 'Muscular Injury' if first_muscular_label else ''
+                    first_muscular_label = False
+                else:
+                    color = '#FF9999'  # Light red for non-muscular injuries
+                    label = 'Non-Muscular Injury' if first_non_muscular_label else ''
+                    first_non_muscular_label = False
+                
+                ax_main.axvspan(shade_start, shade_end, alpha=0.15, color=color, zorder=0, label=label)
     
-    # Format x-axis dates
-    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-    ax1.xaxis.set_major_locator(mdates.WeekdayLocator(interval=2))
-    plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45, ha='right')
+    # Compute probabilities as percentages (keep risk labels for color coding only)
+    probabilities = pivot["injury_probability"]
+    probabilities_percent = probabilities * 100  # Convert to percentages
+    risk_labels_4level = []
+    for prob in probabilities:
+        risk_info = classify_risk_4level(prob)
+        risk_labels_4level.append(risk_info["label"])
+
+    if HAS_SCIPY and len(dates) > 3:
+        # Smooth curves using spline interpolation
+        dates_numeric = np.arange(len(dates))
+        x_smooth = np.linspace(dates_numeric.min(), dates_numeric.max(), 500)
+        dates_smooth = pd.date_range(dates.min(), dates.max(), periods=500)
+        
+        # Plot with risk-based coloring (using probabilities as percentages)
+        spl = make_interp_spline(dates_numeric, probabilities_percent, k=min(3, len(dates) - 1))
+        y_smooth = spl(x_smooth)
+        
+        # Determine colors based on risk classification of smoothed values
+        colors_smooth = []
+        for val in y_smooth:
+            # Convert percentage back to probability for classification
+            prob_val = val / 100.0
+            risk_info = classify_risk_4level(prob_val)
+            label = risk_info["label"]
+            colors_smooth.append(RISK_CLASS_COLORS_4LEVEL[label])
+        
+        for i in range(len(dates_smooth) - 1):
+            ax_main.plot(
+                dates_smooth[i : i + 2],
+                y_smooth[i : i + 2],
+                color=colors_smooth[i],
+                linewidth=2.5,
+                alpha=0.9,
+                zorder=3,
+                label="Injury Risk" if i == 0 else "",
+            )
+        
+        ax_main.fill_between(dates_smooth, y_smooth, alpha=0.15, color="gray", zorder=1)
+    else:
+        # For very few points, plot simple lines
+        colors = [RISK_CLASS_COLORS_4LEVEL[label] for label in risk_labels_4level]
+        for i in range(len(dates) - 1):
+            ax_main.plot(
+                dates.iloc[i : i + 2],
+                probabilities_percent.iloc[i : i + 2],
+                color=colors[i],
+                linewidth=2.5,
+                alpha=0.9,
+                zorder=3,
+                label="Injury Risk" if i == 0 else "",
+            )
+        ax_main.fill_between(dates, probabilities_percent, alpha=0.15, color="gray", zorder=1)
+
+    ax_main.set_title(f"Injury Risk Evolution - {ctx.player_name}", fontsize=14, fontweight="bold", pad=15)
+    ax_main.set_ylabel("Injury Probability (%)", fontweight="bold")
+    ax_main.set_xlabel("Date", fontweight="bold")
+    # Use percentage ticks instead of risk labels
+    ax_main.set_yticks([0, 25, 50, 75, 100])
+    ax_main.set_yticklabels(["0%", "25%", "50%", "75%", "100%"])
+    ax_main.set_ylim(0, 100)
+    ax_main.legend(loc="upper left", fontsize=9, framealpha=0.9)
+    ax_main.grid(axis="y", alpha=0.3, linestyle="--")
     
-    # Plot 2: Risk levels
-    ax2 = axes[1]
-    risk_levels = pivot['risk_level'].value_counts()
-    colors = [RISK_CLASS_COLORS_4LEVEL.get(level, 'gray') for level in risk_levels.index]
-    ax2.bar(risk_levels.index, risk_levels.values, color=colors)
-    ax2.set_xlabel('Risk Level')
-    ax2.set_ylabel('Count')
-    ax2.set_title('Risk Level Distribution')
-    ax2.grid(True, alpha=0.3, axis='y')
+    # Make time axis more granular - YYYY-MM-DD format, only show days
+    ax_main.xaxis.set_major_locator(mdates.DayLocator(interval=7))  # Show every week
+    ax_main.xaxis.set_minor_locator(mdates.DayLocator(interval=1))  # Minor ticks every day
+    ax_main.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))  # YYYY-MM-DD format
+    ax_main.xaxis.set_minor_formatter(mdates.DateFormatter(''))  # No labels on minor ticks
+    plt.setp(ax_main.xaxis.get_majorticklabels(), rotation=45, ha="right", fontsize=6)
+
+    # Bottom left – body parts
+    ax_body = fig.add_subplot(gs[1, 0])
+    if insights and insights.get("bodypart_rank"):
+        body_rank = insights.get("bodypart_rank", [])[:3]
+        labels = [item[0].replace("_", " ").title() for item in body_rank]
+        probs = [item[1] * 100 for item in body_rank]
+        colors_body = ["#2E86AB", "#A23B72", "#F18F01"][: len(labels)]
+        bars = ax_body.barh(labels, probs, color=colors_body, alpha=0.8, edgecolor="white", linewidth=0.5, height=0.6)
+        ax_body.set_xlabel("Probability (%)", fontweight="bold", fontsize=8)
+        ax_body.set_title("Body Parts at Risk", fontweight="bold", pad=5, fontsize=9)
+        ax_body.set_xlim(0, 100)
+        ax_body.tick_params(labelsize=7)
+        for i, (bar, prob) in enumerate(zip(bars, probs)):
+            ax_body.text(prob + 2, i, f"{prob:.1f}%", va="center", fontweight="bold", fontsize=7)
+        ax_body.grid(axis="x", alpha=0.3, linestyle="--")
+    else:
+        ax_body.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax_body.transAxes, fontsize=8)
+        ax_body.set_title("Body Parts at Risk", fontweight="bold", fontsize=9)
+
+    # Bottom center – severity
+    ax_sev = fig.add_subplot(gs[1, 1])
+    if insights and insights.get("severity_probs"):
+        severity_probs = insights.get("severity_probs", {})
+        severity_label = insights.get("severity_label", "Unknown")
+        labels_sev = list(severity_probs.keys())
+        sizes = [severity_probs[k] * 100 for k in labels_sev]
+        colors_sev = ["#06A77D", "#F4A261", "#E76F51", "#264653"][: len(labels_sev)]
+        bars_sev = ax_sev.barh(
+            range(len(labels_sev)), sizes, color=colors_sev, alpha=0.8, edgecolor="white", linewidth=0.5, height=0.6
+        )
+        ax_sev.set_yticks(range(len(labels_sev)))
+        formatted_labels = []
+        for l in labels_sev:
+            formatted = l.replace("_", " ").title()
+            if formatted == "Long Term":
+                formatted = "Long term"
+            formatted_labels.append(formatted)
+        ax_sev.set_yticklabels(formatted_labels, fontsize=7)
+        ax_sev.set_xlabel("Probability (%)", fontweight="bold", fontsize=8)
+        formatted_severity_label = severity_label.replace("_", " ").title()
+        if formatted_severity_label == "Long Term":
+            formatted_severity_label = "Long term"
+        ax_sev.set_title(f"Severity: {formatted_severity_label}", fontweight="bold", pad=5, fontsize=9)
+        ax_sev.set_xlim(0, 100)
+        ax_sev.tick_params(labelsize=7)
+        for i, (bar, size) in enumerate(zip(bars_sev, sizes)):
+            ax_sev.text(size + 2, i, f"{size:.1f}%", va="center", fontweight="bold", fontsize=7)
+        ax_sev.grid(axis="x", alpha=0.3, linestyle="--")
+    else:
+        ax_sev.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax_sev.transAxes, fontsize=8)
+        ax_sev.set_title("Severity", fontweight="bold", fontsize=9)
     
-    plt.tight_layout()
+    # Add footnote at the bottom of the page
+    fig.text(0.5, 0.02, "Note: Body part and severity probabilities refer to the last day shown in the main chart.", 
+             ha='center', fontsize=7, style='italic', color='gray')
+
+    # Bottom right – player profile and risk summary
+    ax_alert = fig.add_subplot(gs[1, 2])
+    ax_alert.axis("off")
     
-    output_file = output_dir / ctx.chart_filename
-    plt.savefig(output_file, dpi=150, bbox_inches='tight')
-    plt.close()
+    # Player profile section (top part)
+    profile_text = "PLAYER PROFILE\n\n"
+    if player_profile is not None and not player_profile.empty:
+        position = player_profile.get('position', 'N/A')
+        date_of_birth = player_profile.get('date_of_birth', '')
+        nationality1 = player_profile.get('nationality1', '')
+        nationality2 = player_profile.get('nationality2', '')
+        
+        # Calculate age if date_of_birth is available
+        age = "N/A"
+        if date_of_birth and pd.notna(date_of_birth):
+            try:
+                dob = pd.to_datetime(date_of_birth)
+                age = str((actual_end - dob).days // 365)
+            except:
+                pass
+        
+        # Format nationality
+        nationality = nationality1 if pd.notna(nationality1) and str(nationality1).strip() else 'N/A'
+        if nationality2 and pd.notna(nationality2) and str(nationality2).strip():
+            nationality += f" / {nationality2}"
+        
+        profile_text += f"Position: {position}\n"
+        profile_text += f"Age: {age}\n"
+        profile_text += f"Nationality: {nationality}\n"
+    else:
+        profile_text += "Position: N/A\n"
+        profile_text += "Age: N/A\n"
+        profile_text += "Nationality: N/A\n"
     
-    return output_file
+    profile_text += "\n" + "=" * 20 + "\n\n"
+    
+    # Risk summary section (bottom part)
+    if risk_labels_4level:
+        peak_risk = max(risk_labels_4level, key=lambda x: RISK_CLASS_LABELS_4LEVEL.index(x))
+        final_risk = risk_labels_4level[-1]
+    else:
+        peak_risk = "N/A"
+        final_risk = "N/A"
+
+    sustained = trend_metrics.get("sustained_elevated_days", 0) if trend_metrics else 0
+    max_jump = trend_metrics.get("max_jump", 0.0) if trend_metrics else 0.0
+    slope = trend_metrics.get("slope", 0.0) if trend_metrics else 0.0
+
+    profile_text += f"""RISK SUMMARY
+
+Peak Risk Level: {peak_risk}
+Final Risk Level: {final_risk}
+Sustained Elevated: {sustained} days
+Max Daily Jump: {max_jump:.3f}
+Trend Slope: {slope:.4f}"""
+    
+    ax_alert.text(
+        0.1,
+        0.5,
+        profile_text,
+        transform=ax_alert.transAxes,
+        fontsize=9,
+        verticalalignment="center",
+        family="monospace",
+        fontweight="bold",
+    )
+
+    # Use actual date range from predictions instead of window dates
+    plt.suptitle(
+        f"Observation Period: {actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}",
+        fontsize=11,
+        y=0.98,
+    )
+
+    # Use V4 filename format
+    chart_path = output_dir / ctx.chart_filename
+    plt.savefig(chart_path, dpi=300, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    return chart_path
 
 
 def main() -> int:
@@ -248,7 +526,7 @@ def main() -> int:
     dashboards_dir = challenger_path / "dashboards" / "players"
     features_dir = challenger_path / "daily_features"
     
-    start_date, end_date, suffix = parse_date_range(args)
+    start_date, end_date, _ = parse_date_range(args)  # suffix not used for V4, we use reference_date from predictions
 
     # Load insight models once
     insight_models_dir = PRODUCTION_ROOT / "models" / "insights"
@@ -275,17 +553,32 @@ def main() -> int:
         if 'reference_date' in predictions_df.columns:
             predictions_df['reference_date'] = pd.to_datetime(predictions_df['reference_date'], errors='coerce')
             predictions_df = predictions_df.dropna(subset=['reference_date'])
-            # Filter by date range
-            # If start_date == end_date (single date provided), show all predictions up to that date
+            
+            # Get the maximum reference date from predictions (the calculation reference date)
+            max_ref_date = predictions_df['reference_date'].max()
+            print(f"[INFO] Predictions file contains data up to: {max_ref_date.date()}")
+            
+            # If start_date == end_date (single date provided), use all predictions up to the calculation reference date
+            # This ensures dashboards show all available predictions, not just up to the provided date
             if start_date == end_date:
+                # Use the maximum reference date from predictions (calculation reference date)
+                actual_end_date = max_ref_date.normalize()
+                print(f"[INFO] Using calculation reference date as end date: {actual_end_date.date()}")
                 predictions_df = predictions_df[
-                    predictions_df['reference_date'] <= end_date
+                    predictions_df['reference_date'] <= actual_end_date
                 ].copy()
+                # Update end_date for display purposes
+                end_date = actual_end_date
             else:
+                # For date ranges, still respect the provided end_date, but don't go beyond max_ref_date
+                actual_end_date = min(end_date, max_ref_date.normalize())
+                if actual_end_date < end_date:
+                    print(f"[INFO] Clamping end_date from {end_date.date()} to calculation reference date: {actual_end_date.date()}")
                 predictions_df = predictions_df[
                     (predictions_df['reference_date'] >= start_date) & 
-                    (predictions_df['reference_date'] <= end_date)
+                    (predictions_df['reference_date'] <= actual_end_date)
                 ].copy()
+                end_date = actual_end_date
         print(f"[LOAD] Loaded {len(predictions_df):,} predictions")
     except Exception as e:
         print(f"❌ Error loading predictions: {e}")
@@ -329,33 +622,82 @@ def main() -> int:
             
             player_name = player_preds.iloc[0].get('player_name', f'Player {player_id}')
             
-            # Create context
+            # Sort predictions by reference_date
+            player_preds = player_preds.sort_values('reference_date')
+            
+            # Get the maximum reference_date (calculation reference date) for filename
+            max_ref_date = player_preds['reference_date'].max()
+            
+            # Use actual prediction date range for injury periods
+            valid_dates = player_preds["reference_date"].dropna()
+            if len(valid_dates) == 0:
+                if not HAS_TQDM:
+                    print(f"   [WARN] No valid dates found for player {player_id}, skipping...")
+                failures += 1
+                continue
+            
+            actual_start = valid_dates.min()
+            actual_end = valid_dates.max()
+            
+            # Ensure actual_start and actual_end are not NaT
+            if pd.isna(actual_start) or pd.isna(actual_end):
+                if not HAS_TQDM:
+                    print(f"   [WARN] Invalid date range for player {player_id}, skipping...")
+                failures += 1
+                continue
+            
+            # Load injury periods
+            injury_periods = load_injury_periods(player_id, features_dir, actual_start, actual_end, country=args.country)
+            
+            # Load latest feature row for insights
+            try:
+                feature_row = load_latest_feature_row(player_id, features_dir, end_date)
+                insights = {}
+                if bodypart_pipeline is not None and severity_pipeline is not None:
+                    insights = predict_insights(feature_row, bodypart_pipeline, severity_pipeline)
+            except FileNotFoundError:
+                if not HAS_TQDM:
+                    print(f"   [WARN] Daily features not found for player {player_id}, continuing without insights")
+                insights = {}
+            except Exception as e:
+                if not HAS_TQDM:
+                    print(f"   [WARN] Could not load features for player {player_id}: {e}")
+                insights = {}
+            
+            # Load player profile
+            player_profile = load_player_profile(player_id, country=args.country)
+            
+            # Compute trend metrics
+            trend_metrics = compute_trend_metrics(player_preds['injury_probability'])
+            
+            # Create context with reference_date for filename
             ctx = PlayerDashboardContext(
                 player_id=player_id,
                 player_name=player_name,
                 window_start=start_date,
                 window_end=end_date,
-                suffix=suffix
+                reference_date=max_ref_date  # Use max reference_date for filename
             )
             
-            # Prepare data for dashboard
-            player_preds = player_preds.sort_values('reference_date')
+            # Prepare pivot data for dashboard
             pivot = player_preds[['reference_date', 'injury_probability', 'risk_level']].copy()
             
-            # Compute risk series and trend metrics
-            # Pass Series, not .values (numpy array)
-            risk_series = compute_risk_series(pivot['injury_probability'])
-            trend_metrics = compute_trend_metrics(pivot['injury_probability'])
+            # Create dummy risk_df for compatibility (not used in 4-level dashboard)
+            risk_df_dummy = pd.DataFrame({
+                "risk_index": [classify_risk_4level(p)["index"] for p in player_preds["injury_probability"]],
+                "risk_label": [classify_risk_4level(p)["label"] for p in player_preds["injury_probability"]],
+            })
             
             # Create dashboard
             output_file = create_player_dashboard(
                 ctx=ctx,
                 pivot=pivot,
-                risk_df=player_preds,
-                insights={},
+                risk_df=risk_df_dummy,
+                insights=insights,
                 trend_metrics=trend_metrics,
                 output_dir=dashboards_dir,
-                injury_periods=[]
+                injury_periods=injury_periods,
+                player_profile=player_profile
             )
             
             successes += 1

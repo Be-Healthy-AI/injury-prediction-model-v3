@@ -176,7 +176,13 @@ def main():
         return 1
     
     # Check for enriched features first, fallback to Layer 1
-    daily_features_enriched_dir = daily_features_dir  # Same directory (Layer 2 overwrites Layer 1)
+    daily_features_enhanced_dir = challenger_path / "daily_features_enhanced"
+    if daily_features_enhanced_dir.exists() and any(daily_features_enhanced_dir.glob("player_*_daily_features.csv")):
+        daily_features_dir = daily_features_enhanced_dir
+        logger.info(f"[ENHANCED] Using enriched daily features: {daily_features_dir}")
+    else:
+        logger.info(f"[FALLBACK] Using Layer 1 daily features: {daily_features_dir}")
+    
     if not daily_features_dir.exists():
         logger.error(f"Daily features directory not found: {daily_features_dir}")
         return 1
@@ -202,7 +208,7 @@ def main():
     logger.info("=" * 70)
     logger.info(f"Country: {args.country}")
     logger.info(f"Club: {args.club}")
-    logger.info(f"Daily features directory: {daily_features_dir}")
+    logger.info(f"Daily features directory: {daily_features_dir} ({'ENHANCED' if 'enhanced' in str(daily_features_dir) else 'LAYER 1'})")
     logger.info(f"Output directory: {output_dir}")
     logger.info(f"Raw data directory: {raw_data_dir}")
     logger.info(f"Data date: {args.data_date}")
@@ -271,10 +277,18 @@ def main():
                                 max_existing_date = None
                                 existing_timelines = None
                     
-                    # Set min_date if not provided
+                    # Set min_date if not provided (incremental update)
                     if max_existing_date and min_date_ts is None:
                         min_date_ts = max_existing_date + pd.Timedelta(days=1)
                         logger.info(f"[INCREMENTAL] Will generate timelines from {min_date_ts.date()} onwards")
+                    elif min_date_ts:
+                        logger.info(f"[INCREMENTAL] Using explicitly provided min_date: {min_date_ts.date()}")
+                else:
+                    logger.warning(f"[WARNING] No valid dates found in existing timelines, will generate from scratch")
+                    existing_timelines = None
+            else:
+                logger.warning(f"[WARNING] 'reference_date' column not found in existing timelines, will generate from scratch")
+                existing_timelines = None
         except Exception as e:
             logger.warning(f"[WARNING] Error loading existing timelines: {e}, will generate from scratch")
             existing_timelines = None
@@ -320,7 +334,7 @@ def main():
     # Build player PL membership periods
     logger.info("[BUILD] Building player PL membership periods...")
     try:
-        player_pl_periods = build_player_pl_membership_periods_v4(str(career_file), pl_clubs_by_season)
+        player_pl_periods = build_player_pl_membership_periods_v4(str(career_file), pl_clubs_by_season, max_reference_date=max_date_ts)
         logger.info(f"[BUILD] Found PL membership periods for {len(player_pl_periods)} players")
     except Exception as e:
         logger.error(f"[ERROR] Failed to build PL membership periods: {e}")
@@ -445,14 +459,17 @@ def main():
                 logger.info(f"[DEDUP] Removed {before_dedup - after_dedup} duplicate timelines")
         
         # Apply PL filtering (post-processing, like V3)
-        logger.info(f"[FILTER] Applying PL-only filter to {len(combined_timelines)} timelines...")
-        before_filter = len(combined_timelines)
-        combined_timelines = filter_timelines_pl_only_v4(combined_timelines, player_pl_periods)
-        after_filter = len(combined_timelines)
-        if before_filter > 0:
-            logger.info(f"[FILTER] Filtered from {before_filter:,} to {after_filter:,} timelines ({after_filter/before_filter*100:.1f}% kept)")
-        else:
-            logger.info(f"[FILTER] No timelines to filter")
+        # DISABLED for production - we're already filtering by club via config.json
+        # All players in config.json should be included regardless of PL membership status
+        # logger.info(f"[FILTER] Applying PL-only filter to {len(combined_timelines)} timelines...")
+        # before_filter = len(combined_timelines)
+        # combined_timelines = filter_timelines_pl_only_v4(combined_timelines, player_pl_periods)
+        # after_filter = len(combined_timelines)
+        # if before_filter > 0:
+        #     logger.info(f"[FILTER] Filtered from {before_filter:,} to {after_filter:,} timelines ({after_filter/before_filter*100:.1f}% kept)")
+        # else:
+        #     logger.info(f"[FILTER] No timelines to filter")
+        logger.info(f"[FILTER] PL-only filter DISABLED for production - including all players from config.json")
         
         # Merge with existing timelines if provided
         if existing_timelines is not None and len(existing_timelines) > 0:
@@ -484,6 +501,15 @@ def main():
         if 'reference_date' in final_timelines.columns:
             final_timelines['reference_date'] = pd.to_datetime(final_timelines['reference_date'], errors='coerce').dt.date.astype(str)
             final_timelines = final_timelines[final_timelines['reference_date'] != 'NaT'].copy()
+            
+            # Filter to keep only timelines from 2025-07-01 onwards (season start)
+            season_start = '2025-07-01'
+            before_count = len(final_timelines)
+            final_timelines = final_timelines[final_timelines['reference_date'] >= season_start].copy()
+            after_count = len(final_timelines)
+            if before_count > after_count:
+                logger.info(f"[FILTER] Filtered timelines: removed {before_count - after_count} rows before {season_start}")
+                logger.info(f"[FILTER] Remaining timelines: {after_count:,} rows (from {season_start} onwards)")
         
         # Save to single file per club
         output_file = output_dir / "timelines_35day_season_2025_2026_v4_muscular.csv"
@@ -499,6 +525,17 @@ def main():
         logger.warning("[WARN] No timelines generated")
         if existing_timelines is not None:
             logger.info(f"[KEEP] Keeping existing timelines: {len(existing_timelines)} rows")
+            # Apply same filter to existing timelines: keep only from 2025-07-01 onwards
+            if 'reference_date' in existing_timelines.columns:
+                existing_timelines['reference_date'] = pd.to_datetime(existing_timelines['reference_date'], errors='coerce').dt.date.astype(str)
+                existing_timelines = existing_timelines[existing_timelines['reference_date'] != 'NaT'].copy()
+                season_start = '2025-07-01'
+                before_count = len(existing_timelines)
+                existing_timelines = existing_timelines[existing_timelines['reference_date'] >= season_start].copy()
+                after_count = len(existing_timelines)
+                if before_count > after_count:
+                    logger.info(f"[FILTER] Filtered existing timelines: removed {before_count - after_count} rows before {season_start}")
+                    logger.info(f"[FILTER] Remaining timelines: {after_count:,} rows (from {season_start} onwards)")
             output_file = output_dir / "timelines_35day_season_2025_2026_v4_muscular.csv"
             existing_timelines.to_csv(output_file, index=False, encoding='utf-8-sig')
         else:

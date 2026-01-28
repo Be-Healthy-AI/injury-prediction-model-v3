@@ -292,9 +292,131 @@ def get_windowed_features() -> List[str]:
 
 # ===== PL FILTERING FUNCTIONS (from V3) =====
 
+def get_static_pl_clubs_by_season() -> Dict[int, Set[str]]:
+    """
+    Get static PL clubs mapping by season based on TransferMarkt data.
+    This provides a baseline mapping that can be merged with dynamic data from match files.
+    Includes common club name variations to handle different naming conventions.
+    
+    Returns:
+        Dictionary mapping season start year to set of PL club names (original and normalized)
+    """
+    # Static PL clubs by season (2019-2025) based on TransferMarkt data
+    # Each season includes common variations for all clubs
+    static_clubs = {
+        2019: {
+            'Manchester City FC', 'FC Arsenal', 'Arsenal FC', 'Chelsea FC', 'Manchester United FC',
+            'Liverpool FC', 'Tottenham Hotspur', 'Newcastle United', 'Brighton & Hove Albion',
+            'Aston Villa FC', 'Wolverhampton Wanderers', 'Leicester City FC', 'West Ham United',
+            'FC Southampton', 'FC Everton', 'Norwich City FC', 'Sheffield United',
+            'Crystal Palace FC', 'FC Burnley', 'Watford FC', 'AFC Bournemouth'
+        },
+        2020: {
+            'Manchester City FC', 'FC Arsenal', 'Arsenal FC', 'Chelsea FC', 'Manchester United FC',
+            'Liverpool FC', 'Tottenham Hotspur', 'Newcastle United', 'Brighton & Hove Albion',
+            'Aston Villa FC', 'Wolverhampton Wanderers', 'Leicester City FC', 'West Ham United',
+            'FC Southampton', 'FC Everton', 'Sheffield United', 'Crystal Palace FC',
+            'FC Burnley', 'FC Fulham', 'West Bromwich Albion', 'Leeds United FC'
+        },
+        2021: {
+            'Manchester City FC', 'FC Arsenal', 'Arsenal FC', 'Chelsea FC', 'Manchester United FC',
+            'Liverpool FC', 'Tottenham Hotspur', 'Newcastle United', 'Brighton & Hove Albion',
+            'Aston Villa FC', 'Wolverhampton Wanderers', 'Leicester City FC', 'West Ham United',
+            'FC Southampton', 'FC Everton', 'Crystal Palace FC', 'FC Burnley',
+            'FC Fulham', 'Brentford FC', 'Norwich City FC', 'Watford FC'
+        },
+        2022: {
+            'Manchester City FC', 'FC Arsenal', 'Arsenal FC', 'Chelsea FC', 'Manchester United FC',
+            'Liverpool FC', 'Tottenham Hotspur', 'Newcastle United', 'Brighton & Hove Albion',
+            'Aston Villa FC', 'Wolverhampton Wanderers', 'Leicester City FC', 'West Ham United',
+            'FC Southampton', 'FC Everton', 'Nottingham Forest', 'Brentford FC',
+            'Leeds United FC', 'Crystal Palace FC', 'FC Fulham', 'AFC Bournemouth'
+        },
+        2023: {
+            'Manchester City FC', 'FC Arsenal', 'Arsenal FC', 'Chelsea FC', 'Liverpool FC',
+            'Tottenham Hotspur', 'Manchester United FC', 'Aston Villa FC', 'Newcastle United',
+            'Brighton & Hove Albion', 'Nottingham Forest', 'West Ham United', 'Crystal Palace FC',
+            'Wolverhampton Wanderers', 'Brentford FC', 'AFC Bournemouth', 'FC Everton',
+            'FC Fulham', 'FC Burnley', 'Sheffield United', 'Luton Town'
+        },
+        2024: {
+            'Manchester City FC', 'Chelsea FC', 'FC Arsenal', 'Arsenal FC', 'Liverpool FC',
+            'Manchester United FC', 'Tottenham Hotspur', 'Aston Villa FC', 'Newcastle United',
+            'Brighton & Hove Albion', 'Crystal Palace FC', 'AFC Bournemouth', 'Nottingham Forest',
+            'Wolverhampton Wanderers', 'Brentford FC', 'West Ham United', 'FC Everton',
+            'FC Fulham', 'FC Southampton', 'Ipswich Town FC', 'Leicester City FC'
+        },
+        2025: {
+            'Manchester City FC', 'FC Arsenal', 'Arsenal FC', 'Chelsea FC', 'Liverpool FC',
+            'Tottenham Hotspur', 'Manchester United FC', 'Newcastle United', 'Nottingham Forest',
+            'Brighton & Hove Albion', 'Aston Villa FC', 'Crystal Palace FC', 'Brentford FC',
+            'AFC Bournemouth', 'FC Everton', 'West Ham United', 'AFC Sunderland',
+            'FC Fulham', 'Wolverhampton Wanderers', 'Leeds United FC', 'FC Burnley'
+        }
+    }
+    
+    # Convert to sets with all variations and normalized names for each season
+    result = {}
+    for season, clubs in static_clubs.items():
+        result[season] = set()
+        for club in clubs:
+            # Add primary name and normalized version
+            result[season].add(club)
+            result[season].add(normalize_team_name(club))
+            
+            # Add common variations based on club name patterns
+            # Arsenal variations
+            if 'Arsenal' in club:
+                result[season].add('Arsenal FC')
+                result[season].add('FC Arsenal')
+                result[season].add('Arsenal')
+                result[season].add(normalize_team_name('Arsenal FC'))
+                result[season].add(normalize_team_name('FC Arsenal'))
+                result[season].add(normalize_team_name('Arsenal'))
+            
+            # Manchester City variations
+            if 'Manchester City' in club:
+                result[season].add('Manchester City')
+                result[season].add('Man City')
+                result[season].add(normalize_team_name('Manchester City'))
+                result[season].add(normalize_team_name('Man City'))
+            
+            # Manchester United variations
+            if 'Manchester United' in club:
+                result[season].add('Manchester United')
+                result[season].add('Man United')
+                result[season].add('Man Utd')
+                result[season].add(normalize_team_name('Manchester United'))
+                result[season].add(normalize_team_name('Man United'))
+                result[season].add(normalize_team_name('Man Utd'))
+            
+            # Tottenham variations
+            if 'Tottenham' in club:
+                result[season].add('Tottenham Hotspur')
+                result[season].add('Tottenham')
+                result[season].add('Spurs')
+                result[season].add(normalize_team_name('Tottenham Hotspur'))
+                result[season].add(normalize_team_name('Tottenham'))
+                result[season].add(normalize_team_name('Spurs'))
+            
+            # Add FC prefix/suffix variations for clubs that might have them
+            if club.startswith('FC '):
+                # Remove FC prefix and add as suffix
+                base_name = club[3:]
+                result[season].add(f'{base_name} FC')
+                result[season].add(normalize_team_name(f'{base_name} FC'))
+            elif club.endswith(' FC') and not club.startswith('FC '):
+                # Add FC prefix version
+                base_name = club[:-3]
+                result[season].add(f'FC {base_name}')
+                result[season].add(normalize_team_name(f'FC {base_name}'))
+    
+    return result
+
 def build_pl_clubs_per_season(raw_match_dir: str) -> Dict[int, Set[str]]:
     """
     Build mapping of season_year -> set of PL club names from raw match data.
+    Now merges static PL clubs mapping (from TransferMarkt) with dynamic data from match files.
     
     Args:
         raw_match_dir: Directory containing raw match CSV files
@@ -302,17 +424,21 @@ def build_pl_clubs_per_season(raw_match_dir: str) -> Dict[int, Set[str]]:
     Returns:
         Dictionary mapping season start year to set of normalized PL club names
     """
-    print("Building PL clubs per season mapping from raw match data...")
-    pl_clubs_by_season = defaultdict(set)
+    print("Building PL clubs per season mapping...")
+    
+    # Start with static PL clubs mapping
+    pl_clubs_by_season = get_static_pl_clubs_by_season()
+    print(f"  Loaded static PL clubs for {len(pl_clubs_by_season)} seasons")
     
     # Find all match CSV files
     match_files = glob.glob(os.path.join(raw_match_dir, "**", "*.csv"), recursive=True)
     
     if not match_files:
         print(f"  WARNING: No match files found in {raw_match_dir}")
-        return {}
+        # Return static mapping even if no match files
+        return pl_clubs_by_season
     
-    print(f"  Found {len(match_files)} match files")
+    print(f"  Found {len(match_files)} match files - merging with static mapping...")
     
     for match_file in match_files:
         try:
@@ -344,6 +470,10 @@ def build_pl_clubs_per_season(raw_match_dir: str) -> Dict[int, Set[str]]:
             for _, match in pl_matches.iterrows():
                 season = match['season_year']
                 
+                # Initialize season if not in static mapping
+                if season not in pl_clubs_by_season:
+                    pl_clubs_by_season[season] = set()
+                
                 for team_col in ['home_team', 'away_team', 'team']:
                     if team_col in match and pd.notna(match[team_col]):
                         club_name = str(match[team_col]).strip()
@@ -358,7 +488,7 @@ def build_pl_clubs_per_season(raw_match_dir: str) -> Dict[int, Set[str]]:
     
     # Convert to regular dict and report
     result = dict(pl_clubs_by_season)
-    print(f"  Found PL clubs for {len(result)} seasons")
+    print(f"  Final PL clubs mapping: {len(result)} seasons")
     for season in sorted(result.keys()):
         print(f"    Season {season}: {len(result[season])} unique club names")
     
@@ -397,7 +527,8 @@ def is_club_pl_club(club_name: str, season_year: int, pl_clubs_by_season: Dict[i
 
 def build_player_pl_membership_periods(
     career_file: str,
-    pl_clubs_by_season: Dict[int, Set[str]]
+    pl_clubs_by_season: Dict[int, Set[str]],
+    max_reference_date: Optional[pd.Timestamp] = None
 ) -> Dict[int, List[Tuple[pd.Timestamp, pd.Timestamp]]]:
     """
     Build mapping of player_id -> list of (start_date, end_date) periods when player was at PL club.
@@ -405,9 +536,14 @@ def build_player_pl_membership_periods(
     Args:
         career_file: Path to players_career.csv file
         pl_clubs_by_season: Mapping of season -> set of PL club names
+        max_reference_date: Maximum reference date for predictions calculation (replaces hardcoded date)
         
     Returns:
         Dictionary mapping player_id to list of (start, end) date tuples
+        
+    Note:
+        PL clubs mapping completeness should be verified against TransferMarkt for each season.
+        If missing clubs are found, update the build_pl_clubs_per_season function accordingly.
     """
     print("\nBuilding player PL membership periods from career data...")
     
@@ -418,13 +554,23 @@ def build_player_pl_membership_periods(
         print(f"  ERROR: Failed to load career file: {e}")
         return {}
     
-    # Parse dates - try ISO format first, then DD/MM/YYYY
-    career_df['Date'] = pd.to_datetime(career_df['Date'], errors='coerce')
+    # Parse dates - try DD/MM/YYYY format first to avoid MM-DD-YYYY misinterpretation
+    # Store original column for retry
+    original_dates = career_df['Date'].copy()
+    
+    # First, try DD/MM/YYYY format (European format with slashes)
+    career_df['Date'] = pd.to_datetime(career_df['Date'], format='%d/%m/%Y', errors='coerce')
+    
+    # If that fails for many rows, try DD-MM-YYYY format (European format with dashes)
     if career_df['Date'].isna().sum() > len(career_df) * 0.5:
-        # Try DD/MM/YYYY format
-        career_df['Date'] = pd.to_datetime(career_df['Date'], format='%d/%m/%Y', errors='coerce')
+        career_df['Date'] = pd.to_datetime(original_dates, format='%d-%m-%Y', errors='coerce')
+    
+    # If that also fails, try auto-detect with dayfirst=True to prefer DD/MM/YYYY over MM/DD/YYYY
+    if career_df['Date'].isna().sum() > len(career_df) * 0.5:
+        career_df['Date'] = pd.to_datetime(original_dates, dayfirst=True, errors='coerce')
     
     # Filter out rows with invalid dates or missing club info
+    # Keep "From" column for initial PL club detection (Issue 2)
     career_df = career_df[
         career_df['Date'].notna() & 
         career_df['To'].notna() &
@@ -445,9 +591,26 @@ def build_player_pl_membership_periods(
         current_pl_start = None
         current_pl_club = None
         
+        # Issue 2: Check if player was already at PL club at first transfer (initial PL club)
+        if len(player_career) > 0:
+            first_row = player_career.iloc[0]
+            first_transfer_date = first_row['Date']
+            from_club = str(first_row.get('From', '')).strip() if 'From' in first_row else ''
+            
+            if from_club and pd.notna(first_transfer_date):
+                # Determine season for first transfer
+                season_year = first_transfer_date.year if first_transfer_date.month >= 7 else first_transfer_date.year - 1
+                # Check if origin club is PL club
+                is_pl_origin = is_club_pl_club(from_club, season_year, pl_clubs_by_season)
+                if is_pl_origin:
+                    # Player was already at PL club, start period from first transfer date
+                    current_pl_start = first_transfer_date
+                    current_pl_club = from_club
+        
         for idx, row in player_career.iterrows():
             transfer_date = row['Date']
             to_club = str(row['To']).strip()
+            from_club = str(row.get('From', '')).strip() if 'From' in row else ''
             
             if not to_club or pd.isna(transfer_date):
                 continue
@@ -457,15 +620,20 @@ def build_player_pl_membership_periods(
             
             # Check if destination club is PL club
             is_pl_destination = is_club_pl_club(to_club, season_year, pl_clubs_by_season)
+            # Check if origin club is PL club (for transfers between PL clubs - Issue 2)
+            is_pl_origin = is_club_pl_club(from_club, season_year, pl_clubs_by_season) if from_club else False
             
             if is_pl_destination:
-                # Starting or continuing a PL period
                 if current_pl_start is None:
                     # Starting a new PL period
                     current_pl_start = transfer_date
                     current_pl_club = to_club
+                elif is_pl_origin:
+                    # Issue 2: Transfer between PL clubs - continue the period, just update club
+                    current_pl_club = to_club
+                # else: already in PL period, destination is PL, so continue period
             else:
-                # Ending a PL period (transferring to non-PL club)
+                # Transferring to non-PL club
                 if current_pl_start is not None:
                     # Close the PL period at this transfer date
                     player_pl_periods[player_id].append((current_pl_start, transfer_date))
@@ -474,14 +642,19 @@ def build_player_pl_membership_periods(
         
         # If still in PL at end of career, close the period
         if current_pl_start is not None:
-            # Use last transfer date + 1 year as end (or could use a far future date)
             last_date = player_career['Date'].max()
             # Extend to end of that season + buffer
             end_season_year = last_date.year if last_date.month >= 7 else last_date.year - 1
             end_date = pd.Timestamp(f'{end_season_year + 1}-06-30')  # End of season
-            # For players still at PL clubs, extend to latest date in raw data (2025-12-05)
-            max_future = pd.Timestamp('2025-12-05')
-            end_date = max(end_date, max_future)
+            
+            # Issue 1: Use max_reference_date instead of hardcoded date
+            if max_reference_date is not None:
+                end_date = max(end_date, max_reference_date)
+            else:
+                # Fallback: use a reasonable future date (current date + 1 year)
+                max_future = pd.Timestamp.now() + pd.Timedelta(days=365)
+                end_date = max(end_date, max_future)
+            
             player_pl_periods[player_id].append((current_pl_start, end_date))
     
     result = dict(player_pl_periods)
@@ -490,6 +663,10 @@ def build_player_pl_membership_periods(
     # Report some statistics
     total_periods = sum(len(periods) for periods in result.values())
     print(f"  Total PL periods: {total_periods}")
+    
+    # Issue 3: Note about PL clubs mapping completeness
+    print(f"\n  NOTE: PL clubs mapping completeness should be verified against TransferMarkt for each season.")
+    print(f"        If missing clubs are found, update the build_pl_clubs_per_season function accordingly.")
     
     return result
 
@@ -847,10 +1024,11 @@ def get_valid_non_injury_dates(df: pd.DataFrame,
     Get all valid non-injury reference dates for a specific season
     (PL filtering is done in post-processing, not during generation)
     
-    Eligibility rules:
+    Eligibility rules for PRODUCTION/DEPLOYMENT:
     - Reference date must be within season date range
-    - No injury of ANY class in the 35 days after reference date
-    - Complete 35-day window must be available
+    - Complete 35-day window must be available BEFORE reference date (for feature calculation)
+    - NO requirement for future data (allows predictions up to latest available date)
+    - NO filtering based on future injuries (all dates are included for prediction)
     """
     valid_dates = []
     
@@ -859,38 +1037,30 @@ def get_valid_non_injury_dates(df: pd.DataFrame,
     
     max_date = df['date'].max()
     min_date = df['date'].min()
-    max_reference_date = max_date - timedelta(days=34)
+    # For production: allow reference dates up to max_date (no future window required)
+    max_reference_date = min(max_date, season_end)
     
     # Create date range for potential reference dates
     potential_dates = pd.date_range(min_date, max_reference_date, freq='D')
     
     # Process valid dates
     for reference_date in potential_dates:
-        # Check if reference date exists in data
-        if reference_date not in df['date'].values:
+        # Check if reference date exists in data (normalize for proper comparison)
+        reference_date_normalized = pd.Timestamp(reference_date).normalize()
+        if not (df['date'].dt.normalize() == reference_date_normalized).any():
             continue
         
         # Season filtering
         if not (season_start <= reference_date <= season_end):
             continue
         
-        # CRITICAL: Check if there's an injury of ANY class in the next 35 days
-        future_end = reference_date + timedelta(days=34)
-        if future_end > max_date:
-            continue
-        
-        # Check if any injury (any class) occurs in this 35-day window
-        future_dates = pd.date_range(reference_date, future_end, freq='D')
-        injury_in_window = any(pd.Timestamp(date).normalize() in player_injury_dates for date in future_dates)
-        if injury_in_window:
-            continue  # Skip this date - injury (any class) in next 35 days
-        
-        # Check if we can create a complete 35-day window
+        # Check if we can create a complete 35-day window BEFORE reference date
+        # (This is the only requirement for production - we need history, not future)
         start_date = reference_date - timedelta(days=34)
         if start_date < min_date:
             continue
         
-        # All checks passed
+        # All checks passed - include this date for prediction
         valid_dates.append(reference_date)
     
     return valid_dates
@@ -1291,6 +1461,7 @@ def process_season(season_start_year: int, daily_features_dir: str,
     all_injury_timelines = []
     all_valid_non_injury_dates = []
     processed_players = 0
+    skipped_players_info = []
     
     for player_id in tqdm(season_player_ids, desc=f"Pass 1: {season_start_year}_{season_start_year+1}", unit="player"):
         try:
@@ -1304,6 +1475,15 @@ def process_season(season_start_year: int, daily_features_dir: str,
             df_season = df[season_mask].copy()
             
             if len(df_season) == 0:
+                # Track skipped player
+                file_min = df['date'].min() if len(df) > 0 else None
+                file_max = df['date'].max() if len(df) > 0 else None
+                skipped_players_info.append({
+                    'player_id': player_id,
+                    'reason': f'No data in season range (buffer: {buffer_start.date()} to {season_end.date()})',
+                    'file_date_range': f'{file_min.date()} to {file_max.date()}' if file_min is not None else 'N/A',
+                    'total_rows_in_file': len(df)
+                })
                 continue  # No data for this season
             
             # Get player name
@@ -1338,16 +1518,48 @@ def process_season(season_start_year: int, daily_features_dir: str,
             for date in valid_dates:
                 all_valid_non_injury_dates.append((player_id, date))
             
+            # Track if player has no timelines at all
+            if len(valid_dates) == 0 and len(season_injury_timelines) == 0:
+                skipped_players_info.append({
+                    'player_id': player_id,
+                    'reason': 'No injury timelines and no valid non-injury dates',
+                    'injury_timelines_count': len(injury_timelines),
+                    'season_injury_timelines_count': len(season_injury_timelines),
+                    'valid_dates_count': len(valid_dates),
+                    'season_data_rows': len(df_season),
+                    'injury_dates_count': len(player_all_injury_dates)
+                })
+            
             processed_players += 1
             del df, df_season
                 
         except Exception as e:
+            skipped_players_info.append({
+                'player_id': player_id,
+                'reason': f'Error: {str(e)}',
+                'error_type': type(e).__name__
+            })
             print(f"\n❌ Error processing player {player_id} for season {season_start_year}: {e}")
             continue
     
     print(f"\n✅ PASS 1 Complete for {season_start_year}_{season_start_year+1}:")
     print(f"   Injury timelines: {len(all_injury_timelines)}")
     print(f"   Valid non-injury dates: {len(all_valid_non_injury_dates)}")
+    print(f"   Processed players: {processed_players}")
+    
+    # Log skipped players if any
+    if skipped_players_info:
+        print(f"\n⚠️  SKIPPED PLAYERS ({len(skipped_players_info)}):")
+        for info in skipped_players_info:
+            print(f"   Player {info['player_id']}: {info['reason']}")
+            if 'file_date_range' in info:
+                print(f"      File date range: {info['file_date_range']}")
+            if 'valid_dates_count' in info:
+                print(f"      Injury timelines: {info.get('season_injury_timelines_count', 0)}, Valid dates: {info['valid_dates_count']}")
+            if 'injury_dates_count' in info:
+                print(f"      Total injury dates in data: {info['injury_dates_count']}")
+    else:
+        print(f"   ✅ All {len(season_player_ids)} players processed successfully")
     
     # Use natural target ratio (all available dates)
     selected_dates = all_valid_non_injury_dates

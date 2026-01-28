@@ -8,7 +8,7 @@ injury-history features.
 
 Key features:
 - Reads from production/deployments/England/challenger/{club}/daily_features/
-- Writes enriched features to the same directory (overwrites Layer 1)
+- Writes enriched features to daily_features_enhanced/ folder (preserves Layer 1)
 - Supports incremental updates (only enriches new files)
 - Processes one club at a time
 """
@@ -119,11 +119,13 @@ def main():
         challenger_path = get_challenger_path(args.country, args.club)
         input_dir = challenger_path / "daily_features"
     
-    # Resolve output directory (defaults to input_dir to overwrite Layer 1)
+    # Resolve output directory (defaults to daily_features_enhanced folder)
     if args.output_dir:
         output_dir = Path(args.output_dir)
     else:
-        output_dir = input_dir  # Overwrite Layer 1 files
+        # Write to separate daily_features_enhanced folder to preserve Layer 1
+        challenger_path = get_challenger_path(args.country, args.club)
+        output_dir = challenger_path / "daily_features_enhanced"
     
     if not input_dir.exists():
         logger.error(f"Input directory not found: {input_dir}")

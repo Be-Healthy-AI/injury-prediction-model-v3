@@ -4,7 +4,7 @@ Generate calibration chart showing V4 model predictive power.
 
 This chart demonstrates how well the V4 model's predicted probabilities
 match actual injury rates by binning predictions and comparing to
-observed injury rates in the next 10 days.
+observed injury rates in the next 5 days.
 
 Adapted from generate_calibration_chart.py for V4 challenger model.
 """
@@ -22,6 +22,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import matplotlib.patches as mpatches
+from matplotlib.colors import LinearSegmentedColormap
 
 # Calculate paths relative to this script
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -177,7 +179,7 @@ def load_all_injuries(data_date: str = None) -> Dict[int, set]:
     # Derive injury_class if it doesn't exist
     if 'injury_class' not in injuries_df.columns:
         print("   [WARNING] injury_class column not found, deriving from injury_type and no_physio_injury")
-        from production.scripts.update_timelines import derive_injury_class
+        from production.scripts.update_timelines_v4 import derive_injury_class
         injuries_df['injury_class'] = injuries_df.apply(
             lambda row: derive_injury_class(
                 row.get('injury_type', ''),
@@ -251,7 +253,7 @@ def check_injury_in_window(
     player_id: int,
     prediction_date: pd.Timestamp,
     injury_dates: Dict[int, set],
-    window_days: int = 10
+    window_days: int = 5
 ) -> bool:
     """
     Check if player was injured within the next window_days after prediction_date.
@@ -280,7 +282,7 @@ def bin_probability(prob: float) -> int:
 def calculate_calibration_data(
     predictions_df: pd.DataFrame,
     injury_dates: Dict[int, set],
-    window_days: int = 10
+    window_days: int = 5
 ) -> pd.DataFrame:
     """
     Calculate calibration data by binning predictions and checking injuries.
@@ -348,7 +350,7 @@ def calculate_calibration_data(
 def create_calibration_chart(
     calibration_df: pd.DataFrame,
     output_path: Path,
-    window_days: int = 10,
+    window_days: int = 5,
     start_date: pd.Timestamp = None,
     end_date: pd.Timestamp = None
 ):
@@ -439,6 +441,298 @@ def create_calibration_chart(
     print(f"[INFO] Saved chart to: {output_path}")
 
 
+def create_dashboard_calibration_chart(
+    calibration_df: pd.DataFrame,
+    output_path: Path,
+    window_days: int = 5,
+    start_date: pd.Timestamp = None,
+    end_date: pd.Timestamp = None
+):
+    """Create a professional dashboard-style calibration chart for customer presentations."""
+    print(f"\n[INFO] Creating dashboard-style calibration chart...")
+    
+    # Modern, clean style - no default grid
+    plt.style.use('default')
+    
+    # Create figure with transparent background for dark deck backgrounds
+    fig = plt.figure(figsize=(18, 11), facecolor='none')
+    ax = fig.add_subplot(111, facecolor='none')
+    
+    # Transparent background
+    ax.patch.set_facecolor('none')
+    ax.patch.set_alpha(0.0)
+    
+    # Extract data
+    bin_centers = calibration_df['bin_center'].values
+    injury_rates = calibration_df['injury_rate'].values
+    bin_labels = calibration_df['bin_label'].values
+    observations = calibration_df['total_observations'].values
+    
+    # Create vibrant, modern gradient color map (green to red with yellow/orange transition)
+    num_bars = len(bin_centers)
+    
+    # Modern color palette: vibrant green -> yellow -> orange -> red
+    color_stops = [
+        np.array([34, 197, 94]) / 255.0,   # Vibrant green #22C55E
+        np.array([132, 204, 22]) / 255.0,  # Lime green #84CC16
+        np.array([234, 179, 8]) / 255.0,   # Yellow #EAB308
+        np.array([251, 146, 60]) / 255.0,  # Orange #FB923C
+        np.array([239, 68, 68]) / 255.0,   # Red #EF4444
+        np.array([185, 28, 28]) / 255.0,   # Dark red #B91C1C
+    ]
+    
+    # Create smooth gradient colors for each bar with easing
+    bar_colors = []
+    bar_shadow_colors = []
+    for i in range(num_bars):
+        # Use easing function for smoother visual transition
+        t = i / (num_bars - 1) if num_bars > 1 else 0
+        # Ease-in-out cubic for smoother gradient
+        eased_t = t * t * (3.0 - 2.0 * t)
+        
+        # Map to color stops
+        color_idx = eased_t * (len(color_stops) - 1)
+        idx_low = int(color_idx)
+        idx_high = min(idx_low + 1, len(color_stops) - 1)
+        blend = color_idx - idx_low
+        
+        color_rgb = color_stops[idx_low] * (1 - blend) + color_stops[idx_high] * blend
+        
+        # Convert to hex
+        color_hex = '#{:02X}{:02X}{:02X}'.format(
+            int(color_rgb[0] * 255),
+            int(color_rgb[1] * 255),
+            int(color_rgb[2] * 255)
+        )
+        bar_colors.append(color_hex)
+        
+        # Create darker shadow color
+        shadow_rgb = color_rgb * 0.6  # 60% darker for shadow
+        shadow_hex = '#{:02X}{:02X}{:02X}'.format(
+            int(shadow_rgb[0] * 255),
+            int(shadow_rgb[1] * 255),
+            int(shadow_rgb[2] * 255)
+        )
+        bar_shadow_colors.append(shadow_hex)
+    
+    # Draw subtle shadow bars first (for depth effect)
+    shadow_offset = 0.005
+    shadow_bars = ax.bar(
+        [x + shadow_offset for x in bin_centers],
+        injury_rates,
+        width=0.06,
+        alpha=0.1,
+        color='#000000',
+        edgecolor='none',
+        zorder=1
+    )
+    
+    # Plot actual injury rate bars with modern styling
+    bars = ax.bar(
+        bin_centers,
+        injury_rates,
+        width=0.06,
+        alpha=1.0,
+        color=bar_colors,
+        edgecolor='white',
+        linewidth=3.5,
+        zorder=3
+    )
+    
+    # Add rounded corners and enhanced styling to bars
+    for bar in bars:
+        bar.set_alpha(0.95)
+        # Create rounded rectangle effect (matplotlib doesn't support rounded bars natively,
+        # but we can enhance with better edge styling)
+        bar.set_capstyle('round')
+
+    # Shape curve to highlight the overall pattern (connect bar tops smoothly).
+    # We use a monotone cubic interpolation (PCHIP-like) to avoid overshoots/spikes.
+    x = np.asarray(bin_centers, dtype=float)
+    y = np.asarray(injury_rates, dtype=float)
+    if len(x) >= 2:
+        def _pchip_monotone(xi: np.ndarray, yi: np.ndarray, xq: np.ndarray) -> np.ndarray:
+            """Monotone cubic Hermite interpolation (Fritsch-Carlson)."""
+            xi = np.asarray(xi, dtype=float)
+            yi = np.asarray(yi, dtype=float)
+            xq = np.asarray(xq, dtype=float)
+
+            n = len(xi)
+            if n == 2:
+                return np.interp(xq, xi, yi)
+
+            h = np.diff(xi)
+            d = np.diff(yi) / h  # secant slopes
+
+            m = np.zeros(n, dtype=float)
+            m[0] = d[0]
+            m[-1] = d[-1]
+
+            # Interior tangents
+            for k in range(1, n - 1):
+                if d[k - 1] == 0.0 or d[k] == 0.0 or np.sign(d[k - 1]) != np.sign(d[k]):
+                    m[k] = 0.0
+                else:
+                    w1 = 2 * h[k] + h[k - 1]
+                    w2 = h[k] + 2 * h[k - 1]
+                    m[k] = (w1 + w2) / (w1 / d[k - 1] + w2 / d[k])
+
+            # Evaluate piecewise Hermite
+            yq = np.empty_like(xq, dtype=float)
+            idx = np.searchsorted(xi, xq) - 1
+            idx = np.clip(idx, 0, n - 2)
+
+            x0 = xi[idx]
+            x1 = xi[idx + 1]
+            y0 = yi[idx]
+            y1 = yi[idx + 1]
+            m0 = m[idx]
+            m1 = m[idx + 1]
+            t = (xq - x0) / (x1 - x0)
+
+            t2 = t * t
+            t3 = t2 * t
+            h00 = (2 * t3 - 3 * t2 + 1)
+            h10 = (t3 - 2 * t2 + t)
+            h01 = (-2 * t3 + 3 * t2)
+            h11 = (t3 - t2)
+
+            yq = h00 * y0 + h10 * (x1 - x0) * m0 + h01 * y1 + h11 * (x1 - x0) * m1
+            return yq
+
+        x_smooth = np.linspace(x.min(), x.max(), 400)
+        y_smooth = _pchip_monotone(x, y, x_smooth)
+        y_smooth = np.clip(y_smooth, 0, None)
+
+        # Glow underlay
+        ax.plot(
+            x_smooth,
+            y_smooth,
+            color="#38BDF8",  # cyan glow (works well on dark blue)
+            linewidth=10,
+            alpha=0.18,
+            solid_capstyle="round",
+            zorder=4,
+        )
+        # Main trend line
+        ax.plot(
+            x_smooth,
+            y_smooth,
+            color="#F8FAFC",  # near-white
+            linewidth=3.5,
+            alpha=0.9,
+            solid_capstyle="round",
+            zorder=5,
+        )
+        # Optional anchor markers on bin centers (very subtle)
+        ax.plot(
+            x,
+            y,
+            linestyle="none",
+            marker="o",
+            markersize=5.5,
+            markerfacecolor="#F8FAFC",
+            markeredgecolor="#0EA5E9",
+            markeredgewidth=1.2,
+            alpha=0.9,
+            zorder=6,
+        )
+    
+    # Modern, elegant axis labels - light colors for dark backgrounds
+    ax.set_xlabel(
+        'Predicted Risk Level',
+        fontsize=20,
+        fontweight='600',
+        color='#E2E8F0',
+        labelpad=20,
+        family='sans-serif'
+    )
+    ax.set_ylabel(
+        'Actual Injury Rate (%)',
+        fontsize=20,
+        fontweight='600',
+        color='#E2E8F0',
+        labelpad=20,
+        family='sans-serif'
+    )
+    
+    # Modern, elegant title with better typography
+    title_text = (
+        f'Injury Prediction Model Performance'
+    )
+    subtitle_text = (
+        f'Actual Injury Rates by Predicted Risk Level | '
+        f'{start_date.date() if start_date else "N/A"} to {end_date.date() if end_date else "N/A"}'
+    )
+    ax.set_title(
+        title_text,
+        fontsize=24,
+        fontweight='700',
+        color='#F1F5F9',
+        pad=30,
+        family='sans-serif'
+    )
+    # Add subtitle
+    ax.text(
+        0.5, 0.96,
+        subtitle_text,
+        transform=ax.transAxes,
+        fontsize=13,
+        fontweight='400',
+        color='#CBD5E1',
+        ha='center',
+        va='top',
+        family='sans-serif'
+    )
+    
+    # Set limits with minimal padding (bars closer to chart edges)
+    ax.set_xlim(-0.02, 1.02)
+    y_max = max(injury_rates) * 1.3 if len(injury_rates) > 0 else 20
+    ax.set_ylim(0, y_max)
+    
+    # Modern, subtle grid - visible on dark backgrounds
+    ax.grid(True, alpha=0.2, linestyle='-', linewidth=0.8, color='#64748B', zorder=0, which='major')
+    ax.set_axisbelow(True)
+    
+    # Customize ticks with modern styling - light colors for dark backgrounds
+    ax.tick_params(axis='both', which='major', labelsize=12, width=1.5, length=5, 
+                   color='#94A3B8', labelcolor='#CBD5E1', pad=8)
+    ax.tick_params(axis='both', which='minor', labelsize=10)
+    
+    # Modern x-axis labels - light colors for dark backgrounds
+    ax.set_xticks(bin_centers)
+    ax.set_xticklabels(bin_labels, rotation=0, ha='center', fontsize=14, 
+                       fontweight='600', color='#CBD5E1', family='sans-serif')
+    
+    # Style y-axis ticks - light colors for dark backgrounds
+    ax.set_yticklabels([f'{int(y)}%' for y in ax.get_yticks()], 
+                       fontsize=14, fontweight='500', color='#CBD5E1', family='sans-serif')
+    
+    # Modern, clean border styling - visible on dark backgrounds
+    for spine in ax.spines.values():
+        spine.set_edgecolor('#64748B')
+        spine.set_linewidth(1.5)
+        spine.set_visible(True)
+    
+    
+    # Transparent background for dark deck presentations
+    fig.patch.set_facecolor('none')
+    
+    plt.tight_layout(rect=[0, 0, 1, 0.98])
+    plt.savefig(
+        output_path,
+        dpi=300,
+        bbox_inches='tight',
+        facecolor='none',
+        edgecolor='none',
+        pad_inches=0.2,
+        transparent=True
+    )
+    plt.close()
+    
+    print(f"[INFO] Saved dashboard chart to: {output_path}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Generate V4 calibration chart showing model predictive power'
@@ -446,20 +740,20 @@ def main():
     parser.add_argument(
         '--start-date',
         type=str,
-        default='2025-12-06',
-        help='Start date for observations (YYYY-MM-DD, default: 2025-12-06)'
+        default='2025-07-01',
+        help='Start date for observations (YYYY-MM-DD, default: 2025-07-01)'
     )
     parser.add_argument(
         '--end-date',
         type=str,
-        default=None,
-        help='End date for observations (YYYY-MM-DD, default: today - 6 days)'
+        default='2026-01-22',
+        help='End date for observations (YYYY-MM-DD, default: 2026-01-22)'
     )
     parser.add_argument(
         '--window-days',
         type=int,
-        default=10,
-        help='Observation window in days (default: 10)'
+        default=5,
+        help='Observation window in days (default: 5)'
     )
     parser.add_argument(
         '--output',
@@ -473,17 +767,17 @@ def main():
         default=None,
         help='Raw data date to use for injuries (YYYYMMDD, default: latest)'
     )
+    parser.add_argument(
+        '--dashboard',
+        action='store_true',
+        help='Generate dashboard-style chart for customer presentations'
+    )
     
     args = parser.parse_args()
     
     # Parse dates
     start_date = pd.to_datetime(args.start_date)
-    
-    if args.end_date:
-        end_date = pd.to_datetime(args.end_date)
-    else:
-        # Default: today - 11 days (to have full 10-day observation window)
-        end_date = pd.Timestamp.now().normalize() - timedelta(days=11)
+    end_date = pd.to_datetime(args.end_date)  # Default is '2026-01-22' from argparse
     
     print("=" * 80)
     print("MODEL CALIBRATION CHART GENERATOR (V4)")
@@ -533,17 +827,27 @@ def main():
     if args.output:
         output_path = Path(args.output)
     else:
-        output_path = PRODUCTION_ROOT / "deployments" / "England" / "challenger" / f"calibration_chart_v4_{end_date.strftime('%Y%m%d')}.png"
+        chart_type = 'dashboard' if args.dashboard else 'calibration'
+        output_path = PRODUCTION_ROOT / "deployments" / "England" / "challenger" / f"calibration_chart_v4_{chart_type}_{end_date.strftime('%Y%m%d')}.png"
     
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    create_calibration_chart(
-        calibration_df,
-        output_path,
-        window_days=args.window_days,
-        start_date=start_date,
-        end_date=end_date
-    )
+    if args.dashboard:
+        create_dashboard_calibration_chart(
+            calibration_df,
+            output_path,
+            window_days=args.window_days,
+            start_date=start_date,
+            end_date=end_date
+        )
+    else:
+        create_calibration_chart(
+            calibration_df,
+            output_path,
+            window_days=args.window_days,
+            start_date=start_date,
+            end_date=end_date
+        )
     
     print("\n" + "=" * 80)
     print("CALIBRATION CHART GENERATION COMPLETE (V4)")

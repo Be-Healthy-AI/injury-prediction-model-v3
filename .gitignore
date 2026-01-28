@@ -69,3 +69,26 @@ v2_reference/
 to_delete/
 cleanup_log.txt
 cleanup_unnecessary_files.py
+
+# --- Production deployments: generated artifacts (do not version) ---
+production/deployments/**/dashboards/**
+production/deployments/**/predictions/**
+production/deployments/**/timelines/**
+production/deployments/**/daily_features/**
+production/deployments/**/calibration_*.png
+production/deployments/**/calibration_*.csv
+production/deployments/**/calibration_chart_*.png
+
+# Keep configs tracked inside deployments
+!production/deployments/**/config.json
+
+# --- Raw data should never be versioned ---
+production/raw_data/**
+
+# --- Python caches (redundant but explicit) ---
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
