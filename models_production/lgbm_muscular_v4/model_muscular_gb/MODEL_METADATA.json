@@ -1,0 +1,70 @@
+{
+  "model_version": "V4_Muscular_GB_350feat",
+  "model_name": "V4 Muscular Injury Prediction - GB (350 features, below, 100% data)",
+  "target": "muscular_gb",
+  "creation_date": "2026-02-22 10:56:02",
+  "training_configuration": {
+    "algorithm": "GradientBoosting",
+    "feature_selection": {
+      "method": "iterative_feature_selection",
+      "iteration": 7,
+      "n_features": 350,
+      "combined_score": 0.42252936123484314,
+      "optimize_on": "test",
+      "experiment": "GB iterative feature selection, below preset, iteration 7, trained on 100%% data"
+    },
+    "combined_score_val": null,
+    "combined_score_test": 0.4284638076942614
+  },
+  "performance_metrics": {
+    "train": {
+      "accuracy": 0.9832705090208039,
+      "precision": 0.8745837957824639,
+      "recall": 0.06404941884093311,
+      "f1": 0.11935777037261436,
+      "roc_auc": 0.8370850596939154,
+      "gini": 0.6741701193878309,
+      "confusion_matrix": {
+        "tn": 682644,
+        "fp": 113,
+        "fn": 11515,
+        "tp": 788
+      }
+    },
+    "val": {
+      "accuracy": 0.9825396368658821,
+      "precision": 0.8433734939759037,
+      "recall": 0.0655226209048362,
+      "f1": 0.12159814707585408,
+      "roc_auc": 0.8410380040201608,
+      "gini": 0.6820760080403216,
+      "confusion_matrix": {
+        "tn": 170521,
+        "fp": 39,
+        "fn": 2995,
+        "tp": 210
+      }
+    },
+    "test": {
+      "accuracy": 0.9758902398834406,
+      "precision": 0.6261682242990654,
+      "recall": 0.09279778393351801,
+      "f1": 0.16164053075995174,
+      "roc_auc": 0.798227624109052,
+      "gini": 0.596455248218104,
+      "confusion_matrix": {
+        "tn": 56129,
+        "fp": 80,
+        "fn": 1310,
+        "tp": 134
+      }
+    }
+  },
+  "deployment_info": {
+    "model_file": "model.joblib",
+    "columns_file": "columns.json",
+    "feature_count": 350,
+    "deployment_date": "2026-02-22 10:56:02",
+    "production_dir": "model_muscular_gb"
+  }
+}

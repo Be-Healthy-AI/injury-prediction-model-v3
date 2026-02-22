@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import logging
+import random
 import re
 import time
 from pathlib import Path
@@ -23,6 +24,20 @@ try:
     HAS_CLOUDSCRAPER = True
 except ImportError:
     HAS_CLOUDSCRAPER = False
+try:
+    from playwright.sync_api import sync_playwright
+    HAS_PLAYWRIGHT = True
+except ImportError:
+    HAS_PLAYWRIGHT = False
+    sync_playwright = None
+try:
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options as ChromeOptions
+    HAS_SELENIUM = True
+except ImportError:
+    HAS_SELENIUM = False
+    webdriver = None
+    ChromeOptions = None
 from bs4 import BeautifulSoup
 
 
@@ -49,7 +64,7 @@ class FBRefConfig:
     """Runtime configuration for the FBRef scraper."""
 
     base_url: str = CONFIG_DATA.get("base_url", "https://fbref.com")
-    rate_limit_seconds: float = CONFIG_DATA.get("rate_limit_seconds", 3.0)  # Increased to 3 seconds
+    rate_limit_seconds: float = CONFIG_DATA.get("rate_limit_seconds", 8.0)  # Conservative for "one user" (5-8s)
     max_retries: int = CONFIG_DATA.get("max_retries", 5)  # Increased retries
     timeout_sec: int = CONFIG_DATA.get("timeout_sec", 30)
     verify_ssl: bool = True
@@ -101,18 +116,19 @@ class FBRefScraper:
                 pass
 
     def _setup_session(self) -> None:
-        """Configure HTTP session headers."""
+        """Configure HTTP session headers (browser-like, including Referer to reduce 403s)."""
         self.session.headers.update(
             {
                 "User-Agent": self.config.user_agent,
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.9",
                 "Accept-Encoding": "gzip, deflate, br",
+                "Referer": f"{self.config.base_url}/",
                 "Connection": "keep-alive",
                 "Upgrade-Insecure-Requests": "1",
                 "Sec-Fetch-Dest": "document",
                 "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-Site": "same-origin",
                 "Sec-Fetch-User": "?1",
                 "Cache-Control": "max-age=0",
             }
@@ -121,25 +137,19 @@ class FBRefScraper:
     def _initialize_session(self) -> None:
         """Visit homepage to establish session and get cookies."""
         try:
-            # Visit homepage first to get initial cookies
-            # Use a longer delay for initial request to let cloudscraper solve challenges
             homepage_url = f"{self.config.base_url}/en/"
             LOGGER.debug("Initializing session by visiting homepage...")
-            # Add extra delay before first request
-            time.sleep(2.0)
+            time.sleep(random.uniform(3.0, 5.0))
             self._request(homepage_url)
-            # Add delay after initial request to ensure session is established
-            time.sleep(1.0)
+            time.sleep(random.uniform(2.0, 3.0))
             LOGGER.debug("Session initialized successfully")
         except Exception as e:
             LOGGER.warning(f"Failed to initialize session: {e}. Continuing anyway...")
 
     def _respect_rate_limit(self) -> None:
-        """Enforce rate limiting between requests with random jitter."""
-        import random
+        """Enforce rate limiting between requests with random jitter (human-like spacing)."""
         delta = time.monotonic() - self._last_request_ts
-        # Add random jitter (0-1 second) to avoid predictable patterns
-        jitter = random.uniform(0, 1.0)
+        jitter = random.uniform(1.0, 3.0)
         remaining = self.config.rate_limit_seconds - delta + jitter
         if remaining > 0:
             LOGGER.debug(f"Rate limiting: sleeping {remaining:.2f} seconds")
@@ -151,28 +161,46 @@ class FBRefScraper:
         params: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
     ) -> requests.Response:
-        """Make HTTP request with rate limiting and retry logic."""
+        """Make HTTP request with rate limiting and retry logic. Uses Playwright fallback on 403."""
         self._respect_rate_limit()
         attempt = 0
-        while True:
-            attempt += 1
-            try:
-                response = self.session.get(
-                    url,
-                    params=params,
-                    headers=headers,
-                    timeout=self.config.timeout_sec,
-                    verify=self.config.verify_ssl,
-                )
-                # Handle rate limiting and forbidden errors
-                if response.status_code in [429, 403]:
-                    self._handle_retry(attempt, status=response.status_code)
-                    continue
-                response.raise_for_status()
-                self._last_request_ts = time.monotonic()
-                return response
-            except requests.RequestException as exc:
-                self._handle_retry(attempt, error=exc)
+        last_status = None
+        try:
+            while True:
+                attempt += 1
+                try:
+                    response = self.session.get(
+                        url,
+                        params=params,
+                        headers=headers,
+                        timeout=self.config.timeout_sec,
+                        verify=self.config.verify_ssl,
+                    )
+                    # Handle rate limiting and forbidden errors
+                    if response.status_code in [429, 403]:
+                        last_status = response.status_code
+                        self._handle_retry(attempt, status=response.status_code)
+                        continue
+                    response.raise_for_status()
+                    self._last_request_ts = time.monotonic()
+                    return response
+                except requests.RequestException as exc:
+                    self._handle_retry(attempt, error=exc)
+        except RuntimeError as exc:
+            if last_status == 403 and "403" in str(exc):
+                if HAS_PLAYWRIGHT:
+                    LOGGER.warning("Trying Playwright fallback after 403...")
+                    try:
+                        return self._request_playwright(url, params=params)
+                    except Exception as pw_exc:
+                        LOGGER.warning("Playwright fallback failed: %s", pw_exc)
+                if HAS_SELENIUM:
+                    LOGGER.warning("Trying Selenium fallback after 403...")
+                    try:
+                        return self._request_selenium(url, params=params)
+                    except Exception as sel_exc:
+                        LOGGER.warning("Selenium fallback failed: %s", sel_exc)
+            raise
 
     def _handle_retry(
         self,
@@ -220,9 +248,122 @@ class FBRefScraper:
         
         time.sleep(wait)
 
-    def _fetch_soup(self, url: str) -> BeautifulSoup:
-        """Fetch URL and return BeautifulSoup object."""
-        response = self._request(url)
+    def _request_playwright(
+        self,
+        url: str,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> requests.Response:
+        """Fetch URL using headless browser when requests get 403. Returns response-like with .content."""
+        from urllib.parse import urlencode, urlparse, parse_qs, urlunparse
+
+        if params:
+            parsed = list(urlparse(url))
+            qs = parse_qs(parsed[4])
+            qs.update(params)
+            parsed[4] = urlencode(qs, doseq=True)
+            url = urlunparse(parsed)
+        html: str = ""
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            try:
+                page = browser.new_page()
+                page.goto(url, timeout=self.config.timeout_sec * 1000, wait_until="domcontentloaded")
+                html = page.content()
+            finally:
+                browser.close()
+        # Return a minimal response-like object for _fetch_soup (only .content is used)
+        out = type("PlaywrightResponse", (), {"status_code": 200, "content": html.encode("utf-8")})()
+        return out
+
+    def _request_selenium(
+        self,
+        url: str,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> requests.Response:
+        """Fetch URL using headless Chrome with automation flags disabled. Returns response-like with .content."""
+        from urllib.parse import urlencode, urlparse, parse_qs, urlunparse
+
+        if params:
+            parsed = list(urlparse(url))
+            qs = parse_qs(parsed[4])
+            qs.update(params)
+            parsed[4] = urlencode(qs, doseq=True)
+            url = urlunparse(parsed)
+        options = ChromeOptions()
+        options.add_argument("--headless")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        if self.config.user_agent:
+            options.add_argument(f"--user-agent={self.config.user_agent}")
+        driver = webdriver.Chrome(options=options)
+        try:
+            driver.set_page_load_timeout(self.config.timeout_sec)
+            driver.get(url)
+            time.sleep(1.5)
+            html = driver.page_source or ""
+        finally:
+            driver.quit()
+        out = type("SeleniumResponse", (), {"status_code": 200, "content": html.encode("utf-8")})()
+        return out
+
+    def _fetch_soup_via_browser(
+        self,
+        url: str,
+        landing_url: Optional[str] = None,
+    ) -> BeautifulSoup:
+        """
+        Fetch URL using a single browser session: load landing page first, wait 2-5s (mimic reading),
+        then load target URL. Same cookies and session for both requests (look like one user).
+        Prefers Selenium (AutomationControlled disabled), falls back to Playwright if no Selenium.
+        """
+        if landing_url is None:
+            landing_url = f"{self.config.base_url}/en/"
+        html = ""
+
+        if HAS_SELENIUM:
+            options = ChromeOptions()
+            options.add_argument("--headless")
+            options.add_argument("--disable-blink-features=AutomationControlled")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--disable-gpu")
+            if self.config.user_agent:
+                options.add_argument(f"--user-agent={self.config.user_agent}")
+            driver = webdriver.Chrome(options=options)
+            try:
+                driver.set_page_load_timeout(self.config.timeout_sec)
+                driver.get(landing_url)
+                time.sleep(random.uniform(2.0, 5.0))
+                driver.get(url)
+                time.sleep(random.uniform(1.0, 2.0))
+                html = driver.page_source or ""
+            finally:
+                driver.quit()
+        elif HAS_PLAYWRIGHT:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                try:
+                    page = browser.new_page()
+                    page.goto(landing_url, timeout=self.config.timeout_sec * 1000, wait_until="domcontentloaded")
+                    time.sleep(random.uniform(2.0, 5.0))
+                    page.goto(url, timeout=self.config.timeout_sec * 1000, wait_until="domcontentloaded")
+                    time.sleep(random.uniform(1.0, 2.0))
+                    html = page.content()
+                finally:
+                    browser.close()
+        else:
+            LOGGER.warning("No browser available for _fetch_soup_via_browser; falling back to session request.")
+            response = self._request(url)
+            return BeautifulSoup(response.content, "html.parser")
+
+        self._last_request_ts = time.monotonic()
+        return BeautifulSoup(html, "html.parser")
+
+    def _fetch_soup(self, url: str, headers: Optional[Dict[str, str]] = None) -> BeautifulSoup:
+        """Fetch URL and return BeautifulSoup object. Optional headers (e.g. Referer) can be passed per request."""
+        response = self._request(url, headers=headers)
         return BeautifulSoup(response.content, "html.parser")
 
     def search_player(self, name: str, club: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -372,12 +513,14 @@ class FBRefScraper:
                 for year in range(current_year, current_year - 10, -1):
                     seasons_to_fetch.append(year)
             
-            # Fetch each season
+            # Fetch each season with rate limit between requests (one user, don't hammer)
             for season_year in seasons_to_fetch:
                 try:
+                    self._respect_rate_limit()
                     season_matches = self._fetch_season_match_logs(fbref_id, season_year, competition)
                     if not season_matches.empty:
                         all_matches.append(season_matches)
+                    time.sleep(max(5.0, self.config.rate_limit_seconds))
                 except Exception as e:
                     LOGGER.warning(f"Failed to fetch season {season_year} for player {fbref_id}: {e}")
                     continue
@@ -404,19 +547,35 @@ class FBRefScraper:
         Returns:
             DataFrame with match statistics
         """
-        # Build URL
+        # Build URL (FBRef uses season range e.g. 2025-2026 in path)
+        season_slug = f"{season}-{season + 1}"
         if competition:
-            url = f"{self.config.base_url}/en/players/{fbref_id}/matchlogs/{season}/{competition}/"
+            url = f"{self.config.base_url}/en/players/{fbref_id}/matchlogs/{season_slug}/{competition}/"
         else:
-            # Fetch all competitions for this season
-            url = f"{self.config.base_url}/en/players/{fbref_id}/matchlogs/{season}/"
+            url = f"{self.config.base_url}/en/players/{fbref_id}/matchlogs/{season_slug}/"
         
         LOGGER.info(f"Fetching match logs for player {fbref_id}, season {season}, competition {competition or 'all'}")
-        soup = self._fetch_soup(url)
+        # Browser-first: one session, land on player profile then match log (look like one user)
+        landing_url = f"{self.config.base_url}/en/players/{fbref_id}/"
+        if HAS_SELENIUM or HAS_PLAYWRIGHT:
+            soup = self._fetch_soup_via_browser(url, landing_url=landing_url)
+        else:
+            match_log_headers = {"Referer": landing_url}
+            soup = self._fetch_soup(url, headers=match_log_headers)
 
         # FBRef match logs are in tables with class "stats_table"
         match_tables = soup.select("table.stats_table")
-        
+
+        # If we got a response but no tables (e.g. 403/block page), try other browser fallback
+        if not match_tables and HAS_SELENIUM:
+            LOGGER.warning("No match tables in response; trying Selenium fallback.")
+            try:
+                resp = self._request_selenium(url)
+                soup = BeautifulSoup(resp.content, "html.parser")
+                match_tables = soup.select("table.stats_table")
+            except Exception as e:
+                LOGGER.warning("Selenium fallback failed: %s", e)
+
         if not match_tables:
             LOGGER.warning(f"No match tables found for player {fbref_id}, season {season}")
             return pd.DataFrame()

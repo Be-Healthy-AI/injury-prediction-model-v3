@@ -19,6 +19,7 @@ Performance Metric: weighted combination of Gini coefficient and F1-Score for Mo
 import sys
 import os
 import json
+import argparse
 import traceback
 import glob
 import hashlib
@@ -28,10 +29,12 @@ import joblib
 from datetime import datetime
 from pathlib import Path
 from lightgbm import LGBMClassifier
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score, 
     roc_auc_score, confusion_matrix
 )
+from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 # Add paths
@@ -52,12 +55,81 @@ RANKING_FILE = MODEL_OUTPUT_DIR / 'feature_ranking.json'
 RESULTS_FILE = MODEL_OUTPUT_DIR / 'iterative_feature_selection_results_muscular.json'
 LOG_FILE = MODEL_OUTPUT_DIR / 'iterative_training_muscular.log'
 
+# Exclude granular club/country features (too granular / uninformative for Premier League–focused use)
+EXCLUDED_RAW_FEATURES = ('current_club', 'current_club_country', 'previous_club', 'previous_club_country')
+EXCLUDED_FEATURE_PREFIXES = ('current_club_country_', 'current_club_', 'previous_club_country_', 'previous_club_')
+
 # Training configuration
 MIN_SEASON = '2018_2019'  # Start from 2018/19 season (inclusive)
 EXCLUDE_SEASON = '2025_2026'  # Test dataset season
 TRAIN_DIR = ROOT_DIR / 'models_production' / 'lgbm_muscular_v4' / 'data' / 'timelines' / 'train'
 TEST_DIR = ROOT_DIR / 'models_production' / 'lgbm_muscular_v4' / 'data' / 'timelines' / 'test'
 USE_CACHE = True
+# Train/validation split (80% train, 20% validation by randomly picked timelines/rows)
+TRAIN_VAL_RATIO = 0.8
+SPLIT_RANDOM_STATE = 42
+# Optimize-on: 'validation' or 'test' (set from CLI; used to pick best iteration)
+OPTIMIZE_ON_DEFAULT = 'validation'
+
+# Hyperparameter presets for sensitivity testing: standard (current), below (more regularized), above (less regularized)
+LGBM_HP_STANDARD = {
+    'n_estimators': 200, 'max_depth': 10, 'learning_rate': 0.1,
+    'min_child_samples': 20, 'subsample': 0.8, 'colsample_bytree': 0.8,
+    'reg_alpha': 0.1, 'reg_lambda': 1.0,
+}
+LGBM_HP_BELOW = {
+    'n_estimators': 120, 'max_depth': 6, 'learning_rate': 0.05,
+    'min_child_samples': 40, 'subsample': 0.6, 'colsample_bytree': 0.6,
+    'reg_alpha': 0.5, 'reg_lambda': 2.0,
+}
+# Between standard and below (more regularized than standard, less than below)
+LGBM_HP_BELOW_MID = {
+    'n_estimators': 160, 'max_depth': 8, 'learning_rate': 0.075,
+    'min_child_samples': 30, 'subsample': 0.7, 'colsample_bytree': 0.7,
+    'reg_alpha': 0.25, 'reg_lambda': 1.5,
+}
+# Below the below (more regularized than below)
+LGBM_HP_BELOW_STRONG = {
+    'n_estimators': 80, 'max_depth': 4, 'learning_rate': 0.03,
+    'min_child_samples': 60, 'subsample': 0.5, 'colsample_bytree': 0.5,
+    'reg_alpha': 1.0, 'reg_lambda': 3.0,
+}
+LGBM_HP_ABOVE = {
+    'n_estimators': 320, 'max_depth': 14, 'learning_rate': 0.15,
+    'min_child_samples': 10, 'subsample': 0.95, 'colsample_bytree': 0.95,
+    'reg_alpha': 0.02, 'reg_lambda': 0.5,
+}
+HP_PRESETS_LGBM = {
+    'standard': LGBM_HP_STANDARD, 'below': LGBM_HP_BELOW,
+    'below_mid': LGBM_HP_BELOW_MID, 'below_strong': LGBM_HP_BELOW_STRONG,
+    'above': LGBM_HP_ABOVE,
+}
+
+GB_HP_STANDARD = {
+    'n_estimators': 100, 'max_depth': 5, 'learning_rate': 0.1, 'min_samples_leaf': 20,
+}
+GB_HP_BELOW = {
+    'n_estimators': 60, 'max_depth': 3, 'learning_rate': 0.05, 'min_samples_leaf': 40,
+    'subsample': 0.7, 'max_features': 0.7,
+}
+# Between standard and below (more regularized than standard, less than below)
+GB_HP_BELOW_MID = {
+    'n_estimators': 80, 'max_depth': 4, 'learning_rate': 0.075, 'min_samples_leaf': 30,
+    'subsample': 0.75, 'max_features': 0.75,
+}
+# More regularized than below
+GB_HP_BELOW_STRONG = {
+    'n_estimators': 40, 'max_depth': 2, 'learning_rate': 0.03, 'min_samples_leaf': 60,
+    'subsample': 0.6, 'max_features': 0.6,
+}
+GB_HP_ABOVE = {
+    'n_estimators': 160, 'max_depth': 7, 'learning_rate': 0.15, 'min_samples_leaf': 10,
+}
+HP_PRESETS_GB = {
+    'standard': GB_HP_STANDARD, 'below': GB_HP_BELOW,
+    'below_mid': GB_HP_BELOW_MID, 'below_strong': GB_HP_BELOW_STRONG,
+    'above': GB_HP_ABOVE,
+}
 # ===================================
 
 # Initialize log file
@@ -209,43 +281,31 @@ def convert_numpy_types(obj):
 
 def filter_timelines_for_model(timelines_df: pd.DataFrame, target_column: str) -> pd.DataFrame:
     """
-    Filter timelines for Model 1 (muscular injuries), excluding skeletal injuries from negatives.
-    
-    This ensures Model 1 only learns to distinguish muscular injuries from non-injuries,
-    not from skeletal injuries.
-    
-    Only includes timelines where target1=1 (positives) 
-    or (target1=0 AND target2=0) (negatives - only non-injuries)
+    Filter timelines for Model 1 (muscular injuries). Dataset is muscular-only (target1);
+    all rows are used (no target2).
     
     Args:
-        timelines_df: DataFrame with target1 and target2 columns
+        timelines_df: DataFrame with at least target1 column
         target_column: Must be 'target1' for this Model 1-only script
         
     Returns:
-        Filtered DataFrame with only relevant timelines for Model 1
+        DataFrame (unchanged; all rows have target1 only)
     """
     if target_column != 'target1':
         raise ValueError(f"This script is for Model 1 only. target_column must be 'target1', got: {target_column}")
     
-    # Validate required columns exist
-    if 'target1' not in timelines_df.columns or 'target2' not in timelines_df.columns:
-        raise ValueError("DataFrame must contain both 'target1' and 'target2' columns")
+    if 'target1' not in timelines_df.columns:
+        raise ValueError("DataFrame must contain 'target1' column")
     
-    # Model 1 (muscular): Include muscular injuries (target1=1) and non-injuries (both=0)
-    # Exclude skeletal injuries (target2=1, target1=0)
-    mask = (timelines_df['target1'] == 1) | ((timelines_df['target1'] == 0) & (timelines_df['target2'] == 0))
-    filtered_df = timelines_df[mask].copy()
+    # Muscular-only data: use all rows
+    filtered_df = timelines_df.copy()
+    positives = int(filtered_df['target1'].sum())
+    negatives = int((filtered_df['target1'] == 0).sum())
     
-    excluded_count = ((timelines_df['target1'] == 0) & (timelines_df['target2'] == 1)).sum()
-    positives = filtered_df['target1'].sum()
-    negatives = ((filtered_df['target1'] == 0) & (filtered_df['target2'] == 0)).sum()
-    
-    log_message(f"\n📊 Filtered for Model 1 (Muscular Injuries):")
-    log_message(f"   Original timelines: {len(timelines_df):,}")
-    log_message(f"   After filtering: {len(filtered_df):,}")
+    log_message(f"\n📊 Model 1 (Muscular) - target1 only:")
+    log_message(f"   Total timelines: {len(filtered_df):,}")
     log_message(f"   Positives (target1=1): {positives:,}")
-    log_message(f"   Negatives (target1=0, target2=0): {negatives:,}")
-    log_message(f"   Excluded (skeletal injuries): {excluded_count:,}")
+    log_message(f"   Negatives (target1=0): {negatives:,}")
     if len(filtered_df) > 0:
         log_message(f"   Target ratio: {positives / len(filtered_df) * 100:.2f}%")
     
@@ -295,25 +355,21 @@ def load_combined_seasonal_datasets_natural(min_season=None, exclude_season='202
     dfs = []
     total_records = 0
     total_target1 = 0
-    total_target2 = 0
     
     for season_id, filepath in season_files:
         try:
             df = pd.read_csv(filepath, encoding='utf-8-sig', low_memory=False)
-            # Check for target1 and target2 columns
-            if 'target1' not in df.columns or 'target2' not in df.columns:
-                log_message(f"   ⚠️  {season_id}: Missing target1/target2 columns - skipping")
+            if 'target1' not in df.columns:
+                log_message(f"   ⚠️  {season_id}: Missing target1 column - skipping")
                 continue
             
             target1_count = (df['target1'] == 1).sum()
-            target2_count = (df['target2'] == 1).sum()
             
             if len(df) > 0:
                 dfs.append(df)
                 total_records += len(df)
                 total_target1 += target1_count
-                total_target2 += target2_count
-                log_message(f"   ✅ {season_id}: {len(df):,} records (target1: {target1_count:,}, target2: {target2_count:,})")
+                log_message(f"   ✅ {season_id}: {len(df):,} records (target1=1: {target1_count:,})")
         except Exception as e:
             log_message(f"   ⚠️  Error loading {season_id}: {e}")
             continue
@@ -327,7 +383,6 @@ def load_combined_seasonal_datasets_natural(min_season=None, exclude_season='202
     
     log_message(f"✅ Combined dataset: {len(combined_df):,} records")
     log_message(f"   Total target1=1 (Muscular): {total_target1:,} ({total_target1/len(combined_df)*100:.4f}%)")
-    log_message(f"   Total target2=1 (Skeletal): {total_target2:,} ({total_target2/len(combined_df)*100:.4f}%)")
     
     return combined_df
 
@@ -341,17 +396,73 @@ def load_test_dataset():
     log_message(f"\n📂 Loading test dataset: {test_file.name}")
     df_test = pd.read_csv(test_file, encoding='utf-8-sig', low_memory=False)
     
-    if 'target1' not in df_test.columns or 'target2' not in df_test.columns:
-        raise ValueError("Test dataset missing target1/target2 columns")
+    if 'target1' not in df_test.columns:
+        raise ValueError("Test dataset missing target1 column")
     
     target1_count = (df_test['target1'] == 1).sum()
-    target2_count = (df_test['target2'] == 1).sum()
     
     log_message(f"✅ Test dataset: {len(df_test):,} records")
     log_message(f"   target1=1 (Muscular): {target1_count:,} ({target1_count/len(df_test)*100:.4f}%)")
-    log_message(f"   target2=1 (Skeletal): {target2_count:,} ({target2_count/len(df_test)*100:.4f}%)")
     
     return df_test
+
+
+def split_train_val_by_player(df, ratio=TRAIN_VAL_RATIO, random_state=SPLIT_RANDOM_STATE):
+    """
+    Split timeline data into train and validation by player (Option B).
+    All rows of a given player go to either train or validation to avoid leakage.
+
+    Args:
+        df: DataFrame with at least 'player_id' column
+        ratio: Fraction of players (and their rows) for training (default 0.8)
+        random_state: For reproducible split
+
+    Returns:
+        df_train, df_val
+    """
+    if 'player_id' not in df.columns:
+        raise ValueError("DataFrame must contain 'player_id' for split by player")
+    player_ids = df['player_id'].unique()
+    n_players = len(player_ids)
+    rng = np.random.RandomState(random_state)
+    rng.shuffle(player_ids)
+    n_train = int(round(n_players * ratio))
+    train_ids = set(player_ids[:n_train])
+    val_ids = set(player_ids[n_train:])
+    df_train = df[df['player_id'].isin(train_ids)].copy().reset_index(drop=True)
+    df_val = df[df['player_id'].isin(val_ids)].copy().reset_index(drop=True)
+    log_message(f"   Split by player: {n_train} players -> train ({len(df_train):,} rows), "
+                f"{n_players - n_train} players -> val ({len(df_val):,} rows)")
+    return df_train, df_val
+
+
+def split_train_val_by_timeline(df, ratio=TRAIN_VAL_RATIO, random_state=SPLIT_RANDOM_STATE):
+    """
+    Split timeline data into train and validation by randomly picked rows (timelines).
+    80% of rows go to train, 20% to validation, regardless of player.
+    Same players can appear in both train and validation (aligned with production: same players across seasons).
+
+    Args:
+        df: DataFrame of timeline rows
+        ratio: Fraction of rows for training (default 0.8)
+        random_state: For reproducible split
+
+    Returns:
+        df_train, df_val
+    """
+    n = len(df)
+    if n == 0:
+        raise ValueError("DataFrame is empty")
+    idx = np.arange(n)
+    idx_train, idx_val = train_test_split(
+        idx, train_size=ratio, random_state=random_state, shuffle=True
+    )
+    df_train = df.iloc[idx_train].copy().reset_index(drop=True)
+    df_val = df.iloc[idx_val].copy().reset_index(drop=True)
+    log_message(f"   Split by timeline (random rows): train {len(df_train):,} rows ({100*ratio:.0f}%), "
+                f"val {len(df_val):,} rows ({100*(1-ratio):.0f}%)")
+    return df_train, df_val
+
 
 # ============================================================================
 # DATA PREPARATION FUNCTIONS (from train_lgbm_v4_dual_targets_natural.py)
@@ -383,11 +494,12 @@ def prepare_data(df, cache_file=None, use_cache=True):
             log_message(f"   ⚠️  Failed to load cache ({e}), preprocessing fresh...")
             use_cache = False
     
-    # Drop non-feature columns
-    feature_columns = [
-        col for col in df.columns
-        if col not in ['player_id', 'reference_date', 'date', 'player_name', 'target1', 'target2', 'target', 'has_minimum_activity']
-    ]
+    # Drop non-feature columns (including excluded club/country raw features)
+    exclude_cols = [
+        'player_id', 'reference_date', 'date', 'player_name',
+        'target1', 'target2', 'target', 'has_minimum_activity'
+    ] + list(EXCLUDED_RAW_FEATURES)
+    feature_columns = [col for col in df.columns if col not in exclude_cols]
     X = df[feature_columns].copy()
     
     # Handle missing values and encode categorical features
@@ -561,32 +673,94 @@ def filter_features(X_train, X_test, feature_subset):
     
     return X_train[requested_features], X_test[requested_features]
 
-def train_model_with_feature_subset(feature_subset, verbose=True):
+
+def align_features_three(X_train, X_val, X_test):
+    """Ensure train, validation, and test have the same feature columns. Missing columns filled with 0."""
+    common = sorted(set(X_train.columns) & set(X_val.columns) & set(X_test.columns))
+    log_message(f"   Aligning features: {len(common)} common features across train/val/test")
+    X_train = X_train.reindex(columns=common, fill_value=0)
+    X_val = X_val.reindex(columns=common, fill_value=0)
+    X_test = X_test.reindex(columns=common, fill_value=0)
+    return X_train, X_val, X_test
+
+
+def align_features_two(X_train, X_test):
+    """Ensure train and test have the same feature columns. Missing columns filled with 0."""
+    common = sorted(set(X_train.columns) & set(X_test.columns))
+    log_message(f"   Aligning features: {len(common)} common features across train/test")
+    X_train = X_train.reindex(columns=common, fill_value=0)
+    X_test = X_test.reindex(columns=common, fill_value=0)
+    return X_train, X_test
+
+
+def filter_features_two(X_train, X_test, feature_subset):
+    """Filter train and test to feature_subset; add zeros for missing features."""
+    available = set(X_train.columns) & set(X_test.columns)
+    requested = [f for f in feature_subset if f in available]
+    missing = [f for f in feature_subset if f not in available]
+    if missing:
+        log_message(f"   ⚠️  Warning: {len(missing)} requested features not in both sets")
+        if len(missing) <= 10:
+            log_message(f"      Missing: {missing}")
+    if not requested:
+        raise ValueError("No requested features found in train/test!")
+    log_message(f"   Using {len(requested)}/{len(feature_subset)} requested features")
+    X_train = X_train.reindex(columns=requested, fill_value=0)
+    X_test = X_test.reindex(columns=requested, fill_value=0)
+    return X_train, X_test
+
+
+def filter_features_three(X_train, X_val, X_test, feature_subset):
+    """Filter train, val, test to feature_subset; add zeros for missing features."""
+    available = set(X_train.columns) & set(X_val.columns) & set(X_test.columns)
+    requested = [f for f in feature_subset if f in available]
+    missing = [f for f in feature_subset if f not in available]
+    if missing:
+        log_message(f"   ⚠️  Warning: {len(missing)} requested features not in all sets")
+        if len(missing) <= 10:
+            log_message(f"      Missing: {missing}")
+    if not requested:
+        raise ValueError("No requested features found in train/val/test!")
+    log_message(f"   Using {len(requested)}/{len(feature_subset)} requested features")
+    X_train = X_train.reindex(columns=requested, fill_value=0)
+    X_val = X_val.reindex(columns=requested, fill_value=0)
+    X_test = X_test.reindex(columns=requested, fill_value=0)
+    return X_train, X_val, X_test
+
+
+def train_model_with_feature_subset(feature_subset, verbose=True, use_cache=None, algorithm='lgbm', hyperparameter_set='standard', return_datasets=False, use_full_train=False):
     """
-    Train Model 1 (Muscular) using a specific feature subset.
-    
+    Train Model 1 (Muscular) on pool data, test on 2025/26 holdout.
+
     Args:
         feature_subset: List of feature names to use for training
         verbose: Whether to print progress messages
-        
+        use_cache: If None, use USE_CACHE; else use this value for prepare_data cache
+        algorithm: 'lgbm' (LightGBM) or 'gb' (sklearn GradientBoostingClassifier)
+        hyperparameter_set: 'standard' (current), 'below' (more regularized), or 'above' (less regularized)
+        return_datasets: If True, include X_val, y_val, X_test, y_test in returned dict (for threshold sweep)
+        use_full_train: If True, use 100% of pool (train+val) for training; no validation set. For final production model.
+
     Returns:
         Dictionary containing:
         - model: Trained muscular model
-        - train_metrics: Training metrics for Model 1
-        - test_metrics: Test metrics for Model 1
-        - feature_names_used: List of features actually used
+        - train_metrics: Metrics on train (80% or 100% per use_full_train)
+        - val_metrics: Metrics on 20% validation (or placeholder when use_full_train=True)
+        - test_metrics: Metrics on 2025/26 test
+        - feature_names_used: List of features actually used (may be fewer than requested)
+        - X_val, y_val, X_test, y_test: (only if return_datasets=True) validation and test features/labels
     """
     if verbose:
         log_message(f"\n{'='*80}")
-        log_message(f"TRAINING MODEL 1 (MUSCULAR) WITH {len(feature_subset)} FEATURES")
+        log_message(f"TRAINING MODEL 1 (MUSCULAR) WITH {len(feature_subset)} FEATURES [hp={hyperparameter_set}]")
         log_message(f"{'='*80}")
     
-    # Load and prepare data (reuse cached preprocessed data if available)
+    # Load pool (2018/19 .. 2024/25) and test (2025/26)
     if verbose:
         log_message("\n📂 Loading datasets...")
     
     try:
-        df_train_all = load_combined_seasonal_datasets_natural(
+        df_pool = load_combined_seasonal_datasets_natural(
             min_season=MIN_SEASON,
             exclude_season=EXCLUDE_SEASON
         )
@@ -597,91 +771,140 @@ def train_model_with_feature_subset(feature_subset, verbose=True):
     
     # Filter for Model 1 only
     try:
-        df_train_muscular = filter_timelines_for_model(df_train_all, 'target1')
+        df_pool_muscular = filter_timelines_for_model(df_pool, 'target1')
         df_test_muscular = filter_timelines_for_model(df_test_all, 'target1')
     except Exception as e:
         log_error("Failed to filter timelines", e)
         raise
     
-    # Prepare features (use cache with unique names to avoid conflicts)
-    cache_suffix = hashlib.md5(str(sorted(feature_subset)).encode()).hexdigest()[:8]
-    
-    cache_file_muscular_train = str(CACHE_DIR / f'preprocessed_muscular_train_subset_{cache_suffix}.csv')
-    cache_file_muscular_test = str(CACHE_DIR / f'preprocessed_muscular_test_subset_{cache_suffix}.csv')
-    
-    df_train_muscular = df_train_muscular.reset_index(drop=True)
     df_test_muscular = df_test_muscular.reset_index(drop=True)
-    
-    if verbose:
-        log_message("   Preparing features for Model 1 (Muscular)...")
-    try:
-        X_train_muscular = prepare_data(df_train_muscular, cache_file=cache_file_muscular_train, use_cache=USE_CACHE)
-        y_train_muscular = df_train_muscular['target1'].values
-        X_test_muscular = prepare_data(df_test_muscular, cache_file=cache_file_muscular_test, use_cache=USE_CACHE)
-        y_test_muscular = df_test_muscular['target1'].values
-    except Exception as e:
-        log_error("Failed to prepare muscular features", e)
-        raise
-    
-    # Align features
-    try:
-        X_train_muscular, X_test_muscular = align_features(X_train_muscular, X_test_muscular)
-    except Exception as e:
-        log_error("Failed to align features", e)
-        raise
-    
-    # Filter to feature subset
-    if verbose:
-        log_message(f"\n   Filtering to {len(feature_subset)} requested features...")
-    try:
-        X_train_muscular, X_test_muscular = filter_features(X_train_muscular, X_test_muscular, feature_subset)
-    except Exception as e:
-        log_error("Failed to filter features", e)
-        raise
-    
-    # Get actual features used
-    features_used = sorted(list(X_train_muscular.columns))
-    
+    _use_cache = USE_CACHE if use_cache is None else use_cache
+    cache_suffix = hashlib.md5(str(sorted(feature_subset)).encode()).hexdigest()[:8]
+    cache_test = str(CACHE_DIR / f'preprocessed_muscular_test_subset_{cache_suffix}.csv')
+
+    if use_full_train:
+        # Use 100% of pool (train+val) for training; no validation set
+        if verbose:
+            log_message("   Using 100% of pool (train+val) for training (no validation split)...")
+        df_train_full = df_pool_muscular.reset_index(drop=True)
+        cache_train_full = str(CACHE_DIR / f'preprocessed_muscular_full_train_subset_{cache_suffix}.csv')
+        if verbose:
+            log_message("   Preparing features for Model 1 (Muscular)...")
+        try:
+            X_train = prepare_data(df_train_full, cache_file=cache_train_full, use_cache=_use_cache)
+            y_train = df_train_full['target1'].values
+            X_test = prepare_data(df_test_muscular, cache_file=cache_test, use_cache=_use_cache)
+            y_test = df_test_muscular['target1'].values
+        except Exception as e:
+            log_error("Failed to prepare muscular features", e)
+            raise
+        try:
+            X_train, X_test = align_features_two(X_train, X_test)
+        except Exception as e:
+            log_error("Failed to align features", e)
+            raise
+        if verbose:
+            log_message(f"\n   Filtering to {len(feature_subset)} requested features...")
+        try:
+            X_train, X_test = filter_features_two(X_train, X_test, feature_subset)
+        except Exception as e:
+            log_error("Failed to filter features", e)
+            raise
+        X_val = None
+        y_val = None
+    else:
+        # 80/20 split by randomly picked timelines (rows)
+        if verbose:
+            log_message("   Splitting pool into train (80%) and validation (20%) by timeline (random rows)...")
+        df_train_80, df_val_20 = split_train_val_by_timeline(
+            df_pool_muscular, ratio=TRAIN_VAL_RATIO, random_state=SPLIT_RANDOM_STATE
+        )
+        cache_train = str(CACHE_DIR / f'preprocessed_muscular_train80_subset_{cache_suffix}.csv')
+        cache_val = str(CACHE_DIR / f'preprocessed_muscular_val20_subset_{cache_suffix}.csv')
+        if verbose:
+            log_message("   Preparing features for Model 1 (Muscular)...")
+        try:
+            X_train = prepare_data(df_train_80, cache_file=cache_train, use_cache=_use_cache)
+            y_train = df_train_80['target1'].values
+            X_val = prepare_data(df_val_20, cache_file=cache_val, use_cache=_use_cache)
+            y_val = df_val_20['target1'].values
+            X_test = prepare_data(df_test_muscular, cache_file=cache_test, use_cache=_use_cache)
+            y_test = df_test_muscular['target1'].values
+        except Exception as e:
+            log_error("Failed to prepare muscular features", e)
+            raise
+        try:
+            X_train, X_val, X_test = align_features_three(X_train, X_val, X_test)
+        except Exception as e:
+            log_error("Failed to align features", e)
+            raise
+        if verbose:
+            log_message(f"\n   Filtering to {len(feature_subset)} requested features...")
+        try:
+            X_train, X_val, X_test = filter_features_three(X_train, X_val, X_test, feature_subset)
+        except Exception as e:
+            log_error("Failed to filter features", e)
+            raise
+
+    features_used = sorted(list(X_train.columns))
     if verbose:
         log_message(f"   ✅ Using {len(features_used)} features")
-    
-    # Train Model 1 (Muscular)
+
     if verbose:
-        log_message(f"\n🚀 Training Model 1 (Muscular Injuries)...")
-    
+        if use_full_train:
+            log_message(f"\n🚀 Training Model 1 (Muscular Injuries) on 100% train [algorithm={algorithm}]...")
+        else:
+            log_message(f"\n🚀 Training Model 1 (Muscular Injuries) on 80% train [algorithm={algorithm}]...")
+
     try:
-        lgbm_model = LGBMClassifier(
-            n_estimators=200,
-            max_depth=10,
-            learning_rate=0.1,
-            min_child_samples=20,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            reg_alpha=0.1,
-            reg_lambda=1.0,
-            class_weight='balanced',
-            random_state=42,
-            n_jobs=-1,
-            verbose=-1
-        )
-        
-        lgbm_model.fit(X_train_muscular, y_train_muscular)
-        train_metrics = evaluate_model(lgbm_model, X_train_muscular, y_train_muscular, "Training")
-        test_metrics = evaluate_model(lgbm_model, X_test_muscular, y_test_muscular, "Test")
+        if algorithm == 'gb':
+            hp = HP_PRESETS_GB.get(hyperparameter_set, GB_HP_STANDARD).copy()
+            model = GradientBoostingClassifier(
+                **hp,
+                random_state=42,
+            )
+        else:
+            hp = HP_PRESETS_LGBM.get(hyperparameter_set, LGBM_HP_STANDARD).copy()
+            model = LGBMClassifier(
+                **hp,
+                class_weight='balanced',
+                random_state=42,
+                n_jobs=-1,
+                verbose=-1
+            )
+        model.fit(X_train, y_train)
+        if use_full_train:
+            train_metrics = evaluate_model(model, X_train, y_train, "Train (100%)")
+            val_metrics = None  # No validation set
+        else:
+            train_metrics = evaluate_model(model, X_train, y_train, "Train (80%)")
+            val_metrics = evaluate_model(model, X_val, y_val, "Validation (20%)")
+        test_metrics = evaluate_model(model, X_test, y_test, "Test (2025/26)")
     except Exception as e:
         log_error("Failed to train Model 1 (Muscular)", e)
         raise
-    
-    # Convert numpy types for JSON serialization
+
     train_metrics = convert_numpy_types(train_metrics)
+    if val_metrics is not None:
+        val_metrics = convert_numpy_types(val_metrics)
+    else:
+        # Placeholder so downstream code (e.g. export) that expects val_metrics does not break
+        val_metrics = dict(train_metrics) if isinstance(train_metrics, dict) else {}
     test_metrics = convert_numpy_types(test_metrics)
-    
-    return {
-        'model': lgbm_model,
+
+    out = {
+        'model': model,
         'train_metrics': train_metrics,
+        'val_metrics': val_metrics,
         'test_metrics': test_metrics,
         'feature_names_used': features_used
     }
+    if return_datasets:
+        out['X_val'] = X_val
+        out['y_val'] = y_val
+        out['X_test'] = X_test
+        out['y_test'] = y_test
+    return out
 
 # ============================================================================
 # ITERATIVE TRAINING FUNCTIONS
@@ -705,6 +928,14 @@ def load_feature_ranking():
             raise KeyError("'ranked_features' key not found in ranking data")
         
         ranked_features = ranking_data['ranked_features']
+        # Exclude granular club/country features even if present in an old ranking file
+        before = len(ranked_features)
+        ranked_features = [
+            f for f in ranked_features
+            if not any(f.startswith(p) for p in EXCLUDED_FEATURE_PREFIXES)
+        ]
+        if before > len(ranked_features):
+            log_message(f"   Excluded {before - len(ranked_features)} club/country features from ranking")
         log_message(f"Successfully loaded {len(ranked_features)} ranked features")
         
         if len(ranked_features) == 0:
@@ -773,14 +1004,39 @@ def has_consecutive_drops(scores, threshold=PERFORMANCE_DROP_THRESHOLD,
     
     return False
 
-def run_iterative_training():
-    """Main function to run iterative feature selection training for Model 1"""
+def run_iterative_training(resume=True, optimize_on=None, use_cache=None, algorithm='lgbm', features_per_iteration=None, initial_features=None, hp_preset=None):
+    """Main function to run iterative feature selection training for Model 1.
+    If resume=True and RESULTS_FILE exists, load state and continue from the next iteration.
+    optimize_on: 'validation' or 'test' - which metric to use for best iteration and early stopping.
+    use_cache: If None, use USE_CACHE; else use this value for prepare_data in train_model_with_feature_subset.
+    algorithm: 'lgbm' or 'gb'.
+    features_per_iteration, initial_features: step size and first step; defaults from module constants if None.
+    hp_preset: If set, use this hyperparameter preset (e.g. 'below_strong') for all iterations; else use 'standard'."""
+    if optimize_on is None:
+        optimize_on = OPTIMIZE_ON_DEFAULT
+    if optimize_on not in ('validation', 'test'):
+        raise ValueError(f"optimize_on must be 'validation' or 'test', got: {optimize_on}")
+    if features_per_iteration is None:
+        features_per_iteration = FEATURES_PER_ITERATION
+    if initial_features is None:
+        initial_features = INITIAL_FEATURES
+    hp_presets = HP_PRESETS_GB if algorithm == 'gb' else HP_PRESETS_LGBM
+    hyperparameter_set = hp_preset if hp_preset is not None else 'standard'
+    if hyperparameter_set not in hp_presets:
+        log_error(f"Unknown preset '{hyperparameter_set}' for {algorithm}. Valid: {list(hp_presets.keys())}")
+        return 1
+
     log_message("="*80)
     log_message("ITERATIVE FEATURE SELECTION TRAINING - MODEL 1 (MUSCULAR) ONLY")
     log_message("="*80)
     log_message(f"\n📋 Configuration:")
-    log_message(f"   Features per iteration: {FEATURES_PER_ITERATION}")
-    log_message(f"   Initial features: {INITIAL_FEATURES}")
+    log_message(f"   Algorithm: {algorithm}")
+    log_message(f"   Hyperparameter preset: {hyperparameter_set}")
+    log_message(f"   Cache: {'disabled (preprocess from CSV)' if use_cache is False else 'enabled'}")
+    log_message(f"   Train/val split: {TRAIN_VAL_RATIO:.0%} train / {1-TRAIN_VAL_RATIO:.0%} validation (by timeline / random rows)")
+    log_message(f"   Optimize on: {optimize_on} (combined score used for best iteration and early stopping)")
+    log_message(f"   Features per iteration: {features_per_iteration}")
+    log_message(f"   Initial features: {initial_features}")
     log_message(f"   Stop after: {CONSECUTIVE_DROPS_THRESHOLD} consecutive drops")
     log_message(f"   Performance metric: {GINI_WEIGHT} * Gini + {F1_WEIGHT} * F1-Score (Model 1 only)")
     log_message(f"   Drop threshold: {PERFORMANCE_DROP_THRESHOLD}")
@@ -800,108 +1056,180 @@ def run_iterative_training():
         log_error("Failed to load feature ranking", e)
         return 1
     
-    # Initialize results storage
-    log_message("Initializing results storage")
-    results = {
-        'iterations': [],
-        'configuration': {
-            'features_per_iteration': FEATURES_PER_ITERATION,
-            'initial_features': INITIAL_FEATURES,
-            'consecutive_drops_threshold': CONSECUTIVE_DROPS_THRESHOLD,
-            'performance_drop_threshold': PERFORMANCE_DROP_THRESHOLD,
-            'gini_weight': GINI_WEIGHT,
-            'f1_weight': F1_WEIGHT,
-            'model': 'Model 1 (Muscular) Only',
-            'start_time': start_time.isoformat()
-        },
-        'best_iteration': None,
-        'best_n_features': None,
-        'best_combined_score': None
-    }
-    
-    # Track performance scores for drop detection
-    combined_scores = []
-    
+    # Initialize or resume results storage
+    if resume and RESULTS_FILE.exists():
+        try:
+            with open(RESULTS_FILE, 'r', encoding='utf-8') as f:
+                results = json.load(f)
+            # Use saved optimize_on and step sizes when resuming so best/score are comparable
+            cfg = results.get('configuration', {})
+            saved_optimize = cfg.get('optimize_on')
+            if saved_optimize is not None and saved_optimize != optimize_on:
+                log_message(f"Resuming: using saved optimize_on={saved_optimize} (ignoring current --optimize-on={optimize_on})")
+                optimize_on = saved_optimize
+            if cfg.get('features_per_iteration') is not None:
+                features_per_iteration = cfg['features_per_iteration']
+            if cfg.get('initial_features') is not None:
+                initial_features = cfg['initial_features']
+            if cfg.get('algorithm') is not None:
+                algorithm = cfg['algorithm']
+            if cfg.get('hyperparameter_preset') is not None:
+                hyperparameter_set = cfg['hyperparameter_preset']
+            combined_scores = [it['combined_score'] for it in results['iterations']]
+            n_done = len(results['iterations'])
+            if combined_scores:
+                best_score = max(combined_scores)
+                best_idx = combined_scores.index(best_score)
+                best_iteration = results['iterations'][best_idx]['iteration']
+                it = results['iterations'][best_idx]
+                best_n_features = it.get('n_features_used', it.get('n_features'))
+            else:
+                best_score = -np.inf
+                best_iteration = None
+                best_n_features = None
+            iteration = n_done
+            log_message(f"Resuming from existing results: {RESULTS_FILE}")
+            log_message(f"   Loaded {n_done} completed iterations; next iteration will be {iteration + 1}")
+            if best_iteration is not None:
+                log_message(f"   Best so far: iteration {best_iteration}, {best_n_features} features, score {best_score:.4f} (optimize_on={optimize_on})")
+        except Exception as e:
+            log_error("Failed to load results file for resume; starting fresh", e)
+            results = None
+    else:
+        results = None
+
+    if results is None:
+        log_message("Initializing results storage (fresh run)")
+        results = {
+            'iterations': [],
+            'configuration': {
+                'train_val_ratio': TRAIN_VAL_RATIO,
+                'split_random_state': SPLIT_RANDOM_STATE,
+                'optimize_on': optimize_on,
+                'algorithm': algorithm,
+                'hyperparameter_preset': hyperparameter_set,
+                'features_per_iteration': features_per_iteration,
+                'initial_features': initial_features,
+                'consecutive_drops_threshold': CONSECUTIVE_DROPS_THRESHOLD,
+                'performance_drop_threshold': PERFORMANCE_DROP_THRESHOLD,
+                'gini_weight': GINI_WEIGHT,
+                'f1_weight': F1_WEIGHT,
+                'model': 'Model 1 (Muscular) Only',
+                'start_time': start_time.isoformat()
+            },
+            'best_iteration': None,
+            'best_n_features': None,
+            'best_combined_score': None
+        }
+        combined_scores = []
+        iteration = 0
+        best_score = -np.inf
+        best_iteration = None
+        best_n_features = None
+
+    # Ensure configuration has start_time when resuming (keep existing if present)
+    if 'start_time' not in results.get('configuration', {}):
+        results['configuration']['start_time'] = start_time.isoformat()
+
     # Iterative training
     log_message("\n" + "="*80)
     log_message("STEP 2: ITERATIVE TRAINING")
     log_message("="*80)
     
-    iteration = 0
-    best_score = -np.inf
-    best_iteration = None
-    best_n_features = None
-    
     # Calculate number of iterations needed
-    max_iterations = (len(ranked_features) - INITIAL_FEATURES) // FEATURES_PER_ITERATION + 1
-    if (len(ranked_features) - INITIAL_FEATURES) % FEATURES_PER_ITERATION != 0:
+    max_iterations = (len(ranked_features) - initial_features) // features_per_iteration + 1
+    if (len(ranked_features) - initial_features) % features_per_iteration != 0:
         max_iterations += 1
     
     log_message(f"\n   Will train up to {max_iterations} iterations")
-    log_message(f"   (from {INITIAL_FEATURES} to {len(ranked_features)} features)")
+    log_message(f"   (from {initial_features} to {len(ranked_features)} features, step {features_per_iteration})")
     
     # Main iteration loop
     while True:
         iteration += 1
-        n_features = INITIAL_FEATURES + (iteration - 1) * FEATURES_PER_ITERATION
-        
+        n_features_requested = initial_features + (iteration - 1) * features_per_iteration
+
+        # Skip already-completed iterations when resuming
+        if iteration <= len(results['iterations']):
+            log_message(f"Resuming: skipping iteration {iteration} (already completed)")
+            continue
+
         # Check if we've used all features
-        if n_features > len(ranked_features):
+        if n_features_requested > len(ranked_features):
             log_message(f"\n✅ Reached maximum number of features ({len(ranked_features)})")
             break
         
         # Select feature subset
-        feature_subset = ranked_features[:n_features]
+        feature_subset = ranked_features[:n_features_requested]
         
         log_message(f"\n{'='*80}")
-        log_message(f"ITERATION {iteration}: Training Model 1 with {n_features} features")
+        log_message(f"ITERATION {iteration}: Training Model 1 with top {n_features_requested} features (requested)")
         log_message(f"{'='*80}")
-        log_message(f"   Features: Top {n_features} from ranked list")
+        log_message(f"   Features: Top {n_features_requested} from ranked list")
         
         iteration_start = datetime.now()
         
         try:
-            log_message(f"Starting training for iteration {iteration} with {n_features} features")
+            log_message(f"Starting training for iteration {iteration} with {n_features_requested} requested features")
             # Train model with this feature subset
             training_results = train_model_with_feature_subset(
-                feature_subset, 
-                verbose=True
+                feature_subset,
+                verbose=True,
+                use_cache=use_cache,
+                algorithm=algorithm,
+                hyperparameter_set=hyperparameter_set,
             )
             log_message(f"Training completed for iteration {iteration}")
             
             # Validate training results
-            required_keys = ['test_metrics', 'feature_names_used', 'train_metrics']
+            required_keys = ['train_metrics', 'val_metrics', 'test_metrics', 'feature_names_used']
             for key in required_keys:
                 if key not in training_results:
                     raise KeyError(f"Missing key in training results: {key}")
             
-            log_message("Calculating combined performance score")
-            # Calculate combined performance score (Model 1 only)
-            combined_score = calculate_combined_score(
+            n_features_used = len(training_results['feature_names_used'])
+            if n_features_used != n_features_requested:
+                log_message(f"   ⚠️  Requested {n_features_requested} features; {n_features_used} actually used (missing in train/val/test intersection)")
+            
+            log_message("Calculating combined performance scores")
+            combined_score_val = calculate_combined_score(
+                training_results['val_metrics'],
+                gini_weight=GINI_WEIGHT,
+                f1_weight=F1_WEIGHT
+            )
+            combined_score_test = calculate_combined_score(
                 training_results['test_metrics'],
                 gini_weight=GINI_WEIGHT,
                 f1_weight=F1_WEIGHT
             )
+            combined_score = combined_score_val if optimize_on == 'validation' else combined_score_test
             
             combined_scores.append(combined_score)
-            log_message(f"Combined score for iteration {iteration}: {combined_score:.4f}")
+            log_message(f"   Validation combined score: {combined_score_val:.4f}")
+            log_message(f"   Test combined score: {combined_score_test:.4f}")
+            log_message(f"   Using for selection (optimize_on={optimize_on}): {combined_score:.4f}")
             
-            # Check if this is the best so far
+            # Check if this is the best so far (use n_features_used for best count)
             if combined_score > best_score:
                 best_score = combined_score
                 best_iteration = iteration
-                best_n_features = n_features
-                log_message(f"New best score! Iteration {iteration} with {n_features} features: {best_score:.4f}")
+                best_n_features = n_features_used
+                log_message(f"New best score! Iteration {iteration} with {n_features_used} features used: {best_score:.4f}")
             
-            # Store iteration results
+            # Store iteration results: real counts to avoid 759 vs 760 confusion
             iteration_data = {
                 'iteration': iteration,
-                'n_features': n_features,
+                'n_features_requested': n_features_requested,
+                'n_features_used': n_features_used,
+                'n_features': n_features_used,
                 'features': training_results['feature_names_used'],
                 'model1_muscular': {
                     'train': training_results['train_metrics'],
+                    'val': training_results['val_metrics'],
                     'test': training_results['test_metrics']
                 },
+                'combined_score_val': float(combined_score_val),
+                'combined_score_test': float(combined_score_test),
                 'combined_score': float(combined_score),
                 'timestamp': iteration_start.isoformat(),
                 'training_time_seconds': (datetime.now() - iteration_start).total_seconds()
@@ -911,10 +1239,12 @@ def run_iterative_training():
             
             # Print iteration summary
             log_message(f"\n📊 Iteration {iteration} Results:")
-            log_message(f"   Features: {n_features}")
-            log_message(f"   Model 1 (Muscular) - Test: Gini={training_results['test_metrics']['gini']:.4f}, "
-                      f"F1={training_results['test_metrics']['f1']:.4f}")
-            log_message(f"   Combined Score: {combined_score:.4f}")
+            log_message(f"   Features: requested={n_features_requested}, used={n_features_used}")
+            log_message(f"   Validation: Gini={training_results['val_metrics']['gini']:.4f}, "
+                      f"F1={training_results['val_metrics']['f1']:.4f} -> combined={combined_score_val:.4f}")
+            log_message(f"   Test:      Gini={training_results['test_metrics']['gini']:.4f}, "
+                      f"F1={training_results['test_metrics']['f1']:.4f} -> combined={combined_score_test:.4f}")
+            log_message(f"   Best selection (optimize_on={optimize_on}): {combined_score:.4f}")
             log_message(f"   Training time: {iteration_data['training_time_seconds']:.1f} seconds")
             
             # Check for consecutive drops
@@ -973,13 +1303,14 @@ def run_iterative_training():
     log_message(f"   Best combined score: {best_score:.4f}")
     
     if best_iteration:
-        best_iter_data = results['iterations'][best_iteration - 1]
-        log_message(f"\n📈 Best Performance (Iteration {best_iteration}):")
-        log_message(f"   Model 1 (Muscular) - Test:")
-        log_message(f"      Gini: {best_iter_data['model1_muscular']['test']['gini']:.4f}")
-        log_message(f"      F1-Score: {best_iter_data['model1_muscular']['test']['f1']:.4f}")
-        log_message(f"      ROC AUC: {best_iter_data['model1_muscular']['test']['roc_auc']:.4f}")
-        log_message(f"   Combined Score: {best_iter_data['combined_score']:.4f}")
+        best_iter_data = next(it for it in results['iterations'] if it['iteration'] == best_iteration)
+        optimize_on = results.get('configuration', {}).get('optimize_on', OPTIMIZE_ON_DEFAULT)
+        log_message(f"\n📈 Best Performance (Iteration {best_iteration}, optimize_on={optimize_on}):")
+        log_message(f"   Validation: Gini={best_iter_data['model1_muscular']['val']['gini']:.4f}, "
+                   f"F1={best_iter_data['model1_muscular']['val']['f1']:.4f} -> combined={best_iter_data['combined_score_val']:.4f}")
+        log_message(f"   Test:      Gini={best_iter_data['model1_muscular']['test']['gini']:.4f}, "
+                   f"F1={best_iter_data['model1_muscular']['test']['f1']:.4f} -> combined={best_iter_data['combined_score_test']:.4f}")
+        log_message(f"   Selection score (used for best): {best_iter_data['combined_score']:.4f}")
     
     # Plot performance progression (if matplotlib available)
     try:
@@ -1001,7 +1332,8 @@ def run_iterative_training():
             plt.legend()
             plt.tight_layout()
             
-            plot_file = MODEL_OUTPUT_DIR / 'iterative_feature_selection_muscular_plot.png'
+            plot_suffix = '_gb' if algorithm == 'gb' else ''
+            plot_file = MODEL_OUTPUT_DIR / f'iterative_feature_selection_muscular_plot{plot_suffix}.png'
             plt.savefig(plot_file, dpi=150, bbox_inches='tight')
             log_message(f"\n✅ Saved performance plot to: {plot_file}")
             plt.close()
@@ -1018,9 +1350,562 @@ def run_iterative_training():
     
     return 0
 
-if __name__ == "__main__":
+
+def export_best_model(use_cache=None, algorithm='lgbm', export_iteration=None, hp_preset=None, train_on_full_data=False):
+    """
+    Load iterative results, find the best iteration by combined_score (val or test per optimize_on),
+    or use a specific iteration if export_iteration is set. Re-train that model and save it (joblib)
+    plus feature list (JSON).
+    use_cache: If None, use USE_CACHE; else use this value for prepare_data.
+    algorithm: 'lgbm' or 'gb' - must match the results file (use same as training run).
+    export_iteration: If set, export this iteration number (e.g. 6 for 300 features); else export best by score.
+    hp_preset: If set, use this hyperparameter preset (e.g. 'below_strong'); else use 'standard'.
+    train_on_full_data: If True, train on 100% of pool (train+val); no validation set. For final production model.
+    """
+    if not RESULTS_FILE.exists():
+        log_error(f"Results file not found: {RESULTS_FILE}. Run iterative training first.")
+        return 1
+    with open(RESULTS_FILE, 'r', encoding='utf-8') as f:
+        results = json.load(f)
+    iterations = results.get('iterations', [])
+    if not iterations:
+        log_error("No iterations in results file.")
+        return 1
+    if export_iteration is not None:
+        best_it = next((it for it in iterations if it['iteration'] == export_iteration), None)
+        if best_it is None:
+            log_error(f"Iteration {export_iteration} not found in results. Available: {[it['iteration'] for it in iterations]}")
+            return 1
+        log_message(f"Exporting specific iteration: {export_iteration} (--export-iteration)")
+    else:
+        best_it = max(iterations, key=lambda x: x['combined_score'])
+    n_features = best_it.get('n_features_used', best_it.get('n_features'))
+    feature_list = best_it['features']
+    optimize_on = results.get('configuration', {}).get('optimize_on', OPTIMIZE_ON_DEFAULT)
+    log_message(f"Best iteration: {best_it['iteration']} ({n_features} features used, "
+                f"optimize_on={optimize_on}, selection score={best_it['combined_score']:.4f})")
+    hp_presets = HP_PRESETS_GB if algorithm == 'gb' else HP_PRESETS_LGBM
+    hyperparameter_set = hp_preset if hp_preset is not None else 'standard'
+    if hyperparameter_set not in hp_presets:
+        log_error(f"Unknown preset '{hyperparameter_set}' for {algorithm}. Valid: {list(hp_presets.keys())}")
+        return 1
+    if train_on_full_data:
+        log_message(f"Re-training model with these features (100% train, hp={hyperparameter_set})...")
+    else:
+        log_message(f"Re-training model with these features (80% train, hp={hyperparameter_set})...")
+    training_results = train_model_with_feature_subset(
+        feature_list, verbose=True, use_cache=use_cache, algorithm=algorithm,
+        hyperparameter_set=hyperparameter_set,
+        use_full_train=train_on_full_data,
+    )
+    model = training_results['model']
+    n_features_used = len(training_results['feature_names_used'])
+    combined_score_test = calculate_combined_score(
+        training_results['test_metrics'], gini_weight=GINI_WEIGHT, f1_weight=F1_WEIGHT
+    )
+    if train_on_full_data:
+        combined_score_val = None
+    else:
+        combined_score_val = calculate_combined_score(
+            training_results['val_metrics'], gini_weight=GINI_WEIGHT, f1_weight=F1_WEIGHT
+        )
+    suffix = '_gb' if algorithm == 'gb' else ''
+    model_path = MODEL_OUTPUT_DIR / f'lgbm_muscular_best_iteration{suffix}.joblib'
+    features_path = MODEL_OUTPUT_DIR / f'lgbm_muscular_best_iteration_features{suffix}.json'
+    MODEL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    joblib.dump(model, model_path)
+    meta = {
+        'n_features': n_features_used,
+        'algorithm': algorithm,
+        'iteration': best_it['iteration'],
+        'optimize_on': optimize_on,
+        'hyperparameter_preset': hyperparameter_set,
+        'trained_on_full_data': train_on_full_data,
+        'combined_score_test': float(combined_score_test),
+        'combined_score': best_it['combined_score'],
+        'features': training_results['feature_names_used']
+    }
+    if combined_score_val is not None:
+        meta['combined_score_val'] = float(combined_score_val)
+    with open(features_path, 'w', encoding='utf-8') as f:
+        json.dump(meta, f, indent=2)
+    log_message(f"Saved model to: {model_path}")
+    log_message(f"Saved feature list to: {features_path} (n_features={n_features_used})")
+    if train_on_full_data:
+        log_message(f"   Trained on 100% data; Test combined score: {combined_score_test:.4f}")
+    else:
+        log_message(f"   Validation combined score: {combined_score_val:.4f}; Test combined score: {combined_score_test:.4f}")
+    return 0
+
+
+# Best model artifacts (for evaluate-best-on-test)
+BEST_MODEL_PATH = MODEL_OUTPUT_DIR / 'lgbm_muscular_best_iteration.joblib'
+BEST_FEATURES_PATH = MODEL_OUTPUT_DIR / 'lgbm_muscular_best_iteration_features.json'
+PREVIOUS_COMBINED_SCORE_OLD_TEST = 0.4257  # ~0.42 from iterative results on old test set
+
+
+def evaluate_best_model_on_test():
+    """
+    Load the saved 60-feature model, run it on the current test dataset (regenerated
+    with all reference days), and compute the combined score for comparison with the
+    previous ~0.42 value from the old test set.
+    """
+    if not BEST_MODEL_PATH.exists():
+        log_error(f"Best model not found: {BEST_MODEL_PATH}. Run --export-best first.")
+        return 1
+    if not BEST_FEATURES_PATH.exists():
+        log_error(f"Best features JSON not found: {BEST_FEATURES_PATH}.")
+        return 1
+
+    log_message("\n" + "=" * 80)
+    log_message("EVALUATE 60-FEATURE MODEL ON (REGENERATED) TEST SET")
+    log_message("=" * 80)
+
+    # Load model and feature list
+    log_message(f"\nLoading model: {BEST_MODEL_PATH.name}")
+    model = joblib.load(BEST_MODEL_PATH)
+    with open(BEST_FEATURES_PATH, 'r', encoding='utf-8') as f:
+        meta = json.load(f)
+    feature_list = meta['features']
+    prev_score = meta.get('combined_score', PREVIOUS_COMBINED_SCORE_OLD_TEST)
+    log_message(f"Model has {len(feature_list)} features (iteration {meta.get('iteration', '?')})")
+    log_message(f"Previous combined score (old test set): {prev_score:.4f}")
+
+    # Use model's feature order (source of truth)
+    model_features = list(getattr(model, 'feature_name_', None) or feature_list)
+
+    # Load test dataset (current CSV = regenerated with all reference days)
+    log_message("\nLoading test dataset...")
+    df_test_all = load_test_dataset()
+    df_test_muscular = filter_timelines_for_model(df_test_all, 'target1')
+    df_test_muscular = df_test_muscular.reset_index(drop=True)
+
+    # Preprocess test: use cache only if row count matches (new test will invalidate old cache)
+    cache_suffix = hashlib.md5(str(sorted(feature_list)).encode()).hexdigest()[:8]
+    cache_file_test = str(CACHE_DIR / f'preprocessed_muscular_test_subset_{cache_suffix}.csv')
+    log_message("Preparing test features (cache invalidated if test set changed)...")
+    X_test_full = prepare_data(df_test_muscular, cache_file=cache_file_test, use_cache=USE_CACHE)
+    y_test = df_test_muscular['target1'].values
+
+    # Build X_test with exactly the columns the model expects (same order); missing -> zeros
+    missing = [f for f in model_features if f not in X_test_full.columns]
+    if missing:
+        log_message(f"   Adding {len(missing)} missing feature(s) as zeros (categories absent in test).")
+        for f in missing:
+            X_test_full[f] = 0
+    X_test = X_test_full[model_features]
+
+    # Evaluate
+    log_message("\nEvaluating on test set...")
+    test_metrics = evaluate_model(model, X_test, y_test, "Test")
+    combined_score = calculate_combined_score(
+        test_metrics,
+        gini_weight=GINI_WEIGHT,
+        f1_weight=F1_WEIGHT
+    )
+
+    # Summary and comparison
+    log_message("\n" + "=" * 80)
+    log_message("COMBINED SCORE COMPARISON")
+    log_message("=" * 80)
+    log_message(f"   Previous (old test set, fewer reference days): {prev_score:.4f}")
+    log_message(f"   Current  (regenerated test, all reference days): {combined_score:.4f}")
+    diff = combined_score - prev_score
+    log_message(f"   Difference: {diff:+.4f}")
+    log_message("=" * 80 + "\n")
+    return 0
+
+
+def run_hyperparameter_test(algorithm='lgbm', use_cache=None, presets_list=None, output_suffix=None):
+    """
+    Run hyperparameter sensitivity test: train with selected presets on the fixed best feature set
+    (759 for LGBM, 300 for GB). Report and save comparison.
+    If presets_list is None, uses ['below', 'standard', 'above'].
+    If output_suffix is set (e.g. '_refinement'), appends it to the output JSON base name.
+    """
+    if use_cache is None:
+        use_cache = USE_CACHE
+    hp_presets = HP_PRESETS_GB if algorithm == 'gb' else HP_PRESETS_LGBM
+    if presets_list is None:
+        presets_list = ['below', 'standard', 'above']
+    else:
+        presets_list = [p.strip() for p in presets_list]
+        invalid = [p for p in presets_list if p not in hp_presets]
+        if invalid:
+            log_error(f"Unknown preset(s) for {algorithm}: {invalid}. Valid: {list(hp_presets.keys())}")
+            return 1
+    if algorithm == 'gb':
+        features_path = MODEL_OUTPUT_DIR / 'lgbm_muscular_best_iteration_features_gb.json'
+        out_base = 'hyperparameter_test_gb_300'
+        n_feat_label = '300'
+    else:
+        features_path = MODEL_OUTPUT_DIR / 'lgbm_muscular_best_iteration_features.json'
+        out_base = 'hyperparameter_test_lgbm_759'
+        n_feat_label = '759'
+    out_json = MODEL_OUTPUT_DIR / f"{out_base}{output_suffix or ''}.json"
+    if not features_path.exists():
+        log_error(f"Features file not found: {features_path}. Run --algorithm {algorithm} --export-best first.")
+        return 1
+    with open(features_path, 'r', encoding='utf-8') as f:
+        meta = json.load(f)
+    feature_list = meta['features']
+    log_message("\n" + "=" * 80)
+    log_message(f"HYPERPARAMETER TEST - {algorithm.upper()} ({n_feat_label} features)")
+    log_message("=" * 80)
+    log_message(f"   Presets: {', '.join(presets_list)}")
+    log_message(f"   Results will be saved to: {out_json}")
+    log_message("=" * 80 + "\n")
+
+    results = []
+    for preset in presets_list:
+        log_message(f"\n--- Training with preset: {preset} ---")
+        try:
+            training_results = train_model_with_feature_subset(
+                feature_list, verbose=True, use_cache=use_cache, algorithm=algorithm, hyperparameter_set=preset
+            )
+        except Exception as e:
+            log_error(f"Hyperparameter test failed for preset={preset}", e)
+            return 1
+        combined_test = calculate_combined_score(
+            training_results['test_metrics'], gini_weight=GINI_WEIGHT, f1_weight=F1_WEIGHT
+        )
+        rec = {
+            'preset': preset,
+            'hyperparameters': hp_presets[preset],
+            'train_metrics': training_results['train_metrics'],
+            'val_metrics': training_results['val_metrics'],
+            'test_metrics': training_results['test_metrics'],
+            'combined_score_test': float(combined_test),
+        }
+        results.append(rec)
+        log_message(f"   {preset}: test Gini={training_results['test_metrics']['gini']:.4f}, test F1={training_results['test_metrics']['f1']:.4f}, combined={combined_test:.4f}")
+
+    # Summary table
+    log_message("\n" + "=" * 80)
+    log_message("HYPERPARAMETER TEST SUMMARY")
+    log_message("=" * 80)
+    log_message(
+        f"{'Preset':<10} {'Train Gini':>12} {'Val Gini':>12} {'Test Gini':>12} {'Test Prec':>10} {'Test Rec':>10} {'Test F1':>10} {'Combined':>10}"
+    )
+    log_message("-" * 96)
+    for r in results:
+        log_message(
+            f"{r['preset']:<10} "
+            f"{r['train_metrics']['gini']:>12.4f} "
+            f"{r['val_metrics']['gini']:>12.4f} "
+            f"{r['test_metrics']['gini']:>12.4f} "
+            f"{r['test_metrics']['precision']:>10.4f} "
+            f"{r['test_metrics']['recall']:>10.4f} "
+            f"{r['test_metrics']['f1']:>10.4f} "
+            f"{r['combined_score_test']:>10.4f}"
+        )
+    log_message("=" * 80 + "\n")
+
+    report = {
+        'algorithm': algorithm,
+        'n_features': len(feature_list),
+        'timestamp': datetime.now().isoformat(),
+        'presets': results,
+    }
+    MODEL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     try:
-        exit_code = run_iterative_training()
+        with open(out_json, 'w', encoding='utf-8') as f:
+            json.dump(report, f, indent=2)
+        log_message(f"Saved report to: {out_json}")
+    except Exception as e:
+        log_error(f"Failed to save hyperparameter test report", e)
+        return 1
+    return 0
+
+
+def run_threshold_sweep(algorithm='lgbm', hp_preset='below', use_cache=None):
+    """
+    Train once with the given preset (e.g. 'below'), then sweep classification thresholds
+    on val and test to find a better precision-recall combination. Saves CSV to models dir.
+    """
+    if use_cache is None:
+        use_cache = USE_CACHE
+    hp_presets = HP_PRESETS_GB if algorithm == 'gb' else HP_PRESETS_LGBM
+    if hp_preset not in hp_presets:
+        log_error(f"Preset '{hp_preset}' not available for {algorithm}. Valid: {list(hp_presets.keys())}")
+        return 1
+    if algorithm == 'gb':
+        features_path = MODEL_OUTPUT_DIR / 'lgbm_muscular_best_iteration_features_gb.json'
+        n_feat_label = '300'
+    else:
+        features_path = MODEL_OUTPUT_DIR / 'lgbm_muscular_best_iteration_features.json'
+        n_feat_label = '759'
+    if not features_path.exists():
+        log_error(f"Features file not found: {features_path}. Run --algorithm {algorithm} --export-best first.")
+        return 1
+    with open(features_path, 'r', encoding='utf-8') as f:
+        meta = json.load(f)
+    feature_list = meta['features']
+
+    log_message("\n" + "=" * 80)
+    log_message(f"THRESHOLD SWEEP - {algorithm.upper()} ({n_feat_label} features, hp={hp_preset})")
+    log_message("=" * 80)
+    log_message("   Training once, then sweeping thresholds on val and test for precision/recall/F1")
+    log_message("=" * 80 + "\n")
+
+    try:
+        res = train_model_with_feature_subset(
+            feature_list, verbose=True, use_cache=use_cache, algorithm=algorithm,
+            hyperparameter_set=hp_preset, return_datasets=True
+        )
+    except Exception as e:
+        log_error("Threshold sweep: training failed", e)
+        return 1
+
+    model = res['model']
+    X_val = res['X_val']
+    y_val = res['y_val']
+    X_test = res['X_test']
+    y_test = res['y_test']
+
+    proba_val = model.predict_proba(X_val)[:, 1]
+    proba_test = model.predict_proba(X_test)[:, 1]
+
+    thresholds = np.linspace(0.05, 0.95, 19)
+    rows = []
+    for t in thresholds:
+        pred_val = (proba_val >= t).astype(int)
+        pred_test = (proba_test >= t).astype(int)
+        row = {
+            'threshold': round(t, 2),
+            'val_precision': float(precision_score(y_val, pred_val, zero_division=0)),
+            'val_recall': float(recall_score(y_val, pred_val, zero_division=0)),
+            'val_f1': float(f1_score(y_val, pred_val, zero_division=0)),
+            'test_precision': float(precision_score(y_test, pred_test, zero_division=0)),
+            'test_recall': float(recall_score(y_test, pred_test, zero_division=0)),
+            'test_f1': float(f1_score(y_test, pred_test, zero_division=0)),
+        }
+        rows.append(row)
+
+    csv_path = MODEL_OUTPUT_DIR / f'threshold_sweep_{algorithm}_{hp_preset}_{len(feature_list)}.csv'
+    MODEL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    df = pd.DataFrame(rows)
+    df.to_csv(csv_path, index=False, encoding='utf-8-sig')
+    log_message(f"Saved threshold sweep to: {csv_path}")
+
+    best_f1_val_idx = df['val_f1'].idxmax()
+    best_row = df.loc[best_f1_val_idx]
+    log_message("\n" + "=" * 80)
+    log_message("THRESHOLD SWEEP SUMMARY")
+    log_message("=" * 80)
+    log_message(f"   Best F1 on validation at threshold {best_row['threshold']:.2f}: val_f1={best_row['val_f1']:.4f}, test_f1={best_row['test_f1']:.4f}, test_precision={best_row['test_precision']:.4f}, test_recall={best_row['test_recall']:.4f}")
+    log_message(f"   First rows (threshold, val_prec, val_rec, val_f1, test_prec, test_rec, test_f1):")
+    for _, r in df.head(6).iterrows():
+        log_message(f"      {r['threshold']:.2f}  {r['val_precision']:.4f}  {r['val_recall']:.4f}  {r['val_f1']:.4f}  {r['test_precision']:.4f}  {r['test_recall']:.4f}  {r['test_f1']:.4f}")
+    log_message("   ...")
+    log_message("=" * 80 + "\n")
+    return 0
+
+
+def run_neighbourhood_feature_counts(feature_counts_list, use_cache=None, algorithm='gb', results_path=None):
+    """
+    Run training for specific feature counts (e.g. 270, 290, 310) using the same
+    ranking as iterative training. Saves results to a dedicated neighbourhood JSON.
+    """
+    if use_cache is None:
+        use_cache = USE_CACHE
+    if results_path is None:
+        results_path = MODEL_OUTPUT_DIR / 'iterative_feature_selection_results_muscular_gb_neighbourhood.json'
+    log_message("\n" + "=" * 80)
+    log_message("NEIGHBOURHOOD FEATURE COUNTS (fixed N from ranking)")
+    log_message("=" * 80)
+    log_message(f"   Feature counts: {feature_counts_list}")
+    log_message(f"   Algorithm: {algorithm}")
+    log_message(f"   Results will be saved to: {results_path}")
+    try:
+        ranked_features = load_feature_ranking()
+    except Exception as e:
+        log_error("Failed to load feature ranking", e)
+        return 1
+    runs = []
+    for idx, n_features in enumerate(feature_counts_list, start=1):
+        if n_features > len(ranked_features):
+            log_message(f"Skipping {n_features} (ranking has only {len(ranked_features)} features)")
+            continue
+        feature_subset = ranked_features[:n_features]
+        log_message(f"\n--- Run {idx}/{len(feature_counts_list)}: top {n_features} features ---")
+        iteration_start = datetime.now()
+        try:
+            training_results = train_model_with_feature_subset(
+                feature_subset,
+                verbose=True,
+                use_cache=use_cache,
+                algorithm=algorithm
+            )
+        except Exception as e:
+            log_error(f"Training failed for n_features={n_features}", e)
+            continue
+        n_features_used = len(training_results['feature_names_used'])
+        combined_score_val = calculate_combined_score(
+            training_results['val_metrics'], gini_weight=GINI_WEIGHT, f1_weight=F1_WEIGHT
+        )
+        combined_score_test = calculate_combined_score(
+            training_results['test_metrics'], gini_weight=GINI_WEIGHT, f1_weight=F1_WEIGHT
+        )
+        elapsed = (datetime.now() - iteration_start).total_seconds()
+        run_data = {
+            'n_features_requested': n_features,
+            'n_features_used': n_features_used,
+            'n_features': n_features_used,
+            'features': training_results['feature_names_used'],
+            'model1_muscular': {
+                'train': training_results['train_metrics'],
+                'val': training_results['val_metrics'],
+                'test': training_results['test_metrics']
+            },
+            'combined_score_val': float(combined_score_val),
+            'combined_score_test': float(combined_score_test),
+            'timestamp': iteration_start.isoformat(),
+            'training_time_seconds': elapsed
+        }
+        runs.append(run_data)
+        log_message(f"   Val combined: {combined_score_val:.4f}; Test combined: {combined_score_test:.4f}; Time: {elapsed:.1f}s")
+    if not runs:
+        log_error("No runs completed.")
+        return 1
+    results = {
+        'description': 'Neighbourhood run (fixed feature counts from same ranking as iterative)',
+        'algorithm': algorithm,
+        'feature_counts': feature_counts_list,
+        'runs': runs,
+        'configuration': {
+            'gini_weight': GINI_WEIGHT,
+            'f1_weight': F1_WEIGHT,
+        }
+    }
+    MODEL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        with open(results_path, 'w', encoding='utf-8') as f:
+            json.dump(results, f, indent=2)
+        log_message(f"\nSaved results to: {results_path}")
+    except Exception as e:
+        log_error(f"Failed to save neighbourhood results to {results_path}", e)
+        return 1
+    best_run = max(runs, key=lambda r: r['combined_score_test'])
+    log_message(f"   Best test combined: {best_run['n_features_used']} features -> {best_run['combined_score_test']:.4f}")
+    log_message("=" * 80 + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Iterative feature selection for Model 1 (Muscular)")
+    parser.add_argument("--no-resume", "--fresh", dest="resume", action="store_false",
+                        help="Start from scratch (ignore existing results file)")
+    parser.add_argument("--export-best", action="store_true",
+                        help="Re-train the best iteration from results and save model + feature list, then exit")
+    parser.add_argument("--export-iteration", type=int, default=None,
+                        help="With --export-best: export this iteration number (e.g. 6 for 300 features) instead of best by score")
+    parser.add_argument("--export-hp-preset", type=str, default=None,
+                        help="With --export-best: use this HP preset (e.g. below_strong). If not set, uses standard.")
+    parser.add_argument("--train-on-full-data", action="store_true",
+                        help="With --export-best: train on 100%% of pool (train+val); no validation set. For final production model.")
+    parser.add_argument("--hyperparameter-test", action="store_true",
+                        help="Run sensitivity test: train with below/standard/above HP presets on best feature set, save comparison JSON")
+    parser.add_argument("--hyperparameter-test-presets", type=str, default=None,
+                        help="Comma-separated presets to run only these (e.g. below_mid,below_strong). Saves to ..._refinement.json. Implies HP test.")
+    parser.add_argument("--hyperparameter-test-below-refinement", action="store_true",
+                        help="Run HP test with only below_mid and below_strong presets; save to ..._refinement.json")
+    parser.add_argument("--threshold-sweep", action="store_true",
+                        help="Train with given HP preset, sweep classification thresholds on val/test for precision-recall, save CSV")
+    parser.add_argument("--hp-preset", choices=["below", "below_mid", "below_strong", "standard", "above"], default="below",
+                        help="HP preset for --threshold-sweep (default: below). LGBM-only: below_mid, below_strong.")
+    parser.add_argument("--evaluate-best-on-test", action="store_true",
+                        help="Load the saved 60-feature model, run on current test set, report combined score vs previous ~0.42")
+    parser.add_argument("--optimize-on", choices=["validation", "test"], default=OPTIMIZE_ON_DEFAULT,
+                        help="Which dataset to use for best iteration and early stopping (default: validation)")
+    parser.add_argument("--algorithm", choices=["lgbm", "gb"], default="lgbm",
+                        help="Algorithm: lgbm (LightGBM) or gb (sklearn GradientBoosting). Default: lgbm. For gb, --features-per-iteration defaults to 50.")
+    parser.add_argument("--features-per-iteration", type=int, default=None,
+                        help="Number of features to add per iteration (default: 20 for lgbm, 50 for gb)")
+    parser.add_argument("--initial-features", type=int, default=None,
+                        help="Number of features in first iteration (default: same as --features-per-iteration)")
+    parser.add_argument("--iterative-hp-preset", type=str, default=None,
+                        help="HP preset for iterative training (e.g. below_strong). If not set, uses standard. Saved in results when resuming.")
+    parser.add_argument("--no-cache", action="store_true", help="Disable cache; preprocess from timeline CSVs")
+    parser.add_argument("--run-feature-counts", type=str, default=None,
+                        help="Comma-separated feature counts to run (e.g. 270,290,310). Uses same ranking; trains once per count and saves to neighbourhood results file. Implies algorithm=gb.")
+    parser.set_defaults(resume=True)
+    args = parser.parse_args()
+    use_cache = not args.no_cache
+    run_feature_counts = None
+    if args.run_feature_counts:
+        try:
+            run_feature_counts = [int(x.strip()) for x in args.run_feature_counts.split(",") if x.strip()]
+        except ValueError:
+            print("Invalid --run-feature-counts; use comma-separated integers (e.g. 270,290,310)", file=sys.stderr)
+            sys.exit(1)
+        if not run_feature_counts:
+            print("--run-feature-counts must list at least one feature count", file=sys.stderr)
+            sys.exit(1)
+    algorithm = args.algorithm
+    if run_feature_counts is not None:
+        algorithm = 'gb'
+    features_per_iteration = args.features_per_iteration
+    initial_features = args.initial_features
+    if features_per_iteration is None:
+        features_per_iteration = 50 if algorithm == 'gb' else FEATURES_PER_ITERATION
+    if initial_features is None:
+        initial_features = features_per_iteration
+
+    # When using GB, write to separate results/log so LGBM and GB runs don't overwrite each other
+    if algorithm == 'gb':
+        RESULTS_FILE = MODEL_OUTPUT_DIR / 'iterative_feature_selection_results_muscular_gb.json'
+        LOG_FILE = MODEL_OUTPUT_DIR / 'iterative_training_muscular_gb.log'
+        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(LOG_FILE, 'w', encoding='utf-8') as f:
+            f.write(f"=== Iterative Training Log (Model 1 - Muscular, algorithm=gb) Started at {datetime.now().isoformat()} ===\n")
+
+    try:
+        if run_feature_counts is not None:
+            exit_code = run_neighbourhood_feature_counts(
+                run_feature_counts, use_cache=use_cache, algorithm=algorithm
+            )
+            sys.exit(exit_code)
+        if args.evaluate_best_on_test:
+            exit_code = evaluate_best_model_on_test()
+            sys.exit(exit_code)
+        if args.export_best:
+            exit_code = export_best_model(
+                use_cache=use_cache, algorithm=algorithm,
+                export_iteration=args.export_iteration, hp_preset=args.export_hp_preset,
+                train_on_full_data=args.train_on_full_data,
+            )
+            sys.exit(exit_code)
+        if args.hyperparameter_test or args.hyperparameter_test_presets or args.hyperparameter_test_below_refinement:
+            if args.hyperparameter_test_below_refinement:
+                presets_list = ['below_mid', 'below_strong']
+                output_suffix = '_refinement'
+            elif args.hyperparameter_test_presets:
+                presets_list = [p.strip() for p in args.hyperparameter_test_presets.split(',') if p.strip()]
+                output_suffix = '_refinement'
+                if not presets_list:
+                    print("--hyperparameter-test-presets must list at least one preset", file=sys.stderr)
+                    sys.exit(1)
+            else:
+                presets_list = None
+                output_suffix = None
+            exit_code = run_hyperparameter_test(
+                algorithm=algorithm, use_cache=use_cache,
+                presets_list=presets_list, output_suffix=output_suffix,
+            )
+            sys.exit(exit_code)
+        if args.threshold_sweep:
+            exit_code = run_threshold_sweep(algorithm=algorithm, hp_preset=args.hp_preset, use_cache=use_cache)
+            sys.exit(exit_code)
+        exit_code = run_iterative_training(
+            resume=args.resume,
+            optimize_on=args.optimize_on,
+            use_cache=use_cache,
+            algorithm=algorithm,
+            features_per_iteration=features_per_iteration,
+            initial_features=initial_features,
+            hp_preset=args.iterative_hp_preset,
+        )
         sys.exit(exit_code)
     except KeyboardInterrupt:
         log_message("\n⚠️  Training interrupted by user")

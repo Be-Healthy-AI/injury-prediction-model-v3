@@ -126,6 +126,8 @@ def main():
     parser.add_argument('--min-date', type=str, default=None, help='Minimum reference date (YYYY-MM-DD)')
     parser.add_argument('--max-date', type=str, default=None, help='Maximum reference date (YYYY-MM-DD). Truncates existing timelines beyond this date.')
     parser.add_argument('--regenerate-from-date', type=str, default=None, help='Regenerate timelines from this date onwards (YYYY-MM-DD)')
+    parser.add_argument('--full-regeneration', action='store_true', help='Regenerate from season start: drop existing timelines from season start and regenerate (uses --season-start)')
+    parser.add_argument('--season-start', type=str, default='2025-07-01', help='Season start date (YYYY-MM-DD) when using --full-regeneration (default: 2025-07-01)')
     parser.add_argument('--max-players', type=int, default=None, help='Limit number of players (for testing)')
     parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose logging (DEBUG level)')
     
@@ -200,7 +202,12 @@ def main():
         min_date_ts = pd.Timestamp(args.min_date).normalize()
     
     regenerate_from_date_ts = None
-    if args.regenerate_from_date:
+    if args.full_regeneration:
+        # Keep only rows before season start; drop from season_start so we regenerate from season start
+        season_start_ts = pd.Timestamp(args.season_start).normalize()
+        regenerate_from_date_ts = season_start_ts - pd.Timedelta(days=1)
+        logger.info(f"[FULL-REGENERATION] Will drop existing timelines from {args.season_start} and regenerate from season start (keep ref_date <= {regenerate_from_date_ts.date()})")
+    elif args.regenerate_from_date:
         regenerate_from_date_ts = pd.Timestamp(args.regenerate_from_date).normalize()
     
     logger.info("=" * 70)

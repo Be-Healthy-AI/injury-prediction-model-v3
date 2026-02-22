@@ -141,7 +141,8 @@ def generate_daily_features_v4_wrapper(
     output_dir: Path,
     existing_file_path: Optional[Path] = None,
     incremental: bool = True,
-    max_date: Optional[pd.Timestamp] = None
+    max_date: Optional[pd.Timestamp] = None,
+    season_start: Optional[pd.Timestamp] = None,
 ) -> pd.DataFrame:
     """
     Wrapper around V4 generate_daily_features_for_player that adds:
@@ -151,9 +152,24 @@ def generate_daily_features_v4_wrapper(
     """
     logger = logging.getLogger(__name__)
     
-    # Load existing data if incremental
+    # Load existing data if incremental or for preserve+regenerate (season_start)
     existing_df = None
     start_date_override = None
+    preserved_before_season = None  # Rows with date < season_start when doing preserve+regenerate
+    
+    if not incremental and season_start is not None and existing_file_path and existing_file_path.exists():
+        # Preserve + regenerate: keep rows before season_start, regenerate from season_start
+        try:
+            full_existing = pd.read_csv(existing_file_path, parse_dates=['date'], encoding='utf-8-sig', low_memory=False)
+            if not full_existing.empty and 'date' in full_existing.columns:
+                full_existing['date'] = pd.to_datetime(full_existing['date'], errors='coerce')
+                preserved_before_season = full_existing[full_existing['date'] < season_start].copy()
+                if preserved_before_season.empty:
+                    preserved_before_season = None
+                else:
+                    logger.info(f"[PRESERVE] Keeping {len(preserved_before_season)} rows before {season_start.date()}, regenerating from season start")
+        except Exception as e:
+            logger.warning(f"[PRESERVE] Could not load existing for preserve: {e}")
     
     if incremental and existing_file_path and existing_file_path.exists():
         try:
@@ -265,6 +281,25 @@ def generate_daily_features_v4_wrapper(
             logger.info(f"[INCREMENTAL] Combined result: {len(combined)} rows (from {combined['date'].min().date()} to {combined['date'].max().date()})")
             return combined
         
+        # Preserve + regenerate: combine preserved (date < season_start) with regenerated (>= season_start)
+        if preserved_before_season is not None and not preserved_before_season.empty and season_start is not None:
+            regen = daily_features[daily_features['date'] >= season_start].copy()
+            if max_date is not None:
+                regen = regen[regen['date'] <= max_date]
+            # Align columns
+            all_cols = sorted(set(preserved_before_season.columns) | set(regen.columns))
+            for c in all_cols:
+                if c not in preserved_before_season.columns:
+                    preserved_before_season[c] = pd.NA
+                if c not in regen.columns:
+                    regen[c] = pd.NA
+            preserved_before_season = preserved_before_season[all_cols]
+            regen = regen[all_cols]
+            combined = pd.concat([preserved_before_season, regen], ignore_index=True)
+            combined = combined.sort_values('date').drop_duplicates(subset=['date'], keep='first').reset_index(drop=True)
+            logger.info(f"[PRESERVE] Combined {len(preserved_before_season)} preserved + {len(regen)} regenerated = {len(combined)} rows")
+            return combined
+        
         return daily_features
         
     except Exception as e:
@@ -282,6 +317,7 @@ def main():
     parser.add_argument('--data-date', type=str, default=None, help='Raw data date (YYYYMMDD), auto-detects latest if not provided')
     parser.add_argument('--reference-date', type=str, default=None, help='Reference date (YYYY-MM-DD), defaults to data-date')
     parser.add_argument('--max-date', type=str, default=None, help='Maximum date to generate features (YYYY-MM-DD). Truncates existing files beyond this date.')
+    parser.add_argument('--season-start', type=str, default='2025-07-01', help='Season start date (YYYY-MM-DD) for preserve+regenerate: keep rows before this, regenerate from this (default: 2025-07-01)')
     parser.add_argument('--player-id', type=int, default=None, help='Player ID to process (if not provided, processes all players from config)')
     parser.add_argument('--data-dir', type=str, default=None, help='Explicit data directory (overrides country/data-date)')
     parser.add_argument('--output-dir', type=str, default=None, help='Explicit output directory (overrides country/club)')
@@ -343,6 +379,11 @@ def main():
         max_date_str = f"{args.data_date[:4]}-{args.data_date[4:6]}-{args.data_date[6:8]}"
         max_date = pd.Timestamp(max_date_str)
     
+    # Resolve season_start (for preserve+regenerate when not incremental)
+    season_start_ts = None
+    if args.season_start:
+        season_start_ts = pd.Timestamp(args.season_start).normalize()
+    
     logger.info("=" * 70)
     logger.info("DAILY FEATURES UPDATER - V4 LAYER 1 (PRODUCTION)")
     logger.info("=" * 70)
@@ -352,6 +393,8 @@ def main():
     logger.info(f"Reference date: {reference_date.date()}")
     if max_date:
         logger.info(f"Max date (cap): {max_date.date()}")
+    if season_start_ts:
+        logger.info(f"Season start (preserve+regenerate): {season_start_ts.date()}")
     logger.info(f"Output directory: {output_dir}")
     logger.info(f"Incremental mode: {args.incremental}")
     logger.info(f"Force regeneration: {args.force}")
@@ -397,12 +440,18 @@ def main():
         # Output file path
         output_file = output_dir / f'player_{player_id}_daily_features.csv'
         
-        # Determine if we should use incremental mode
+        # Determine if we should use incremental mode or preserve+regenerate
         use_incremental = args.incremental and not args.force
-        existing_file_path = output_file if (use_incremental and output_file.exists()) else None
+        existing_file_path = None
+        if use_incremental and output_file.exists():
+            existing_file_path = output_file
+        elif not use_incremental and not args.force and season_start_ts is not None and output_file.exists():
+            existing_file_path = output_file  # preserve+regenerate: keep before season_start, regenerate from season_start
         
-        if existing_file_path:
+        if existing_file_path and use_incremental:
             logger.info(f"[{idx}/{total_players}] [INCREMENTAL] Player {player_id}: Appending to existing file")
+        elif existing_file_path and season_start_ts is not None:
+            logger.info(f"[{idx}/{total_players}] [PRESERVE+REGENERATE] Player {player_id}: Keeping before {season_start_ts.date()}, regenerating from season start")
         elif output_file.exists() and args.force:
             logger.info(f"[{idx}/{total_players}] [FORCE] Player {player_id}: Regenerating from scratch")
             existing_file_path = None
@@ -446,7 +495,8 @@ def main():
                 output_dir=output_dir,
                 existing_file_path=existing_file_path,
                 incremental=use_incremental,
-                max_date=max_date
+                max_date=max_date,
+                season_start=season_start_ts,
             )
             
             if daily_features.empty:

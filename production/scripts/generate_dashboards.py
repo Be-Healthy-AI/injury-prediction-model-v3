@@ -23,10 +23,11 @@ import numpy as np
 import pandas as pd
 
 try:
-    from scipy.interpolate import make_interp_spline
+    from scipy.interpolate import make_interp_spline, UnivariateSpline
     HAS_SCIPY = True
 except ImportError:
     HAS_SCIPY = False
+    UnivariateSpline = None
 
 import sys
 import io
@@ -109,6 +110,12 @@ class PlayerDashboardContext:
         if model_version == "v3":
             return f"{self.entry_id}_v3_probabilities.png"
         return f"{self.entry_id}_probabilities.png"
+
+    def chart_filename_index_with_version(self, model_version: str = "v2") -> str:
+        """Get chart filename for index-based dashboard."""
+        if model_version == "v3":
+            return f"{self.entry_id}_v3_index.png"
+        return f"{self.entry_id}_index.png"
 
 
 def parse_date_range(args: argparse.Namespace) -> tuple[pd.Timestamp, pd.Timestamp, str]:
@@ -296,6 +303,16 @@ def load_injury_periods(
         import traceback
         traceback.print_exc()
         return []
+
+
+def _injury_period_color_and_label(injury_class: str) -> Tuple[str, str]:
+    """Return (color_hex, legend_label) for injury period shading. 3-level: skeletal (darkest), muscular (medium), other (light)."""
+    ic = str(injury_class).lower().strip()
+    if ic == "skeletal":
+        return "#6B0000", "Skeletal Injury"
+    if ic == "muscular":
+        return "#AA5555", "Muscular Injury"
+    return "#FF9999", "Other Injury"
 
 
 def create_player_dashboard(
@@ -560,53 +577,314 @@ Trend Slope: {slope:.4f}"""
     return chart_path
 
 
-def determine_players(predictions_dir: Path, suffix: str, explicit_players: Iterable[int] | None, model_version: str = "v2") -> List[int]:
+def create_player_dashboard_index(
+    ctx: PlayerDashboardContext,
+    pivot: pd.DataFrame,
+    risk_df: pd.DataFrame,
+    insights: dict,
+    trend_metrics: dict,
+    output_dir: Path,
+    injury_periods: List[Tuple[pd.Timestamp, pd.Timestamp, str]] = None,
+    player_profile: Optional[pd.Series] = None,
+    model_version: str = "v2",
+) -> Path:
+    """Create dashboard PNG with index-based main chart (current prediction / baseline).
+
+    Baseline = mean(injury_probability) over the chart period. Index = prob / baseline.
+    Yellow zone = 95%% CI around 1. Green below baseline, red above. Same injury-period
+    shading (skeletal/muscular/other red) and same bottom panels as probability dashboard.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    fig = plt.figure(figsize=(12, 8))
+    gs = fig.add_gridspec(2, 3, height_ratios=[2.0, 1.0], hspace=0.5, wspace=0.45)
+
+    ax_main = fig.add_subplot(gs[0, :])
+    dates = pivot["reference_date"]
+    probabilities = pivot["injury_probability"]
+    actual_start = dates.min()
+    actual_end = dates.max()
+
+    # Injury period shading (3-level: skeletal darkest, muscular medium, other light)
+    if injury_periods:
+        shown_labels = set()
+        for period_start, period_end, injury_class in injury_periods:
+            chart_start = dates.min()
+            chart_end = dates.max()
+            if period_start <= chart_end and period_end >= chart_start:
+                shade_start = max(period_start, chart_start)
+                shade_end = min(period_end, chart_end)
+                color, label = _injury_period_color_and_label(injury_class)
+                show_label = label if label not in shown_labels else ""
+                if label not in shown_labels:
+                    shown_labels.add(label)
+                ax_main.axvspan(shade_start, shade_end, alpha=0.15, color=color, zorder=0, label=show_label)
+
+    # Baseline = mean over chart period; index = prob / baseline
+    baseline = float(probabilities.mean())
+    if baseline < 1e-9:
+        baseline = 1e-9
+    index_series = probabilities / baseline
+    std_prob = float(probabilities.std())
+    if pd.isna(std_prob) or std_prob < 1e-12:
+        std_prob = 0.0
+    cv = std_prob / baseline
+    index_low = max(0.0, 1.0 - 1.96 * cv)
+    index_high = 1.0 + 1.96 * cv
+
+    # Yellow band (95% CI around baseline = 1) – lighter yellow
+    ax_main.fill_between(dates, index_low, index_high, alpha=0.25, color="#FFF9C4", zorder=1, label="95% CI (baseline)")
+    ax_main.axhline(1.0, color="gray", linestyle="--", linewidth=1.5, zorder=2, label="Baseline")
+
+    # Index curve with green (below 1) / red (above 1) gradient
+    def _color_for_index(idx: float) -> str:
+        if idx <= 1.0:
+            t = 1.0 - idx
+            t = min(1.0, t)
+            r = int(27 + (232 - 27) * (1 - t))
+            g = int(94 + (245 - 94) * (1 - t))
+            b = int(32 + (235 - 32) * (1 - t))
+            return f"#{r:02x}{g:02x}{b:02x}"
+        else:
+            t = min(1.0, (idx - 1.0) / 2.0)
+            r = int(255 - (255 - 183) * t)
+            g = int(235 - (235 - 28) * t)
+            b = int(238 - (238 - 28) * t)
+            return f"#{r:02x}{g:02x}{b:02x}"
+
+    n_smooth = 1000
+    y_max_plot = max(2.5, float(index_series.max()) * 1.1) if len(index_series) else 2.5
+
+    # Interpolating spline: passes through every daily prediction so all variations are visible
+    if HAS_SCIPY and len(dates) > 3:
+        dates_numeric = np.arange(len(dates))
+        x_smooth = np.linspace(dates_numeric.min(), dates_numeric.max(), n_smooth)
+        dates_smooth = pd.date_range(dates.min(), dates.max(), periods=n_smooth)
+        spl = make_interp_spline(dates_numeric, index_series.values, k=min(3, len(dates) - 1))
+        y_smooth = spl(x_smooth)
+        y_smooth = np.maximum(y_smooth, 0.0)
+        y_max_plot = max(2.5, float(np.max(y_smooth)) * 1.05)
+        for i in range(len(dates_smooth) - 1):
+            idx_avg = (y_smooth[i] + y_smooth[i + 1]) / 2.0
+            ax_main.plot(
+                dates_smooth[i : i + 2],
+                y_smooth[i : i + 2],
+                color=_color_for_index(float(idx_avg)),
+                linewidth=2.5,
+                alpha=0.9,
+                zorder=3,
+                label="Risk index" if i == 0 else "",
+            )
+    else:
+        for i in range(len(dates) - 1):
+            idx_val = float(index_series.iloc[i])
+            ax_main.plot(
+                dates.iloc[i : i + 2],
+                index_series.iloc[i : i + 2],
+                color=_color_for_index(idx_val),
+                linewidth=2.5,
+                alpha=0.9,
+                zorder=3,
+                label="Risk index" if i == 0 else "",
+            )
+
+    ax_main.set_title(f"Injury Risk Index vs Baseline - {ctx.player_name}", fontsize=14, fontweight="bold", pad=15)
+    ax_main.set_ylabel("Injury Risk Index (vs baseline)", fontweight="bold")
+    ax_main.set_xlabel("Date", fontweight="bold")
+    ax_main.axhline(1.0, color="gray", linestyle="--", linewidth=1, zorder=0)
+    tick_max = float(np.ceil(y_max_plot * 2) / 2)
+    ax_main.set_ylim(0, tick_max)
+    ax_main.set_yticks(np.arange(0, tick_max + 0.5, 0.5))
+    plt.setp(ax_main.yaxis.get_majorticklabels(), fontsize=6)
+    ax_main.legend(loc="upper left", fontsize=9, framealpha=0.9)
+    ax_main.grid(axis="y", alpha=0.3, linestyle="--")
+    ax_main.xaxis.set_major_locator(mdates.DayLocator(interval=7))
+    ax_main.xaxis.set_minor_locator(mdates.DayLocator(interval=1))
+    ax_main.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+    ax_main.xaxis.set_minor_formatter(mdates.DateFormatter(""))
+    plt.setp(ax_main.xaxis.get_majorticklabels(), rotation=45, ha="right", fontsize=6)
+
+    # Bottom left – body parts (same as probability dashboard)
+    ax_body = fig.add_subplot(gs[1, 0])
+    if insights and insights.get("bodypart_rank"):
+        body_rank = insights.get("bodypart_rank", [])[:3]
+        labels = [item[0].replace("_", " ").title() for item in body_rank]
+        probs = [item[1] * 100 for item in body_rank]
+        colors_body = ["#2E86AB", "#A23B72", "#F18F01"][: len(labels)]
+        bars = ax_body.barh(labels, probs, color=colors_body, alpha=0.8, edgecolor="white", linewidth=0.5, height=0.6)
+        ax_body.set_xlabel("Probability (%)", fontweight="bold", fontsize=8)
+        ax_body.set_title("Body Parts at Risk", fontweight="bold", pad=5, fontsize=9)
+        ax_body.set_xlim(0, 100)
+        ax_body.tick_params(labelsize=7)
+        for i, (bar, prob) in enumerate(zip(bars, probs)):
+            ax_body.text(prob + 2, i, f"{prob:.1f}%", va="center", fontweight="bold", fontsize=7)
+        ax_body.grid(axis="x", alpha=0.3, linestyle="--")
+    else:
+        ax_body.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax_body.transAxes, fontsize=8)
+        ax_body.set_title("Body Parts at Risk", fontweight="bold", fontsize=9)
+
+    # Bottom center – severity
+    ax_sev = fig.add_subplot(gs[1, 1])
+    if insights and insights.get("severity_probs"):
+        severity_probs = insights.get("severity_probs", {})
+        severity_label = insights.get("severity_label", "Unknown")
+        labels_sev = list(severity_probs.keys())
+        sizes = [severity_probs[k] * 100 for k in labels_sev]
+        colors_sev = ["#06A77D", "#F4A261", "#E76F51", "#264653"][: len(labels_sev)]
+        bars_sev = ax_sev.barh(
+            range(len(labels_sev)), sizes, color=colors_sev, alpha=0.8, edgecolor="white", linewidth=0.5, height=0.6
+        )
+        ax_sev.set_yticks(range(len(labels_sev)))
+        formatted_labels = [l.replace("_", " ").title() for l in labels_sev]
+        formatted_labels = ["Long term" if x == "Long Term" else x for x in formatted_labels]
+        ax_sev.set_yticklabels(formatted_labels, fontsize=7)
+        ax_sev.set_xlabel("Probability (%)", fontweight="bold", fontsize=8)
+        sev_title = severity_label.replace("_", " ").title()
+        if sev_title == "Long Term":
+            sev_title = "Long term"
+        ax_sev.set_title(f"Severity: {sev_title}", fontweight="bold", pad=5, fontsize=9)
+        ax_sev.set_xlim(0, 100)
+        ax_sev.tick_params(labelsize=7)
+        for i, (bar, size) in enumerate(zip(bars_sev, sizes)):
+            ax_sev.text(size + 2, i, f"{size:.1f}%", va="center", fontweight="bold", fontsize=7)
+        ax_sev.grid(axis="x", alpha=0.3, linestyle="--")
+    else:
+        ax_sev.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax_sev.transAxes, fontsize=8)
+        ax_sev.set_title("Severity", fontweight="bold", fontsize=9)
+
+    fig.text(0.5, 0.02, "Note: Body part and severity probabilities refer to the last day shown in the main chart.",
+             ha="center", fontsize=7, style="italic", color="gray")
+
+    # Bottom right – player profile and risk summary
+    ax_alert = fig.add_subplot(gs[1, 2])
+    ax_alert.axis("off")
+    profile_text = "PLAYER PROFILE\n\n"
+    if player_profile is not None:
+        position = player_profile.get("position", "N/A")
+        date_of_birth = player_profile.get("date_of_birth", "")
+        nationality1 = player_profile.get("nationality1", "")
+        nationality2 = player_profile.get("nationality2", "")
+        age = "N/A"
+        if date_of_birth and pd.notna(date_of_birth):
+            try:
+                dob = pd.to_datetime(date_of_birth)
+                age = str((actual_end - dob).days // 365)
+            except Exception:
+                pass
+        nationality = nationality1 if pd.notna(nationality1) and str(nationality1).strip() else "N/A"
+        if nationality2 and pd.notna(nationality2) and str(nationality2).strip():
+            nationality += f" / {nationality2}"
+        profile_text += f"Position: {position}\nAge: {age}\nNationality: {nationality}\n"
+    else:
+        profile_text += "Position: N/A\nAge: N/A\nNationality: N/A\n"
+    profile_text += "\n" + "=" * 20 + "\n\n"
+    risk_labels_4level = [classify_risk_4level(p)["label"] for p in probabilities]
+    peak_risk = max(risk_labels_4level, key=lambda x: RISK_CLASS_LABELS_4LEVEL.index(x)) if risk_labels_4level else "N/A"
+    final_risk = risk_labels_4level[-1] if risk_labels_4level else "N/A"
+    sustained = trend_metrics.get("sustained_elevated_days", 0) if trend_metrics else 0
+    max_jump = trend_metrics.get("max_jump", 0.0) if trend_metrics else 0.0
+    slope = trend_metrics.get("slope", 0.0) if trend_metrics else 0.0
+    profile_text += f"RISK SUMMARY\n\nPeak Risk Level: {peak_risk}\nFinal Risk Level: {final_risk}\nSustained Elevated: {sustained} days\nMax Daily Jump: {max_jump:.3f}\nTrend Slope: {slope:.4f}"
+    ax_alert.text(0.1, 0.5, profile_text, transform=ax_alert.transAxes, fontsize=9, verticalalignment="center", family="monospace", fontweight="bold")
+
+    plt.suptitle(
+        f"Observation Period: {actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}",
+        fontsize=11, y=0.98,
+    )
+    chart_filename = ctx.chart_filename_index_with_version(model_version)
+    chart_path = output_dir / chart_filename
+    plt.savefig(chart_path, dpi=300, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    return chart_path
+
+
+# Timelines filename used per club (same as update_timelines.py and generate_predictions_lgbm_v3.py)
+TIMELINES_FILENAME = "timelines_35day_season_2025_2026_v4_muscular.csv"
+
+
+def get_players_from_timelines(club_path: Path, timelines_filename: str = TIMELINES_FILENAME) -> List[int]:
+    """Get unique player IDs from the club's timelines file (source of truth for who we model)."""
+    timelines_file = club_path / "timelines" / timelines_filename
+    if not timelines_file.exists():
+        return []
+    try:
+        df = pd.read_csv(timelines_file, usecols=["player_id"], low_memory=False)
+        return sorted(df["player_id"].dropna().unique().astype(int).tolist())
+    except Exception:
+        return []
+
+
+def determine_players(
+    predictions_dir: Path,
+    suffix: str,
+    explicit_players: Iterable[int] | None,
+    model_version: str = "v2",
+    club_path: Optional[Path] = None,
+) -> List[int]:
     """Determine which players to process.
-    
-    If explicit_players is provided, use those. Otherwise, try to find players
-    with the exact suffix, and if none found, find all players with any prediction files.
+
+    If explicit_players is provided, use those. Otherwise, when club_path is provided,
+    use the club's timelines file as source of truth and filter to players who have
+    a prediction file for this suffix. Fall back to glob-based discovery when timelines
+    are missing or club_path is not provided.
     """
     if explicit_players:
         return list(explicit_players)
-    
-    # First try exact suffix match based on model version
+
+    # Use timelines as source of truth when club_path is provided
+    if club_path is not None:
+        timeline_player_ids = get_players_from_timelines(club_path)
+        if timeline_player_ids:
+            players_dir = predictions_dir / "players"
+            if model_version == "v3":
+                pred_filename = f"player_{{pid}}_predictions_v3_{suffix}.csv"
+            else:
+                pred_filename = f"player_{{pid}}_predictions_{suffix}.csv"
+            players = [
+                pid
+                for pid in timeline_player_ids
+                if (players_dir / pred_filename.format(pid=pid)).exists()
+            ]
+            if players:
+                return sorted(players)
+            # No prediction files for this suffix among timeline players; fall through to glob
+        # Timelines missing or empty; fall through to glob-based logic
+
+    # Fallback: glob per-player prediction files (legacy behaviour)
     if model_version == "v3":
         pattern = predictions_dir / "players" / f"player_*_predictions_v3_{suffix}.csv"
     else:
         pattern = predictions_dir / "players" / f"player_*_predictions_{suffix}.csv"
-    
+
     players = []
-    for path in pattern.parent.glob(pattern.name):
-        try:
-            pid = int(path.stem.split("_")[1])
-            players.append(pid)
-        except ValueError:
-            continue
-    
-    # If no exact matches, find all players with any prediction files for this model version
-    if not players:
-        print(f"[WARN] No prediction files found with suffix '{suffix}', searching for all prediction files...")
-        if model_version == "v3":
-            all_pattern = predictions_dir / "players" / "player_*_predictions_v3_*.csv"
-            v3_files = set()  # Not needed for V3
-        else:
-            all_pattern = predictions_dir / "players" / "player_*_predictions_*.csv"
-            # Exclude V3 files when looking for V2
-            exclude_v3_pattern = predictions_dir / "players" / "player_*_predictions_v3_*.csv"
-            v3_files = set(exclude_v3_pattern.parent.glob(exclude_v3_pattern.name))
-        
-        for path in all_pattern.parent.glob(all_pattern.name):
-            # Skip V3 files when looking for V2
-            if model_version == "v2" and path in v3_files:
-                continue
+    if pattern.parent.exists():
+        for path in pattern.parent.glob(pattern.name):
             try:
                 pid = int(path.stem.split("_")[1])
                 players.append(pid)
             except ValueError:
                 continue
+
+    if not players:
+        if model_version == "v3":
+            all_pattern = predictions_dir / "players" / "player_*_predictions_v3_*.csv"
+            v3_files = set()
+        else:
+            all_pattern = predictions_dir / "players" / "player_*_predictions_*.csv"
+            exclude_v3_pattern = predictions_dir / "players" / "player_*_predictions_v3_*.csv"
+            v3_files = set(exclude_v3_pattern.parent.glob(exclude_v3_pattern.name)) if exclude_v3_pattern.parent.exists() else set()
+
+        if all_pattern.parent.exists():
+            for path in all_pattern.parent.glob(all_pattern.name):
+                if model_version == "v2" and path in v3_files:
+                    continue
+                try:
+                    pid = int(path.stem.split("_")[1])
+                    players.append(pid)
+                except ValueError:
+                    continue
         if players:
             print(f"[INFO] Found {len(set(players))} players with prediction files")
-    
+
     return sorted(set(players))
 
 
@@ -629,6 +907,13 @@ def main() -> int:
         default="v2",
         help="Model version to use for predictions (default: v2)"
     )
+    parser.add_argument(
+        "--dashboard-type",
+        type=str,
+        choices=["prob", "index", "both"],
+        default="prob",
+        help="Dashboard type: prob = probability evolution (default), index = index vs baseline, both = generate both",
+    )
     args = parser.parse_args()
 
     # Get club paths
@@ -639,7 +924,7 @@ def main() -> int:
     
     start_date, end_date, suffix = parse_date_range(args)
 
-    players = determine_players(predictions_dir, suffix, args.players, args.model_version)
+    players = determine_players(predictions_dir, suffix, args.players, args.model_version, club_path=club_path)
     if not players:
         print(f"❌ No prediction files found for suffix '{suffix}'.")
         return 1
@@ -712,12 +997,20 @@ def main() -> int:
                 continue
             
             injury_periods = load_injury_periods(player_id, features_dir, actual_start, actual_end, country=args.country)
-            
-            feature_row = load_latest_feature_row(player_id, features_dir, end_date)
+
             insights = {}
-            if bodypart_pipeline is not None and severity_pipeline is not None:
-                insights = predict_insights(feature_row, bodypart_pipeline, severity_pipeline)
-            
+            try:
+                feature_row = load_latest_feature_row(player_id, features_dir, end_date)
+                if bodypart_pipeline is not None and severity_pipeline is not None:
+                    insights = predict_insights(feature_row, bodypart_pipeline, severity_pipeline)
+            except (FileNotFoundError, ValueError) as e:
+                if HAS_TQDM:
+                    tqdm.write(f"[WARN] Skipping player {player_id}: no daily features - {e}")
+                else:
+                    print(f"[WARN] Skipping player {player_id}: no daily features - {e}")
+                failures += 1
+                continue
+
             # Use 4-level risk classification
             risk_df = None  # Not used for 4-level, but kept for compatibility
             trend_metrics = compute_trend_metrics(predictions_window["injury_probability"])
@@ -734,12 +1027,21 @@ def main() -> int:
                 "risk_index": [classify_risk_4level(p)["index"] for p in predictions_window["injury_probability"]],
                 "risk_label": [classify_risk_4level(p)["label"] for p in predictions_window["injury_probability"]],
             })
-            create_player_dashboard(ctx, predictions_window, risk_df_dummy, insights, trend_metrics, dashboards_dir, injury_periods, player_profile=player_profile, model_version=args.model_version)
-            chart_filename = ctx.chart_filename_with_version(args.model_version)
-            if not HAS_TQDM:
-                print(f"   ✅ Dashboard generated: {chart_filename}")
-            else:
-                tqdm.write(f"✅ Player {player_id}: {chart_filename}")
+            dashboard_type = getattr(args, "dashboard_type", "prob")
+            if dashboard_type in ("prob", "both"):
+                create_player_dashboard(ctx, predictions_window, risk_df_dummy, insights, trend_metrics, dashboards_dir, injury_periods, player_profile=player_profile, model_version=args.model_version)
+                chart_filename = ctx.chart_filename_with_version(args.model_version)
+                if not HAS_TQDM:
+                    print(f"   ✅ Dashboard (prob) generated: {chart_filename}")
+                else:
+                    tqdm.write(f"✅ Player {player_id}: {chart_filename}")
+            if dashboard_type in ("index", "both"):
+                create_player_dashboard_index(ctx, predictions_window, risk_df_dummy, insights, trend_metrics, dashboards_dir, injury_periods, player_profile=player_profile, model_version=args.model_version)
+                index_filename = ctx.chart_filename_index_with_version(args.model_version)
+                if not HAS_TQDM:
+                    print(f"   ✅ Dashboard (index) generated: {index_filename}")
+                else:
+                    tqdm.write(f"✅ Player {player_id}: {index_filename}")
             sys.stdout.flush()
             successes += 1
         except Exception as exc:

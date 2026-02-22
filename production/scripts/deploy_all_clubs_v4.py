@@ -99,6 +99,27 @@ def run_script(script_name: str, args: List[str] = None, cwd: Path = None) -> bo
     return True
 
 
+def run_config_sync_all_clubs_challenger(
+    country: str,
+    clubs: List[str],
+    data_date: str,
+    auto_fix: bool,
+    sync_transfermarkt: bool,
+) -> bool:
+    """Run validate_and_sync_club_config_challenger for each club. V4 only; does not touch V3."""
+    for club in clubs:
+        cmd_args = ["--country", country, "--club", club]
+        if data_date:
+            cmd_args.extend(["--data-date", data_date])
+        if auto_fix:
+            cmd_args.append("--auto-fix")
+        if sync_transfermarkt:
+            cmd_args.append("--sync-transfermarkt")
+        if not run_script('validate_and_sync_club_config_challenger.py', cmd_args):
+            print(f"[WARNING] Config sync failed for {club} (challenger, continuing)")
+    return True
+
+
 def run_club_pipeline(
     country: str,
     club: str,
@@ -112,7 +133,8 @@ def run_club_pipeline(
     skip_timelines: bool = False,
     skip_predictions: bool = False,
     skip_dashboards: bool = False,
-    skip_table: bool = False
+    skip_table: bool = False,
+    dashboard_type: str = "prob",
 ) -> bool:
     """
     Run the complete pipeline for a single club using V4 model.
@@ -131,33 +153,23 @@ def run_club_pipeline(
     else:
         print(f"[SKIP] Raw data fetch (--skip-fetch)")
     
-    # Step 1.5: Validate and sync club config (write to challenger/{club}/)
+    # Step 1.5: Validate and sync club config (challenger-only script; does not touch V3)
     if not skip_config_sync:
         print(f"\n[STEP 1.5] Validating and syncing config for {club} (challenger)...")
-        # Note: We need to modify validate_and_sync_club_config.py to support challenger path
-        # For now, we'll call it and it should handle challenger path via --challenger flag
-        # If that flag doesn't exist, we'll need to adapt the script
         cmd_args = [
             "--country", country,
-            "--club", club,
-            "--challenger"  # New flag to write to challenger path
+            "--club", club
         ]
         if data_date:
             cmd_args.extend(["--data-date", data_date])
-        
         if auto_fix_configs:
             cmd_args.append("--auto-fix")
-        
         if sync_transfermarkt:
             cmd_args.append("--sync-transfermarkt")
-        
-        # TODO: Update validate_and_sync_club_config.py to support --challenger flag
-        # For now, we'll skip this step or create a wrapper
-        print(f"[NOTE] Config sync for challenger - may need script update")
-        # if not run_script('validate_and_sync_club_config.py', cmd_args):
-        #     print(f"[WARNING] {club} - Config validation failed (continuing anyway)")
-        # else:
-        #     print(f"[OK] {club} - Config validated/synced")
+        if not run_script('validate_and_sync_club_config_challenger.py', cmd_args):
+            print(f"[WARNING] {club} - Config validation failed (continuing anyway)")
+        else:
+            print(f"[OK] {club} - Config validated/synced")
     else:
         print(f"[SKIP] Config validation/sync")
     
@@ -177,6 +189,8 @@ def run_club_pipeline(
                 cmd_args.extend(["--max-date", max_date_str])
             except ValueError:
                 pass
+        # Season start for preserve+regenerate (e.g. 2025-07-01)
+        cmd_args.extend(["--season-start", "2025-07-01"])
         
         if not run_script('update_daily_features_v4.py', cmd_args):
             print(f"[FAILED] {club} - Daily features Layer 1")
@@ -225,7 +239,9 @@ def run_club_pipeline(
                     data_dt = datetime.strptime(data_date, "%Y%m%d")
                     max_date_str = data_dt.strftime("%Y-%m-%d")
                     cmd_args.extend(["--max-date", max_date_str])
-                    # Regenerate from day before data_date
+                    # Full regeneration from season start when data_date is set
+                    cmd_args.append("--full-regeneration")
+                    # Also set regenerate-from-date for incremental-style run (day before data_date)
                     prev_day = data_dt - timedelta(days=1)
                     regenerate_date = prev_day.strftime("%Y-%m-%d")
                     cmd_args.extend(["--regenerate-from-date", regenerate_date])
@@ -269,7 +285,8 @@ def run_club_pipeline(
             "--club", club,
             "--date", data_date[:4] + "-" + data_date[4:6] + "-" + data_date[6:8] if data_date else datetime.now().strftime("%Y-%m-%d"),
         ]
-        
+        if dashboard_type:
+            cmd_args.extend(["--dashboard-type", dashboard_type])
         if not run_script('generate_dashboards_v4.py', cmd_args):
             print(f"[FAILED] {club} - Dashboards (V4)")
             success = False
@@ -278,12 +295,21 @@ def run_club_pipeline(
     else:
         print(f"[SKIP] Dashboards generation")
     
-    # Step 7: Generate predictions table (optional, per-club)
+    # Step 7: Generate predictions table (challenger-only script)
     if not skip_table:
         print(f"\n[STEP 7] Generating predictions table for {club} (V4)...")
-        # Note: generate_predictions_table.py may need V4 adaptation
-        # For now, skip or adapt as needed
-        print(f"[SKIP] Predictions table generation (V4 version not yet implemented)")
+        cmd_args = [
+            "--country", country,
+            "--club", club
+        ]
+        if data_date:
+            date_formatted = data_date[:4] + "-" + data_date[4:6] + "-" + data_date[6:8]
+            cmd_args.extend(["--date", date_formatted])
+        if not run_script('generate_predictions_table_challenger.py', cmd_args):
+            print(f"[FAILED] {club} - Predictions table (V4)")
+            success = False
+        else:
+            print(f"[OK] {club} - Predictions table completed (V4)")
     
     return success
 
@@ -375,6 +401,13 @@ def main():
         action='store_true',
         help='Stop processing if a club fails (recommended for one-by-one testing). Default: continue with other clubs'
     )
+    parser.add_argument(
+        "--dashboard-type",
+        type=str,
+        choices=["prob", "index", "both"],
+        default="prob",
+        help='Dashboard type: prob (default), index, or both'
+    )
     
     args = parser.parse_args()
     
@@ -410,7 +443,22 @@ def main():
     print(f"   {', '.join(clubs)}")
     if exclude_clubs:
         print(f"Excluded clubs: {', '.join(sorted(exclude_clubs))}")
+    print(f"Dashboard type: {args.dashboard_type}")
     print()
+    
+    # Pre-step: Config sync for all challenger clubs (before fetch; does not touch V3)
+    if not args.skip_config_sync:
+        print("=" * 80)
+        print("PRE-STEP: Config sync for all challenger clubs (before raw data fetch)")
+        print("=" * 80)
+        run_config_sync_all_clubs_challenger(
+            country=args.country,
+            clubs=clubs,
+            data_date=data_date,
+            auto_fix=args.auto_fix_configs,
+            sync_transfermarkt=args.sync_transfermarkt,
+        )
+        print("[OK] Pre-step config sync completed\n")
     
     # Step 0: Fetch raw data for all clubs (once, if not skipped)
     if not args.skip_fetch:
@@ -461,7 +509,8 @@ def main():
             skip_timelines=args.skip_timelines,
             skip_predictions=args.skip_predictions,
             skip_dashboards=args.skip_dashboards,
-            skip_table=args.skip_table
+            skip_table=args.skip_table,
+            dashboard_type=args.dashboard_type,
         ):
             successful.append(club)
         else:

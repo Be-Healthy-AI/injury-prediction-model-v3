@@ -1,0 +1,221 @@
+{
+  "description": "Experiment 4: Multi-algorithm comparison on Exp 3 760-feature setup (14-day labels, same train/val/test split).",
+  "feature_source": "iterative_feature_selection_results_muscular.json (best iteration, 760 features)",
+  "n_features": 760,
+  "train_val_split": "80/20 by timeline (random rows), same as Exp 3",
+  "holdout_season": "2025_2026",
+  "gini_weight": 0.6,
+  "f1_weight": 0.4,
+  "models": {
+    "LogisticRegression": {
+      "description": "sklearn LogisticRegression, balanced, lbfgs, max_iter=2000",
+      "metrics": {
+        "train": {
+          "accuracy": 0.6694889649814405,
+          "precision": 0.04145471110773669,
+          "recall": 0.7988295537673739,
+          "f1": 0.07881915623082753,
+          "roc_auc": 0.8012797964520058,
+          "gini": 0.6025595929040115,
+          "confusion_matrix": {
+            "tn": 455507,
+            "fp": 227250,
+            "fn": 2475,
+            "tp": 9828
+          },
+          "combined_score": 0.3930634182347379
+        },
+        "validation": {
+          "accuracy": 0.6687134923603718,
+          "precision": 0.04294674536313037,
+          "recall": 0.7968798751950078,
+          "f1": 0.08150110093499696,
+          "roc_auc": 0.8028374915484424,
+          "gini": 0.6056749830968848,
+          "confusion_matrix": {
+            "tn": 113645,
+            "fp": 56915,
+            "fn": 651,
+            "tp": 2554
+          },
+          "combined_score": 0.3960054302321297
+        },
+        "test_2025_26": {
+          "accuracy": 0.4318422285050214,
+          "precision": 0.03866100895803866,
+          "recall": 0.9085872576177285,
+          "f1": 0.07416619559072922,
+          "roc_auc": 0.7640852681343753,
+          "gini": 0.5281705362687505,
+          "confusion_matrix": {
+            "tn": 23585,
+            "fp": 32624,
+            "fn": 132,
+            "tp": 1312
+          },
+          "combined_score": 0.34656879999754203
+        },
+        "training_time_seconds": 1779.3
+      }
+    },
+    "RandomForest": {
+      "description": "sklearn RandomForest, 100 trees, max_depth=10, balanced",
+      "metrics": {
+        "train": {
+          "accuracy": 0.8241101487641355,
+          "precision": 0.09122071278264814,
+          "recall": 0.9971551654068114,
+          "f1": 0.16715035084133797,
+          "roc_auc": 0.9761003364262582,
+          "gini": 0.9522006728525163,
+          "confusion_matrix": {
+            "tn": 560538,
+            "fp": 122219,
+            "fn": 35,
+            "tp": 12268
+          },
+          "combined_score": 0.6381805440480449
+        },
+        "validation": {
+          "accuracy": 0.8239000949558312,
+          "precision": 0.09420826544215671,
+          "recall": 0.9921996879875195,
+          "f1": 0.17207792207792208,
+          "roc_auc": 0.9700408903551265,
+          "gini": 0.9400817807102531,
+          "confusion_matrix": {
+            "tn": 139985,
+            "fp": 30575,
+            "fn": 25,
+            "tp": 3180
+          },
+          "combined_score": 0.6328802372573206
+        },
+        "test_2025_26": {
+          "accuracy": 0.6370700570655473,
+          "precision": 0.050779448390369894,
+          "recall": 0.7624653739612188,
+          "f1": 0.09521750410793046,
+          "roc_auc": 0.7600541858789878,
+          "gini": 0.5201083717579755,
+          "confusion_matrix": {
+            "tn": 35628,
+            "fp": 20581,
+            "fn": 343,
+            "tp": 1101
+          },
+          "combined_score": 0.3501520246979575
+        },
+        "training_time_seconds": 82.6
+      }
+    },
+    "GradientBoosting": {
+      "description": "sklearn GradientBoosting, 100 estimators, max_depth=5",
+      "metrics": {
+        "train": {
+          "accuracy": 0.986575259689811,
+          "precision": 0.931725740848344,
+          "recall": 0.26066812972445746,
+          "f1": 0.40736741822800887,
+          "roc_auc": 0.9298442719217767,
+          "gini": 0.8596885438435533,
+          "confusion_matrix": {
+            "tn": 682522,
+            "fp": 235,
+            "fn": 9096,
+            "tp": 3207
+          },
+          "combined_score": 0.6787600935973355
+        },
+        "validation": {
+          "accuracy": 0.9854688803844273,
+          "precision": 0.9086538461538461,
+          "recall": 0.2358814352574103,
+          "f1": 0.37453554619767154,
+          "roc_auc": 0.9292376594454022,
+          "gini": 0.8584753188908043,
+          "confusion_matrix": {
+            "tn": 170484,
+            "fp": 76,
+            "fn": 2449,
+            "tp": 756
+          },
+          "combined_score": 0.6648994098135512
+        },
+        "test_2025_26": {
+          "accuracy": 0.9655178394879711,
+          "precision": 0.20434782608695654,
+          "recall": 0.13019390581717452,
+          "f1": 0.15905245346869712,
+          "roc_auc": 0.7857454820008172,
+          "gini": 0.5714909640016343,
+          "confusion_matrix": {
+            "tn": 55477,
+            "fp": 732,
+            "fn": 1256,
+            "tp": 188
+          },
+          "combined_score": 0.40651555978845944
+        },
+        "training_time_seconds": 7819.6
+      }
+    },
+    "LightGBM": {
+      "description": "LightGBM, same standard params as iterative script (Exp 3 baseline)",
+      "metrics": {
+        "train": {
+          "accuracy": 0.9466722297355624,
+          "precision": 0.2491439917336953,
+          "recall": 0.9995123140697391,
+          "f1": 0.3988647421342848,
+          "roc_auc": 0.9977213267166409,
+          "gini": 0.9954426534332819,
+          "confusion_matrix": {
+            "tn": 645697,
+            "fp": 37060,
+            "fn": 6,
+            "tp": 12297
+          },
+          "combined_score": 0.756811488913683
+        },
+        "validation": {
+          "accuracy": 0.945800362558628,
+          "precision": 0.2535892757991592,
+          "recall": 0.9975039001560062,
+          "f1": 0.4043764229698963,
+          "roc_auc": 0.9963894086251255,
+          "gini": 0.992778817250251,
+          "confusion_matrix": {
+            "tn": 161150,
+            "fp": 9410,
+            "fn": 8,
+            "tp": 3197
+          },
+          "combined_score": 0.757417859538109
+        },
+        "test_2025_26": {
+          "accuracy": 0.8538324111494632,
+          "precision": 0.0852832878014016,
+          "recall": 0.49722991689750695,
+          "f1": 0.14559464665923147,
+          "roc_auc": 0.7659641260710361,
+          "gini": 0.5319282521420723,
+          "confusion_matrix": {
+            "tn": 48508,
+            "fp": 7701,
+            "fn": 726,
+            "tp": 718
+          },
+          "combined_score": 0.3773948099489359
+        },
+        "training_time_seconds": 46.9
+      }
+    }
+  },
+  "configuration": {
+    "start_time": "2026-02-15T18:05:32.512485",
+    "use_cache": true,
+    "skip_linearsvc": false,
+    "end_time": "2026-02-15T20:49:22.514818"
+  }
+}

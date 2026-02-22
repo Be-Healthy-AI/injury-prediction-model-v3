@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """
-Generate daily injury predictions for production using lgbm_muscular_v4 model.
+Generate daily injury predictions for production using V4 (3 models).
 
 Reads timelines from production/deployments/{country}/challenger/{club}/timelines/ and generates
-predictions using the lgbm_muscular_v4 model (580 features).
+predictions using three V4 models:
+- Muscular LGBM (500 features)
+- Muscular GB (350 features)
+- Skeletal LGBM (60 features)
 
-The model predicts the probability of muscular injury within 35 days.
+Output: one CSV with injury_probability_muscular_lgbm, injury_probability_muscular_gb,
+injury_probability_skeletal, plus backward-compat injury_probability (= muscular LGBM).
 """
 
 from __future__ import annotations
@@ -16,7 +20,7 @@ import os
 import sys
 import warnings
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional, Tuple
 
 import joblib
 import numpy as np
@@ -38,28 +42,32 @@ from production.scripts.insight_utils import (
     classify_risk_4level,
 )
 
-# Model paths - V4
-V4_MODEL_DIR = ROOT_DIR / "models_production" / "lgbm_muscular_v4" / "model"
-V4_MODEL_PATH = V4_MODEL_DIR / "model.joblib"
-V4_COLUMNS_PATH = V4_MODEL_DIR / "columns.json"
+# V4: three models
+V4_BASE = ROOT_DIR / "models_production" / "lgbm_muscular_v4"
+MODELS_V4 = {
+    "muscular_lgbm": V4_BASE / "model_muscular_lgbm",   # 500 features
+    "muscular_gb": V4_BASE / "model_muscular_gb",       # 350 features
+    "skeletal": V4_BASE / "model_skeletal",             # 60 features
+}
+PRIMARY_MODEL_KEY = "muscular_lgbm"  # Used for SHAP, body part/severity, top_feature_*, risk_level
 
 
-def load_model():
-    """Load the lgbm_muscular_v4 model and feature columns."""
-    if not V4_MODEL_PATH.exists():
-        raise FileNotFoundError(f"Model file not found: {V4_MODEL_PATH}")
-    if not V4_COLUMNS_PATH.exists():
-        raise FileNotFoundError(f"Columns file not found: {V4_COLUMNS_PATH}")
-    
-    print(f"[LOAD] Loading V4 model from {V4_MODEL_PATH}...")
-    model = joblib.load(V4_MODEL_PATH)
-    
-    print(f"[LOAD] Loading feature columns from {V4_COLUMNS_PATH}...")
-    with open(V4_COLUMNS_PATH, 'r', encoding='utf-8', errors='replace') as f:
-        model_columns = json.load(f)
-    
-    print(f"[LOAD] V4 model loaded: {len(model_columns)} features expected")
-    return model, model_columns
+def load_models() -> Dict[str, Tuple[object, List[str]]]:
+    """Load all three V4 models and their feature columns. Returns dict model_key -> (model, columns)."""
+    result = {}
+    for key, model_dir in MODELS_V4.items():
+        model_path = model_dir / "model.joblib"
+        cols_path = model_dir / "columns.json"
+        if not model_path.exists():
+            raise FileNotFoundError(f"V4 model {key}: model file not found: {model_path}")
+        if not cols_path.exists():
+            raise FileNotFoundError(f"V4 model {key}: columns file not found: {cols_path}")
+        model = joblib.load(model_path)
+        with open(cols_path, 'r', encoding='utf-8', errors='replace') as f:
+            columns = json.load(f)
+        result[key] = (model, columns)
+        print(f"[LOAD] V4 {key}: {len(columns)} features")
+    return result
 
 
 def encode_categorical_features(timelines_df: pd.DataFrame) -> pd.DataFrame:
@@ -269,78 +277,69 @@ def load_player_profile(player_id: int, raw_data_dir: Path) -> pd.Series:
 
 def generate_predictions(
     timelines_df: pd.DataFrame,
-    model,
-    model_columns: list,
+    models: Dict[str, Tuple[object, List[str]]],
+    primary_key: str = PRIMARY_MODEL_KEY,
     bodypart_pipeline=None,
     severity_pipeline=None,
     daily_features_dir: Optional[Path] = None,
-    timelines_file_mtime: Optional[float] = None
+    timelines_file_mtime: Optional[float] = None,
 ) -> pd.DataFrame:
     """
-    Generate predictions for V4 timelines data.
-    
-    V4 timelines should already have the correct features, so we just need to:
-    1. Align features to model column order
-    2. Generate predictions
-    3. Add SHAP values and insights
+    Generate predictions for V4 timelines using all three models.
+    Returns one DataFrame with injury_probability_muscular_lgbm, injury_probability_muscular_gb,
+    injury_probability_skeletal, plus injury_probability (= primary) and risk_level.
+    SHAP and body part/severity are computed for the primary model only.
     """
     print(f"\n[PREPROCESS] Preparing data for {len(timelines_df):,} timelines...")
-    
-    # Reset index to ensure alignment
     timelines_df = timelines_df.reset_index(drop=True)
-    
-    # Align features to match model columns
-    print(f"\n[ALIGN] Aligning features to V4 model...")
-    X_aligned = align_features_to_model(timelines_df, model_columns)
-    
-    # Store the index of rows that were successfully aligned
-    aligned_indices = X_aligned.index
-    
-    # Generate injury probabilities
-    print(f"\n[PREDICT] Generating risk scores...")
-    risk_scores = model.predict_proba(X_aligned)[:, 1]
-    
-    # Compute SHAP values for feature importance
-    print(f"\n[SHAP] Computing feature importance...")
+
+    # Run each model and collect probability columns
+    prob_columns = {}
+    aligned_indices = None
+
+    for model_key, (model, model_columns) in models.items():
+        print(f"\n[ALIGN] Aligning features to V4 model: {model_key} ({len(model_columns)} features)...")
+        X_aligned = align_features_to_model(timelines_df, model_columns)
+        if aligned_indices is None:
+            aligned_indices = X_aligned.index
+        proba = model.predict_proba(X_aligned)[:, 1]
+        col_name = f"injury_probability_{model_key}"
+        prob_columns[col_name] = proba
+        print(f"[PREDICT] {model_key}: {len(proba):,} predictions")
+
+    # SHAP and top features for primary model only
+    primary_model, primary_columns = models[primary_key]
+    print(f"\n[ALIGN] Re-aligning for SHAP (primary: {primary_key})...")
+    X_primary = align_features_to_model(timelines_df, primary_columns)
+    print(f"\n[SHAP] Computing feature importance ({primary_key})...")
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', category=UserWarning, module='shap')
-        shap_explainer = shap.TreeExplainer(model)
-        shap_values = shap_explainer.shap_values(X_aligned)
+        shap_explainer = shap.TreeExplainer(primary_model)
+        shap_values = shap_explainer.shap_values(X_primary)
     if isinstance(shap_values, list):
-        shap_values = shap_values[1]  # Get positive class SHAP values
-    
-    # Get top 10 features for each prediction
+        shap_values = shap_values[1]
     top_features_list = []
-    feature_names = X_aligned.columns.tolist()
+    feature_names = X_primary.columns.tolist()
     for row_idx, row_shap in enumerate(shap_values):
         indices = np.argsort(np.abs(row_shap))[::-1][:10]
-        top_features = [
-            {
-                "name": feature_names[idx],
-                "value": float(X_aligned.iloc[row_idx, idx]),
-                "shap": float(row_shap[idx]),
-                "abs_shap": float(abs(row_shap[idx]))
-            }
+        top_features_list.append([
+            {"name": feature_names[idx], "value": float(X_primary.iloc[row_idx, idx]),
+             "shap": float(row_shap[idx]), "abs_shap": float(abs(row_shap[idx]))}
             for idx in indices
-        ]
-        top_features_list.append(top_features)
-    
-    # Predict body part and severity for each date (only for aligned rows)
+        ])
+
+    # Body part and severity (primary model context only)
     body_part_predictions = []
     severity_predictions = []
     body_part_probs = []
     severity_probs = []
-    
     if bodypart_pipeline is not None and severity_pipeline is not None and daily_features_dir is not None:
         print(f"\n[INSIGHTS] Predicting body part and severity...")
         daily_features_cache = {}
-        
         for idx in aligned_indices:
             row = timelines_df.loc[idx]
             player_id = row['player_id']
             ref_date = pd.to_datetime(row['reference_date'])
-            
-            # Load daily features for this player and date
             if player_id not in daily_features_cache:
                 daily_features_file = daily_features_dir / f"player_{player_id}_daily_features.csv"
                 if daily_features_file.exists():
@@ -352,15 +351,12 @@ def generate_predictions(
                         daily_features_cache[player_id] = None
                 else:
                     daily_features_cache[player_id] = None
-            
             df_features = daily_features_cache.get(player_id)
             if df_features is not None:
                 feature_row = df_features[df_features['date'] == ref_date]
                 if not feature_row.empty:
                     feature_series = feature_row.iloc[0].drop(['date'])
                     insights = predict_insights(feature_series, bodypart_pipeline, severity_pipeline)
-                    
-                    # Get top body part
                     if insights.get("bodypart_rank"):
                         top_body = insights["bodypart_rank"][0]
                         body_part_predictions.append(top_body[0])
@@ -368,8 +364,6 @@ def generate_predictions(
                     else:
                         body_part_predictions.append("unknown")
                         body_part_probs.append(0.0)
-                    
-                    # Get severity
                     if insights.get("severity_label"):
                         severity_predictions.append(insights["severity_label"])
                         severity_probs.append(insights.get("severity_probs", {}).get(insights["severity_label"], 0.0))
@@ -387,40 +381,34 @@ def generate_predictions(
                 severity_predictions.append("unknown")
                 severity_probs.append(0.0)
     else:
-        # Fill with defaults if insight models not available
-        body_part_predictions = ["unknown"] * len(aligned_indices)
-        body_part_probs = [0.0] * len(aligned_indices)
-        severity_predictions = ["unknown"] * len(aligned_indices)
-        severity_probs = [0.0] * len(aligned_indices)
-    
-    # Build predictions DataFrame
+        n = len(aligned_indices)
+        body_part_predictions = ["unknown"] * n
+        body_part_probs = [0.0] * n
+        severity_predictions = ["unknown"] * n
+        severity_probs = [0.0] * n
+
+    # Build predictions DataFrame: three prob columns + backward-compat primary
     predictions = pd.DataFrame({
         'player_id': timelines_df.loc[aligned_indices, 'player_id'].values,
         'reference_date': timelines_df.loc[aligned_indices, 'reference_date'].values,
-        'injury_probability': risk_scores,
+        **prob_columns,
+        'injury_probability': prob_columns[f"injury_probability_{primary_key}"],
     })
-    
-    # Add risk classification
-    predictions['risk_level'] = predictions['injury_probability'].apply(classify_risk_4level)
-    
-    # Add body part and severity predictions
+    predictions['risk_level'] = predictions['injury_probability'].apply(
+        lambda p: classify_risk_4level(float(p))['label'] if pd.notna(p) else 'Unknown'
+    )
     predictions['predicted_body_part'] = body_part_predictions
     predictions['body_part_probability'] = body_part_probs
     predictions['predicted_severity'] = severity_predictions
     predictions['severity_probability'] = severity_probs
-    
-    # Add top 10 features
     for i in range(10):
         predictions[f'top_feature_{i+1}_name'] = [feat[i]['name'] if i < len(feat) else '' for feat in top_features_list]
         predictions[f'top_feature_{i+1}_value'] = [feat[i]['value'] if i < len(feat) else 0.0 for feat in top_features_list]
         predictions[f'top_feature_{i+1}_shap'] = [feat[i]['shap'] if i < len(feat) else 0.0 for feat in top_features_list]
-    
-    # Add player name if available
     if 'player_name' in timelines_df.columns:
         predictions['player_name'] = timelines_df.loc[aligned_indices, 'player_name'].values
     else:
         predictions['player_name'] = predictions['player_id'].astype(str)
-    
     return predictions
 
 
@@ -523,7 +511,7 @@ def main():
         return 0
     
     print("=" * 80)
-    print("GENERATE PREDICTIONS - lgbm_muscular_v4")
+    print("GENERATE PREDICTIONS - V4 (3 models: muscular_lgbm, muscular_gb, skeletal)")
     print("=" * 80)
     print(f"Country: {args.country}")
     print(f"Club: {args.club}")
@@ -531,8 +519,8 @@ def main():
     print(f"Output file: {output_file}")
     print("=" * 80)
     
-    # Load model
-    model, model_columns = load_model()
+    # Load all three models
+    models = load_models()
     
     # Load insight models (optional, shared with V3)
     insight_models_dir = PRODUCTION_ROOT / "models" / "insights"
@@ -578,15 +566,15 @@ def main():
     # Get daily features directory
     daily_features_dir = challenger_path / "daily_features"
     
-    # Generate predictions
+    # Generate predictions (all three models, one CSV)
     predictions = generate_predictions(
         timelines_df=timelines_df,
-        model=model,
-        model_columns=model_columns,
+        models=models,
+        primary_key=PRIMARY_MODEL_KEY,
         bodypart_pipeline=bodypart_pipeline,
         severity_pipeline=severity_pipeline,
         daily_features_dir=daily_features_dir,
-        timelines_file_mtime=timelines_file_mtime
+        timelines_file_mtime=timelines_file_mtime,
     )
     
     # Filter predictions by data_date if provided
@@ -611,12 +599,13 @@ def main():
     # Summary
     print(f"\n[SUMMARY] Prediction Summary:")
     print(f"   Total predictions: {len(predictions):,}")
+    for col in ['injury_probability_muscular_lgbm', 'injury_probability_muscular_gb', 'injury_probability_skeletal']:
+        if col in predictions.columns:
+            print(f"   {col}: mean={predictions[col].mean():.4f}, max={predictions[col].max():.4f}")
     if 'injury_probability' in predictions.columns:
-        print(f"   Average probability: {predictions['injury_probability'].mean():.4f}")
-        print(f"   Max probability: {predictions['injury_probability'].max():.4f}")
-        print(f"   High risk (>=0.3): {(predictions['injury_probability'] >= 0.3).sum():,}")
-        print(f"   Medium risk (0.1-0.3): {((predictions['injury_probability'] >= 0.1) & (predictions['injury_probability'] < 0.3)).sum():,}")
-        print(f"   Low risk (<0.1): {(predictions['injury_probability'] < 0.1).sum():,}")
+        print(f"   Primary (muscular_lgbm): High risk (>=0.3): {(predictions['injury_probability'] >= 0.3).sum():,}, "
+              f"Medium (0.1-0.3): {((predictions['injury_probability'] >= 0.1) & (predictions['injury_probability'] < 0.3)).sum():,}, "
+              f"Low (<0.1): {(predictions['injury_probability'] < 0.1).sum():,}")
     
     print("=" * 80)
     print("[COMPLETE] Prediction generation complete!")

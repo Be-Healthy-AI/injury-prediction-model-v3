@@ -9,7 +9,7 @@ Key features:
 - Natural target ratios (all available positives and negatives, no forced balancing)
 - Each injury generates 5 timelines (D-1, D-2, D-3, D-4, D-5)
 - Non-injury validation checks for ANY injury (any class) in 35 days after reference
-- Excludes goalkeeper player IDs
+- Skips players whose daily features file is missing (e.g. goalkeepers)
 """
 
 import sys
@@ -56,28 +56,6 @@ SEASON_START_DAY = 1
 
 # Allowed injury classes for injury timelines (muscular only)
 ALLOWED_INJURY_CLASSES = {'muscular'}
-
-# Goalkeeper player IDs to exclude
-GOALKEEPER_IDS = {
-    238223, 85941, 221624, 14555, 919438, 116648, 1080903, 1082283, 315858, 566799,
-    427568, 425306, 493513, 503765, 262749, 503769, 111819, 1131973, 940915, 848753,
-    192279, 442531, 656316, 490606, 573132, 403151, 465555, 731466, 732120, 827435,
-    857792, 585323, 834397, 258919, 59377, 550829, 74960, 128899, 34130, 495033,
-    622236, 234509, 336077, 620362, 587018, 1013690, 1055382, 503883, 105470, 340918,
-    71271, 706815, 486604, 662334, 678402, 502676, 226049, 17965, 52570, 282823,
-    428016, 286047, 725912, 192080, 85864, 99397, 142389, 1019169, 1019170, 124419,
-    29712, 660768, 73564, 406556, 565093, 646353, 745716, 111873, 75458, 110867,
-    484838, 555074, 610863, 712181, 591844, 1004709, 1237073, 124884, 249994, 293257,
-    136401, 444641, 511964, 215810, 110864, 203026, 260841, 33754, 400536, 486144,
-    120629, 29692, 51321, 431422, 543726, 576099, 670878, 61697, 585550, 95976,
-    19948, 336367, 130164, 33873, 2857, 14044, 329813, 536794, 605757, 357658,
-    574448, 79422, 45494, 452707, 354017, 565684, 127202, 242284, 641458, 432914,
-    201574, 222209, 741236, 456292, 125714, 488935, 736251, 505046, 1008553, 542586,
-    418561, 101118, 559320, 352041, 194386, 64399, 670840, 196722, 814848, 296802,
-    72476, 195488, 186901, 502070, 381469, 127181, 582078, 655136, 303657, 983248,
-    371021, 243591, 606576, 829299, 95795, 226073, 121254, 385412, 77757, 33027,
-    368629, 91340, 208379, 245625, 621997, 475946, 646991, 696892,     123536
-}
 
 def get_season_date_range(season_start_year: int) -> Tuple[pd.Timestamp, pd.Timestamp]:
     """Get start and end dates for a season"""
@@ -570,14 +548,15 @@ def get_all_valid_dates_for_timelines(df: pd.DataFrame,
     """
     valid_dates = []
     
-    max_date = df['date'].max()
+    # Get max date from data (use different variable name to avoid shadowing max_date parameter)
+    data_max_date = df['date'].max()
     min_data_date = df['date'].min()
     
     # Calculate max reference date (for production, we can use all available dates)
     # We only need 35 days before, not after
-    max_reference_date = min(max_date, season_end)
+    max_reference_date = min(data_max_date, season_end)
     
-    # Apply max_date cap if provided
+    # Apply max_date cap if provided (from parameter)
     if max_date is not None:
         max_reference_date = min(max_reference_date, max_date)
     
@@ -599,7 +578,7 @@ def get_all_valid_dates_for_timelines(df: pd.DataFrame,
         if not (season_start <= reference_date <= season_end):
             continue
         
-        # Apply max_date filter
+        # Apply max_date filter (from parameter)
         if max_date is not None and reference_date > max_date:
             continue
         
@@ -1193,7 +1172,7 @@ def build_timeline(player_id: int, player_name: str, reference_date: pd.Timestam
     return timeline
 
 def get_all_player_ids(config_path: str = None) -> List[int]:
-    """Get player IDs from config.json, excluding goalkeepers"""
+    """Get player IDs from config.json. Goalkeepers are skipped when their daily features file is missing."""
     player_ids = []
     
     if config_path is None:
@@ -1207,11 +1186,7 @@ def get_all_player_ids(config_path: str = None) -> List[int]:
     else:
         raise FileNotFoundError(f"Config file not found: {config_path}")
     
-    # Exclude goalkeepers
-    original_count = len(player_ids)
-    player_ids = [pid for pid in player_ids if pid not in GOALKEEPER_IDS]
-    excluded_count = original_count - len(player_ids)
-    print(f"   Found {len(player_ids)} players (excluded {excluded_count} goalkeepers)")
+    print(f"   Found {len(player_ids)} players from config")
     return sorted(player_ids)
 
 def load_player_names_mapping(data_dir: str = None) -> Dict[int, str]:
@@ -1376,11 +1351,13 @@ def process_season(season_start_year: int, daily_features_dir: str,
                   player_names_map: Dict[int, str],
                   player_ids: List[int],
                   max_players: Optional[int] = None,
-                  min_date: Optional[pd.Timestamp] = None) -> Tuple[Optional[str], int, int]:
+                  min_date: Optional[pd.Timestamp] = None,
+                  max_date: Optional[pd.Timestamp] = None) -> Tuple[Optional[str], int, int]:
     """Process a single season and generate timeline file
     
     Args:
         min_date: Minimum reference date for timelines (e.g., 2025-12-06)
+        max_date: Maximum reference date for timelines (e.g., 2026-01-29)
     """
     season_start, season_end = get_season_date_range(season_start_year)
     output_file = f'timelines_35day_season_{season_start_year}_{season_start_year+1}_v4_muscular.csv'
@@ -1407,8 +1384,12 @@ def process_season(season_start_year: int, daily_features_dir: str,
     
     for player_id in tqdm(season_player_ids, desc=f"Pass 1: {season_start_year}_{season_start_year+1}", unit="player"):
         try:
+            # Skip if daily features file does not exist (e.g. goalkeeper – not generated by update_daily_features)
+            daily_features_path = os.path.join(daily_features_dir, f'player_{player_id}_daily_features.csv')
+            if not os.path.exists(daily_features_path):
+                continue
             # Load player data
-            df = pd.read_csv(f'{daily_features_dir}/player_{player_id}_daily_features.csv')
+            df = pd.read_csv(daily_features_path)
             df['date'] = pd.to_datetime(df['date'])
             
             # Filter to season date range (with 35-day buffer before season start for windows)
@@ -1446,8 +1427,8 @@ def process_season(season_start_year: int, daily_features_dir: str,
                 df_season,
                 season_start=season_start,
                 season_end=season_end,
-                min_date=min_date_ts,
-                max_date=max_date_ts
+                min_date=min_date,
+                max_date=max_date
             )
             
             # Determine target for each date (1 if injury in next 35 days, 0 otherwise)
@@ -1489,7 +1470,10 @@ def process_season(season_start_year: int, daily_features_dir: str,
     
     for player_id, dates_with_targets in tqdm(dates_by_player.items(), desc=f"Pass 2: {season_start_year}_{season_start_year+1}", unit="player"):
         try:
-            df = pd.read_csv(f'{daily_features_dir}/player_{player_id}_daily_features.csv')
+            daily_features_path = os.path.join(daily_features_dir, f'player_{player_id}_daily_features.csv')
+            if not os.path.exists(daily_features_path):
+                continue
+            df = pd.read_csv(daily_features_path)
             df['date'] = pd.to_datetime(df['date'])
             
             # Filter to season date range (with buffer)
@@ -1551,7 +1535,8 @@ def main(daily_features_dir: str = None,
          max_date: str = None,
          regenerate_from_date: str = None,
          max_players: Optional[int] = None,
-         existing_timelines_file: str = None):
+         existing_timelines_file: str = None,
+         full_regeneration: bool = False):
     """Main function - processes all seasons
     
     Args:
@@ -1562,13 +1547,13 @@ def main(daily_features_dir: str = None,
         min_date: Minimum reference date for timelines (YYYY-MM-DD format, e.g., '2025-12-06')
         max_players: Optional limit on number of players to process (for testing)
         existing_timelines_file: Path to existing timelines file to append to
+        full_regeneration: If True, do not load existing timelines; generate from min_date (default 2025-07-01).
     """
     print("ENHANCED 35-DAY TIMELINE GENERATOR V4 - PRODUCTION VERSION")
     print("=" * 80)
     print("Features: 108 enhanced features with 35-day windows")
     print("Processing: Season-by-season - ALL dates (production mode)")
     print("Mode: Generating timelines for ALL dates regardless of injury status")
-    print(f"Excluding {len(GOALKEEPER_IDS)} goalkeeper player IDs")
     
     # Validate required parameters - no Chelsea defaults
     if daily_features_dir is None:
@@ -1578,10 +1563,10 @@ def main(daily_features_dir: str = None,
     if config_path is None:
         raise ValueError("config_path is required - must be specified")
     
-    # Load existing timelines if provided
+    # Load existing timelines if provided (skip when full_regeneration)
     existing_timelines = None
     max_existing_date = None
-    if existing_timelines_file and os.path.exists(existing_timelines_file):
+    if existing_timelines_file and os.path.exists(existing_timelines_file) and not full_regeneration:
         print(f"\n[LOAD] Loading existing timelines from: {existing_timelines_file}")
         try:
             existing_timelines = pd.read_csv(existing_timelines_file, low_memory=False)
@@ -1645,6 +1630,11 @@ def main(daily_features_dir: str = None,
         except Exception as e:
             print(f"[WARNING] Error loading existing timelines: {e}, will generate from scratch")
             existing_timelines = None
+    
+    # When no existing file: default min_date to season start so we generate from 2025-07-01 inclusively
+    if existing_timelines is None and min_date is None:
+        min_date = '2025-07-01'
+        print(f"[FROM-SCRATCH] No existing timelines; will generate from {min_date} inclusively")
     
     # Parse min_date and max_date
     min_date_ts = None
@@ -1714,7 +1704,8 @@ def main(daily_features_dir: str = None,
                 player_names_map=player_names_map,
                 player_ids=player_ids,
                 max_players=max_players,
-                min_date=min_date_ts
+                min_date=min_date_ts,
+                max_date=max_date_ts
             )
             if output_file:
                 output_files.append(output_file)
@@ -1737,6 +1728,14 @@ def main(daily_features_dir: str = None,
             if all_new_timelines:
                 new_timelines_df = pd.concat(all_new_timelines, ignore_index=True)
                 print(f"[MERGE] New timelines: {len(new_timelines_df)} rows")
+                
+                # Normalize reference_date to string YYYY-MM-DD so dedup works (existing=datetime, new=string from CSV)
+                if 'reference_date' in existing_timelines.columns:
+                    existing_timelines = existing_timelines.copy()
+                    existing_timelines['reference_date'] = pd.to_datetime(existing_timelines['reference_date'], errors='coerce').dt.strftime('%Y-%m-%d')
+                if 'reference_date' in new_timelines_df.columns:
+                    new_timelines_df = new_timelines_df.copy()
+                    new_timelines_df['reference_date'] = pd.to_datetime(new_timelines_df['reference_date'], errors='coerce').dt.strftime('%Y-%m-%d')
                 
                 # Merge with existing
                 # IMPORTANT: Put new timelines AFTER existing so that keep='last' will keep the new ones
@@ -1817,6 +1816,8 @@ if __name__ == "__main__":
                         help='Limit number of players (for testing)')
     parser.add_argument('--existing-timelines', type=str, default=None,
                         help='Path to existing timelines file to append to (defaults to timelines_35day_season_2025_2026_v4_muscular.csv in output-dir)')
+    parser.add_argument('--full-regeneration', action='store_true', default=False,
+                        help='Regenerate timelines from scratch from 2025-07-01. Do not load existing file even if present.')
     
     args = parser.parse_args()
     
@@ -1829,6 +1830,13 @@ if __name__ == "__main__":
                 print(f"[AUTO] Found existing timelines file: {args.existing_timelines}")
         # Removed Chelsea fallback - output_dir must be provided
     
+    # Full regeneration: do not use existing file; generate from 2025-07-01
+    if args.full_regeneration:
+        args.existing_timelines = None
+        if args.min_date is None:
+            args.min_date = '2025-07-01'
+        print(f"[FULL-REGENERATION] Ignoring existing file; will generate from {args.min_date} inclusively")
+    
     main(
         daily_features_dir=args.daily_features_dir,
         output_dir=args.output_dir,
@@ -1838,6 +1846,7 @@ if __name__ == "__main__":
         max_date=args.max_date,
         regenerate_from_date=args.regenerate_from_date,
         max_players=args.max_players,
-        existing_timelines_file=args.existing_timelines
+        existing_timelines_file=args.existing_timelines,
+        full_regeneration=args.full_regeneration
     )
 

@@ -68,6 +68,20 @@ def get_challenger_path(country: str, club: str) -> Path:
     return PRODUCTION_ROOT / "deployments" / country / "challenger" / club
 
 
+# V4 3-model: column names and display labels (fallback to single injury_probability for old CSV)
+V4_PROB_COLUMNS = [
+    "injury_probability_muscular_lgbm",
+    "injury_probability_muscular_gb",
+    "injury_probability_skeletal",
+]
+V4_PROB_LABELS = {
+    "injury_probability_muscular_lgbm": "Muscular (LGBM)",
+    "injury_probability_muscular_gb": "Muscular (GB)",
+    "injury_probability_skeletal": "Skeletal",
+}
+PRIMARY_PROB_COL = "injury_probability_muscular_lgbm"
+
+
 def get_latest_raw_data_folder(country: str = "england") -> Optional[Path]:
     """Get the latest raw data folder."""
     base_dir = PRODUCTION_ROOT / "raw_data" / country.lower().replace(" ", "_")
@@ -94,6 +108,12 @@ class PlayerDashboardContext:
         """Generate filename: player_{player_id}_{reference_date_YYYYMMDD}_v4_probabilities.png"""
         ref_date_str = self.reference_date.strftime("%Y%m%d")
         return f"player_{self.player_id}_{ref_date_str}_v4_probabilities.png"
+
+    @property
+    def chart_filename_index(self) -> str:
+        """Generate filename for index dashboard: player_{player_id}_{reference_date_YYYYMMDD}_v4_index.png"""
+        ref_date_str = self.reference_date.strftime("%Y%m%d")
+        return f"player_{self.player_id}_{ref_date_str}_v4_index.png"
 
 
 def parse_date_range(args: argparse.Namespace) -> tuple[pd.Timestamp, pd.Timestamp, str]:
@@ -254,6 +274,16 @@ def load_player_profile(player_id: int, country: str = "england") -> pd.Series:
         return pd.Series()
 
 
+def _injury_period_color_and_label(injury_class: str) -> Tuple[str, str]:
+    """Return (color_hex, legend_label) for injury period shading. 3-level: skeletal (darkest), muscular (medium), other (light)."""
+    ic = str(injury_class).lower().strip()
+    if ic == "skeletal":
+        return "#6B0000", "Skeletal Injury"
+    if ic == "muscular":
+        return "#AA5555", "Muscular Injury"
+    return "#FF9999", "Other Injury"
+
+
 def create_player_dashboard(
     ctx: PlayerDashboardContext,
     pivot: pd.DataFrame,
@@ -302,59 +332,38 @@ def create_player_dashboard(
                 
                 ax_main.axvspan(shade_start, shade_end, alpha=0.15, color=color, zorder=0, label=label)
     
-    # Compute probabilities as percentages (keep risk labels for color coding only)
-    probabilities = pivot["injury_probability"]
-    probabilities_percent = probabilities * 100  # Convert to percentages
-    risk_labels_4level = []
-    for prob in probabilities:
-        risk_info = classify_risk_4level(prob)
-        risk_labels_4level.append(risk_info["label"])
+    # Which probability column(s) to plot: 3-model or legacy single
+    prob_cols = [c for c in V4_PROB_COLUMNS if c in pivot.columns]
+    if not prob_cols and "injury_probability" in pivot.columns:
+        prob_cols = ["injury_probability"]
+    if not prob_cols and len(pivot.columns) >= 2:
+        prob_cols = [pivot.columns[1]]
+    primary_col = PRIMARY_PROB_COL if PRIMARY_PROB_COL in pivot.columns else (prob_cols[0] if prob_cols else "injury_probability")
+    probabilities = pivot[primary_col] if primary_col in pivot.columns else (pivot[prob_cols[0]] if prob_cols else pd.Series(dtype=float))
+    risk_labels_4level = [classify_risk_4level(p)["label"] for p in probabilities]
+
+    # Colors for 3-model lines (distinct)
+    SERIES_COLORS = ["#1f77b4", "#ff7f0e", "#2ca02c"]
 
     if HAS_SCIPY and len(dates) > 3:
-        # Smooth curves using spline interpolation
         dates_numeric = np.arange(len(dates))
         x_smooth = np.linspace(dates_numeric.min(), dates_numeric.max(), 500)
         dates_smooth = pd.date_range(dates.min(), dates.max(), periods=500)
-        
-        # Plot with risk-based coloring (using probabilities as percentages)
-        spl = make_interp_spline(dates_numeric, probabilities_percent, k=min(3, len(dates) - 1))
-        y_smooth = spl(x_smooth)
-        
-        # Determine colors based on risk classification of smoothed values
-        colors_smooth = []
-        for val in y_smooth:
-            # Convert percentage back to probability for classification
-            prob_val = val / 100.0
-            risk_info = classify_risk_4level(prob_val)
-            label = risk_info["label"]
-            colors_smooth.append(RISK_CLASS_COLORS_4LEVEL[label])
-        
-        for i in range(len(dates_smooth) - 1):
-            ax_main.plot(
-                dates_smooth[i : i + 2],
-                y_smooth[i : i + 2],
-                color=colors_smooth[i],
-                linewidth=2.5,
-                alpha=0.9,
-                zorder=3,
-                label="Injury Risk" if i == 0 else "",
-            )
-        
-        ax_main.fill_between(dates_smooth, y_smooth, alpha=0.15, color="gray", zorder=1)
+        for series_idx, col in enumerate(prob_cols):
+            prob_series = pivot[col] * 100
+            spl = make_interp_spline(dates_numeric, prob_series.values, k=min(3, len(dates) - 1))
+            y_smooth = spl(x_smooth)
+            color = SERIES_COLORS[series_idx % len(SERIES_COLORS)]
+            label = V4_PROB_LABELS.get(col, col)
+            ax_main.plot(dates_smooth, y_smooth, color=color, linewidth=2.0, alpha=0.9, zorder=3, label=label)
+        ax_main.fill_between(dates_smooth, 0, 100, alpha=0.05, color="gray", zorder=1)
     else:
-        # For very few points, plot simple lines
-        colors = [RISK_CLASS_COLORS_4LEVEL[label] for label in risk_labels_4level]
-        for i in range(len(dates) - 1):
-            ax_main.plot(
-                dates.iloc[i : i + 2],
-                probabilities_percent.iloc[i : i + 2],
-                color=colors[i],
-                linewidth=2.5,
-                alpha=0.9,
-                zorder=3,
-                label="Injury Risk" if i == 0 else "",
-            )
-        ax_main.fill_between(dates, probabilities_percent, alpha=0.15, color="gray", zorder=1)
+        for series_idx, col in enumerate(prob_cols):
+            prob_series = pivot[col] * 100
+            color = SERIES_COLORS[series_idx % len(SERIES_COLORS)]
+            label = V4_PROB_LABELS.get(col, col)
+            ax_main.plot(dates, prob_series, color=color, linewidth=2.0, alpha=0.9, zorder=3, label=label)
+        ax_main.fill_between(dates, 0, 100, alpha=0.05, color="gray", zorder=1)
 
     ax_main.set_title(f"Injury Risk Evolution - {ctx.player_name}", fontsize=14, fontweight="bold", pad=15)
     ax_main.set_ylabel("Injury Probability (%)", fontweight="bold")
@@ -510,6 +519,197 @@ Trend Slope: {slope:.4f}"""
     return chart_path
 
 
+def create_player_dashboard_index(
+    ctx: PlayerDashboardContext,
+    pivot: pd.DataFrame,
+    risk_df: pd.DataFrame,
+    insights: dict,
+    trend_metrics: dict,
+    output_dir: Path,
+    injury_periods: List[Tuple[pd.Timestamp, pd.Timestamp, str]] = None,
+    player_profile: Optional[pd.Series] = None,
+) -> Path:
+    """Create dashboard PNG with index-based main chart (current prediction / baseline) for V4.
+    Baseline = mean(injury_probability) over the chart period. Index = prob / baseline.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    fig = plt.figure(figsize=(12, 8))
+    gs = fig.add_gridspec(2, 3, height_ratios=[2.0, 1.0], hspace=0.5, wspace=0.45)
+
+    ax_main = fig.add_subplot(gs[0, :])
+    dates = pivot["reference_date"]
+    probabilities = pivot["injury_probability"]
+    actual_start = dates.min()
+    actual_end = dates.max()
+
+    if injury_periods:
+        shown_labels = set()
+        for period_start, period_end, injury_class in injury_periods:
+            chart_start = dates.min()
+            chart_end = dates.max()
+            if period_start <= chart_end and period_end >= chart_start:
+                shade_start = max(period_start, chart_start)
+                shade_end = min(period_end, chart_end)
+                color, label = _injury_period_color_and_label(injury_class)
+                show_label = label if label not in shown_labels else ""
+                if label not in shown_labels:
+                    shown_labels.add(label)
+                ax_main.axvspan(shade_start, shade_end, alpha=0.15, color=color, zorder=0, label=show_label)
+
+    # Which probability column(s): 3-model or legacy
+    prob_cols_idx = [c for c in V4_PROB_COLUMNS if c in pivot.columns]
+    if not prob_cols_idx and "injury_probability" in pivot.columns:
+        prob_cols_idx = ["injury_probability"]
+    if not prob_cols_idx:
+        prob_cols_idx = [c for c in pivot.columns if "injury_probability" in c]
+    if not prob_cols_idx:
+        prob_cols_idx = [pivot.columns[1]] if len(pivot.columns) > 1 else []
+
+    # Use first series for baseline band (95% CI)
+    probabilities = pivot[prob_cols_idx[0]]
+    baseline = float(probabilities.mean())
+    if baseline < 1e-9:
+        baseline = 1e-9
+    std_prob = float(probabilities.std())
+    if pd.isna(std_prob) or std_prob < 1e-12:
+        std_prob = 0.0
+    cv = std_prob / baseline
+    index_low = max(0.0, 1.0 - 1.96 * cv)
+    index_high = 1.0 + 1.96 * cv
+
+    ax_main.fill_between(dates, index_low, index_high, alpha=0.25, color="#FFF9C4", zorder=1, label="95% CI (baseline)")
+    ax_main.axhline(1.0, color="gray", linestyle="--", linewidth=1.5, zorder=2, label="Baseline")
+
+    SERIES_COLORS_INDEX = ["#1f77b4", "#ff7f0e", "#2ca02c"]
+    y_max_plot = 2.5
+    for series_idx, col in enumerate(prob_cols_idx):
+        probs = pivot[col]
+        base = float(probs.mean())
+        if base < 1e-9:
+            base = 1e-9
+        index_series = probs / base
+        y_max_plot = max(y_max_plot, float(index_series.max()) * 1.1 if len(index_series) else 2.5)
+        color = SERIES_COLORS_INDEX[series_idx % len(SERIES_COLORS_INDEX)]
+        label = V4_PROB_LABELS.get(col, col)
+        if HAS_SCIPY and len(dates) > 3:
+            dates_numeric = np.arange(len(dates))
+            x_smooth = np.linspace(dates_numeric.min(), dates_numeric.max(), 500)
+            dates_smooth = pd.date_range(dates.min(), dates.max(), periods=500)
+            spl = make_interp_spline(dates_numeric, index_series.values, k=min(3, len(dates) - 1))
+            y_smooth = np.maximum(spl(x_smooth), 0.0)
+            ax_main.plot(dates_smooth, y_smooth, color=color, linewidth=2.0, alpha=0.9, zorder=3, label=label)
+        else:
+            ax_main.plot(dates, index_series, color=color, linewidth=2.0, alpha=0.9, zorder=3, label=label)
+
+    ax_main.set_title(f"Injury Risk Index vs Baseline - {ctx.player_name}", fontsize=14, fontweight="bold", pad=15)
+    ax_main.set_ylabel("Injury Risk Index (vs baseline)", fontweight="bold")
+    ax_main.set_xlabel("Date", fontweight="bold")
+    ax_main.axhline(1.0, color="gray", linestyle="--", linewidth=1, zorder=0)
+    tick_max = float(np.ceil(y_max_plot * 2) / 2)
+    ax_main.set_ylim(0, tick_max)
+    ax_main.set_yticks(np.arange(0, tick_max + 0.5, 0.5))
+    plt.setp(ax_main.yaxis.get_majorticklabels(), fontsize=6)
+    ax_main.legend(loc="upper left", fontsize=9, framealpha=0.9)
+    ax_main.grid(axis="y", alpha=0.3, linestyle="--")
+    ax_main.xaxis.set_major_locator(mdates.DayLocator(interval=7))
+    ax_main.xaxis.set_minor_locator(mdates.DayLocator(interval=1))
+    ax_main.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+    ax_main.xaxis.set_minor_formatter(mdates.DateFormatter(""))
+    plt.setp(ax_main.xaxis.get_majorticklabels(), rotation=45, ha="right", fontsize=6)
+
+    ax_body = fig.add_subplot(gs[1, 0])
+    if insights and insights.get("bodypart_rank"):
+        body_rank = insights.get("bodypart_rank", [])[:3]
+        labels = [item[0].replace("_", " ").title() for item in body_rank]
+        probs = [item[1] * 100 for item in body_rank]
+        colors_body = ["#2E86AB", "#A23B72", "#F18F01"][: len(labels)]
+        bars = ax_body.barh(labels, probs, color=colors_body, alpha=0.8, edgecolor="white", linewidth=0.5, height=0.6)
+        ax_body.set_xlabel("Probability (%)", fontweight="bold", fontsize=8)
+        ax_body.set_title("Body Parts at Risk", fontweight="bold", pad=5, fontsize=9)
+        ax_body.set_xlim(0, 100)
+        ax_body.tick_params(labelsize=7)
+        for i, (bar, prob) in enumerate(zip(bars, probs)):
+            ax_body.text(prob + 2, i, f"{prob:.1f}%", va="center", fontweight="bold", fontsize=7)
+        ax_body.grid(axis="x", alpha=0.3, linestyle="--")
+    else:
+        ax_body.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax_body.transAxes, fontsize=8)
+        ax_body.set_title("Body Parts at Risk", fontweight="bold", fontsize=9)
+
+    ax_sev = fig.add_subplot(gs[1, 1])
+    if insights and insights.get("severity_probs"):
+        severity_probs = insights.get("severity_probs", {})
+        labels_sev = list(severity_probs.keys())
+        sizes = [severity_probs[k] * 100 for k in labels_sev]
+        colors_sev = ["#06A77D", "#F4A261", "#E76F51", "#264653"][: len(labels_sev)]
+        bars_sev = ax_sev.barh(
+            range(len(labels_sev)), sizes, color=colors_sev, alpha=0.8, edgecolor="white", linewidth=0.5, height=0.6
+        )
+        ax_sev.set_yticks(range(len(labels_sev)))
+        formatted_labels = [l.replace("_", " ").title() for l in labels_sev]
+        formatted_labels = ["Long term" if x == "Long Term" else x for x in formatted_labels]
+        ax_sev.set_yticklabels(formatted_labels, fontsize=7)
+        ax_sev.set_xlabel("Probability (%)", fontweight="bold", fontsize=8)
+        sev_title = (insights.get("severity_label", "Unknown") or "Unknown").replace("_", " ").title()
+        if sev_title == "Long Term":
+            sev_title = "Long term"
+        ax_sev.set_title(f"Severity: {sev_title}", fontweight="bold", pad=5, fontsize=9)
+        ax_sev.set_xlim(0, 100)
+        ax_sev.tick_params(labelsize=7)
+        for i, (bar, size) in enumerate(zip(bars_sev, sizes)):
+            ax_sev.text(size + 2, i, f"{size:.1f}%", va="center", fontweight="bold", fontsize=7)
+        ax_sev.grid(axis="x", alpha=0.3, linestyle="--")
+    else:
+        ax_sev.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax_sev.transAxes, fontsize=8)
+        ax_sev.set_title("Severity", fontweight="bold", fontsize=9)
+
+    fig.text(0.5, 0.02, "Note: Body part and severity probabilities refer to the last day shown in the main chart.",
+             ha="center", fontsize=7, style="italic", color="gray")
+
+    # Primary series for risk summary
+    primary_col_alert = PRIMARY_PROB_COL if PRIMARY_PROB_COL in pivot.columns else (prob_cols_idx[0] if prob_cols_idx else None)
+    probabilities = pivot[primary_col_alert] if primary_col_alert else pd.Series(dtype=float)
+
+    ax_alert = fig.add_subplot(gs[1, 2])
+    ax_alert.axis("off")
+    profile_text = "PLAYER PROFILE\n\n"
+    if player_profile is not None and len(player_profile) > 0:
+        position = player_profile.get("position", "N/A")
+        date_of_birth = player_profile.get("date_of_birth", "")
+        nationality1 = player_profile.get("nationality1", "")
+        nationality2 = player_profile.get("nationality2", "")
+        age = "N/A"
+        if date_of_birth and pd.notna(date_of_birth):
+            try:
+                dob = pd.to_datetime(date_of_birth)
+                age = str((actual_end - dob).days // 365)
+            except Exception:
+                pass
+        nationality = str(nationality1) if pd.notna(nationality1) and str(nationality1).strip() else "N/A"
+        if nationality2 and pd.notna(nationality2) and str(nationality2).strip():
+            nationality += f" / {nationality2}"
+        profile_text += f"Position: {position}\nAge: {age}\nNationality: {nationality}\n"
+    else:
+        profile_text += "Position: N/A\nAge: N/A\nNationality: N/A\n"
+    profile_text += "\n" + "=" * 20 + "\n\n"
+    risk_labels_4level = [classify_risk_4level(p)["label"] for p in probabilities]
+    peak_risk = max(risk_labels_4level, key=lambda x: RISK_CLASS_LABELS_4LEVEL.index(x)) if risk_labels_4level else "N/A"
+    final_risk = risk_labels_4level[-1] if risk_labels_4level else "N/A"
+    sustained = trend_metrics.get("sustained_elevated_days", 0) if trend_metrics else 0
+    max_jump = trend_metrics.get("max_jump", 0.0) if trend_metrics else 0.0
+    slope = trend_metrics.get("slope", 0.0) if trend_metrics else 0.0
+    profile_text += f"RISK SUMMARY\n\nPeak Risk Level: {peak_risk}\nFinal Risk Level: {final_risk}\nSustained Elevated: {sustained} days\nMax Daily Jump: {max_jump:.3f}\nTrend Slope: {slope:.4f}"
+    ax_alert.text(0.1, 0.5, profile_text, transform=ax_alert.transAxes, fontsize=9, verticalalignment="center", family="monospace", fontweight="bold")
+
+    plt.suptitle(
+        f"Observation Period: {actual_start.strftime('%Y-%m-%d')} to {actual_end.strftime('%Y-%m-%d')}",
+        fontsize=11, y=0.98,
+    )
+    chart_path = output_dir / ctx.chart_filename_index
+    plt.savefig(chart_path, dpi=300, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    return chart_path
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description='Generate per-player dashboards for V4 predictions')
     parser.add_argument("--country", type=str, required=True, help="Country name (e.g., 'England')")
@@ -518,6 +718,8 @@ def main() -> int:
     parser.add_argument("--end-date", type=str, help="End date (YYYY-MM-DD) of the dashboard window")
     parser.add_argument("--date", type=str, help="Fallback single date (YYYY-MM-DD) if --start-date is not provided")
     parser.add_argument("--players", type=int, nargs="*", help="Specific player IDs to process")
+    parser.add_argument("--dashboard-type", type=str, choices=["prob", "index", "both"], default="prob",
+                        help="Dashboard type: prob (probability evolution), index (index vs baseline), both (default: prob)")
     args = parser.parse_args()
 
     # Get challenger club paths
@@ -667,8 +869,10 @@ def main() -> int:
             # Load player profile
             player_profile = load_player_profile(player_id, country=args.country)
             
-            # Compute trend metrics
-            trend_metrics = compute_trend_metrics(player_preds['injury_probability'])
+            # Primary prob column for trend and risk (3-model or legacy)
+            primary_col = PRIMARY_PROB_COL if PRIMARY_PROB_COL in player_preds.columns else "injury_probability"
+            prob_series = player_preds[primary_col] if primary_col in player_preds.columns else player_preds["injury_probability"]
+            trend_metrics = compute_trend_metrics(prob_series)
             
             # Create context with reference_date for filename
             ctx = PlayerDashboardContext(
@@ -676,33 +880,55 @@ def main() -> int:
                 player_name=player_name,
                 window_start=start_date,
                 window_end=end_date,
-                reference_date=max_ref_date  # Use max reference_date for filename
+                reference_date=max_ref_date
             )
             
-            # Prepare pivot data for dashboard
-            pivot = player_preds[['reference_date', 'injury_probability', 'risk_level']].copy()
+            # Pivot: include all 3 prob columns when present, else single injury_probability
+            pivot_cols = ["reference_date"]
+            for c in V4_PROB_COLUMNS:
+                if c in player_preds.columns:
+                    pivot_cols.append(c)
+            if "injury_probability" not in pivot_cols and "injury_probability" in player_preds.columns:
+                pivot_cols.append("injury_probability")
+            if "risk_level" in player_preds.columns:
+                pivot_cols.append("risk_level")
+            pivot = player_preds[[c for c in pivot_cols if c in player_preds.columns]].copy()
             
-            # Create dummy risk_df for compatibility (not used in 4-level dashboard)
             risk_df_dummy = pd.DataFrame({
-                "risk_index": [classify_risk_4level(p)["index"] for p in player_preds["injury_probability"]],
-                "risk_label": [classify_risk_4level(p)["label"] for p in player_preds["injury_probability"]],
+                "risk_index": [classify_risk_4level(p)["index"] for p in prob_series],
+                "risk_label": [classify_risk_4level(p)["label"] for p in prob_series],
             })
             
-            # Create dashboard
-            output_file = create_player_dashboard(
-                ctx=ctx,
-                pivot=pivot,
-                risk_df=risk_df_dummy,
-                insights=insights,
-                trend_metrics=trend_metrics,
-                output_dir=dashboards_dir,
-                injury_periods=injury_periods,
-                player_profile=player_profile
-            )
+            # Create dashboard(s) based on --dashboard-type
+            dashboard_type = getattr(args, "dashboard_type", "prob")
+            if dashboard_type in ("prob", "both"):
+                output_file = create_player_dashboard(
+                    ctx=ctx,
+                    pivot=pivot,
+                    risk_df=risk_df_dummy,
+                    insights=insights,
+                    trend_metrics=trend_metrics,
+                    output_dir=dashboards_dir,
+                    injury_periods=injury_periods,
+                    player_profile=player_profile
+                )
+                if not HAS_TQDM:
+                    print(f"   [OK] Generated dashboard (prob): {output_file.name}")
+            if dashboard_type in ("index", "both"):
+                output_file_index = create_player_dashboard_index(
+                    ctx=ctx,
+                    pivot=pivot,
+                    risk_df=risk_df_dummy,
+                    insights=insights,
+                    trend_metrics=trend_metrics,
+                    output_dir=dashboards_dir,
+                    injury_periods=injury_periods,
+                    player_profile=player_profile
+                )
+                if not HAS_TQDM:
+                    print(f"   [OK] Generated dashboard (index): {output_file_index.name}")
             
             successes += 1
-            if not HAS_TQDM:
-                print(f"   [OK] Generated dashboard: {output_file.name}")
         
         except Exception as e:
             failures += 1

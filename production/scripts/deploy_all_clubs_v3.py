@@ -23,11 +23,13 @@ Usage for all clubs:
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
+import shutil
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import List, Set
+from typing import List, Set, Tuple
 
 # Calculate paths relative to this script
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -99,6 +101,72 @@ def run_script(script_name: str, args: List[str] = None, cwd: Path = None) -> bo
     return True
 
 
+def move_daily_features_pl_to_pl(
+    country: str,
+    player_id: int,
+    from_club: str,
+    to_club: str,
+) -> bool:
+    """Move daily_features file from from_club to to_club (PL->PL transfer). Returns True if moved or already at destination."""
+    deployments_dir = PRODUCTION_ROOT / "deployments" / country
+    src = deployments_dir / from_club / "daily_features" / f"player_{player_id}_daily_features.csv"
+    dst_dir = deployments_dir / to_club / "daily_features"
+    dst = dst_dir / f"player_{player_id}_daily_features.csv"
+    if not src.exists():
+        return True  # Already removed (e.g. by config sync cleanup)
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        shutil.copy2(src, dst)
+        src.unlink()
+        print(f"  [PL->PL] Moved daily_features player_{player_id} from {from_club} to {to_club}")
+        return True
+    except OSError as e:
+        print(f"  [ERROR] PL->PL move failed for player {player_id}: {e}")
+        return False
+
+
+def run_config_sync_all_clubs(
+    country: str,
+    clubs: List[str],
+    data_date: str,
+    auto_fix: bool,
+    sync_transfermarkt: bool,
+) -> bool:
+    """Run validate_and_sync_club_config for each club. Returns True if all succeeded."""
+    for club in clubs:
+        cmd_args = ["--country", country, "--club", club]
+        if data_date:
+            cmd_args.extend(["--data-date", data_date])
+        if auto_fix:
+            cmd_args.append("--auto-fix")
+        if sync_transfermarkt:
+            cmd_args.append("--sync-transfermarkt")
+        if not run_script('validate_and_sync_club_config.py', cmd_args):
+            print(f"[WARNING] Config sync failed for {club} (continuing)")
+    return True
+
+
+def collect_pl_to_pl_moves(country: str, data_date: str) -> List[Tuple[int, str, str]]:
+    """Read .sync_result_{data_date}.json and return [(player_id, from_club, to_club), ...]."""
+    sync_result_path = PRODUCTION_ROOT / "deployments" / country / f".sync_result_{data_date}.json"
+    if not sync_result_path.exists():
+        return []
+    try:
+        with open(sync_result_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
+    clubs_data = data.get('clubs', {})
+    moves = []
+    for from_club, club_result in clubs_data.items():
+        for p in club_result.get('pl_to_pl', []):
+            player_id = p.get('player_id')
+            to_club = p.get('to_club')
+            if player_id is not None and to_club:
+                moves.append((int(player_id), from_club, to_club))
+    return moves
+
+
 def run_club_pipeline(
     country: str,
     club: str,
@@ -111,7 +179,8 @@ def run_club_pipeline(
     skip_timelines: bool = False,
     skip_predictions: bool = False,
     skip_dashboards: bool = False,
-    skip_table: bool = False
+    skip_table: bool = False,
+    dashboard_type: str = "prob",
 ) -> bool:
     """
     Run the complete pipeline for a single club using V3 model.
@@ -205,10 +274,8 @@ def run_club_pipeline(
                     data_dt = datetime.strptime(data_date, "%Y%m%d")
                     max_date_str = data_dt.strftime("%Y-%m-%d")
                     cmd_args.extend(["--max-date", max_date_str])
-                    # Regenerate from day before data_date
-                    prev_day = data_dt - timedelta(days=1)
-                    regenerate_date = prev_day.strftime("%Y-%m-%d")
-                    cmd_args.extend(["--regenerate-from-date", regenerate_date])
+                    # Full regeneration from 2025-07-01 so timelines only include players with current daily features (no legacy rows)
+                    cmd_args.append("--full-regeneration")
                 except ValueError:
                     pass
             else:
@@ -254,7 +321,8 @@ def run_club_pipeline(
             "--date", data_date[:4] + "-" + data_date[4:6] + "-" + data_date[6:8] if data_date else datetime.now().strftime("%Y-%m-%d"),
             "--model-version", "v3"
         ]
-        
+        if dashboard_type:
+            cmd_args.extend(["--dashboard-type", dashboard_type])
         if not run_script('generate_dashboards.py', cmd_args):
             print(f"[FAILED] {club} - Dashboards (V3)")
             success = False
@@ -367,7 +435,13 @@ def main():
         action='store_true',
         help='Stop processing if a club fails (recommended for one-by-one testing). Default: continue with other clubs'
     )
-    
+    parser.add_argument(
+        "--dashboard-type",
+        type=str,
+        choices=["prob", "index", "both"],
+        default="prob",
+        help='Dashboard type: prob (default), index, or both'
+    )
     args = parser.parse_args()
     
     # Parse exclude clubs
@@ -403,6 +477,26 @@ def main():
     if "Chelsea FC" in exclude_clubs:
         print("\n[NOTE] Chelsea FC is excluded - using independent process")
     print()
+    
+    # Pre-step: Config sync for all clubs (before fetch so new players are in configs for raw data)
+    if not args.skip_config_sync:
+        print("=" * 80)
+        print("PRE-STEP: Config sync for all clubs (before raw data fetch)")
+        print("=" * 80)
+        run_config_sync_all_clubs(
+            country=args.country,
+            clubs=clubs,
+            data_date=data_date,
+            auto_fix=args.auto_fix_configs,
+            sync_transfermarkt=args.sync_transfermarkt,
+        )
+        # PL->PL: move daily_features files from old club to new club
+        pl_to_pl_moves = collect_pl_to_pl_moves(args.country, data_date)
+        if pl_to_pl_moves:
+            print(f"\n[PL->PL] Moving daily_features for {len(pl_to_pl_moves)} player(s)...")
+            for player_id, from_club, to_club in pl_to_pl_moves:
+                move_daily_features_pl_to_pl(args.country, player_id, from_club, to_club)
+        print("[OK] Pre-step config sync completed\n")
     
     # Step 0: Fetch raw data for all clubs (once, if not skipped)
     if not args.skip_fetch:
@@ -452,7 +546,8 @@ def main():
             skip_timelines=args.skip_timelines,
             skip_predictions=args.skip_predictions,
             skip_dashboards=args.skip_dashboards,
-            skip_table=args.skip_table
+            skip_table=args.skip_table,
+            dashboard_type=args.dashboard_type,
         ):
             successful.append(club)
         else:

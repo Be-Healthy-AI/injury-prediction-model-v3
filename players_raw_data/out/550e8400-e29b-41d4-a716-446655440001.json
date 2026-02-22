@@ -1,0 +1,1861 @@
+{
+  "internal_id": "550e8400-e29b-41d4-a716-446655440001",
+  "display_name": "Harry Kane",
+  "sources": {
+    "transfermarkt": {
+      "profile": {
+        "name_in_home_country": "Harry Edward Kane",
+        "date_of_birth": "28/07/1993",
+        "place_of_birth": "London",
+        "height": "1,88 m",
+        "nationalities": [
+          "England",
+          "Ireland"
+        ],
+        "nationality": "England",
+        "position": "Attack - Centre-Forward",
+        "foot": "right",
+        "player_agent": "CK66",
+        "current_club": "Bayern Munich",
+        "joined_on": "12/08/2023",
+        "contract_expires": "30/06/2027",
+        "outfitter": "Skechers",
+        "social-media": "",
+        "name": "Harry Kane"
+      },
+      "transfer_history": {
+        "terminated": [
+          {
+            "id": "4578228",
+            "transferSource": {
+              "competitionId": "GB1",
+              "countryId": 189,
+              "clubId": "148",
+              "coachId": "11929"
+            },
+            "transferDestination": {
+              "competitionId": "L1",
+              "countryId": 40,
+              "clubId": "27",
+              "coachId": "7471"
+            },
+            "details": {
+              "playerId": "132098",
+              "date": "2023-08-12T00:00:00+02:00",
+              "contractUntilDate": "2027-06-30T00:00:00+02:00",
+              "seasonId": 2023,
+              "isPending": false,
+              "marketValue": {
+                "value": 90000000,
+                "currency": "EUR",
+                "compact": {
+                  "prefix": "€",
+                  "content": "90.00",
+                  "suffix": "M"
+                }
+              },
+              "age": 30,
+              "fee": {
+                "value": 95000000,
+                "currency": "EUR",
+                "compact": {
+                  "prefix": "€",
+                  "content": "95.00",
+                  "suffix": "M"
+                }
+              },
+              "season": {
+                "id": 2023,
+                "display": "23/24",
+                "cyclicalName": "2024",
+                "nonCyclicalName": "23/24"
+              }
+            },
+            "typeDetails": {
+              "type": "STANDARD",
+              "name": "",
+              "feeDescription": ""
+            },
+            "relativeUrl": "/-/transfers/spieler/132098/transfer_id/4578228"
+          },
+          {
+            "id": "842495",
+            "transferSource": {
+              "competitionId": "GB2",
+              "countryId": 189,
+              "clubId": "1003",
+              "coachId": "2676"
+            },
+            "transferDestination": {
+              "competitionId": "GB1",
+              "countryId": 189,
+              "clubId": "148",
+              "coachId": "1696"
+            },
+            "details": {
+              "playerId": "132098",
+              "date": "2013-05-14T00:00:00+02:00",
+              "contractUntilDate": null,
+              "seasonId": 2012,
+              "isPending": false,
+              "marketValue": {
+                "value": 500000,
+                "currency": "EUR",
+                "compact": {
+                  "prefix": "€",
+                  "content": "500.00",
+                  "suffix": "K"
+                }
+              },
+              "age": 19,
+              "remainingContractPeriod": {
+                "days": 17,
+                "daysDisplay": "17 Days"
+              },
+              "season": {
+                "id": 2012,
+                "display": "12/13",
+                "cyclicalName": "2013",
+                "nonCyclicalName": "12/13"
+              }
+            },
+            "typeDetails": {
+              "type": "RETURNED_FROM_PREVIOUS_LOAN",
+              "name": "End of loan",
+              "feeDescription": "End of loan"
+            },
+            "relativeUrl": "/-/transfers/spieler/132098/transfer_id/842495"
+          },
+          {
+            "id": "842494",
+            "transferSource": {
+              "competitionId": "GB1",
+              "countryId": 189,
+              "clubId": "148",
+              "coachId": "1696"
+            },
+            "transferDestination": {
+              "competitionId": "GB2",
+              "countryId": 189,
+              "clubId": "1003",
+              "coachId": "2676"
+            },
+            "details": {
+              "playerId": "132098",
+              "date": "2013-02-21T00:00:00+01:00",
+              "contractUntilDate": "2013-05-31T00:00:00+02:00",
+              "seasonId": 2012,
+              "isPending": false,
+              "marketValue": {
+                "value": 500000,
+                "currency": "EUR",
+                "compact": {
+                  "prefix": "€",
+                  "content": "500.00",
+                  "suffix": "K"
+                }
+              },
+              "age": 19,
+              "season": {
+                "id": 2012,
+                "display": "12/13",
+                "cyclicalName": "2013",
+                "nonCyclicalName": "12/13"
+              }
+            },
+            "typeDetails": {
+              "type": "ACTIVE_LOAN_TRANSFER",
+              "name": "loan transfer",
+              "feeDescription": "loan transfer"
+            },
+            "relativeUrl": "/-/transfers/spieler/132098/transfer_id/842494"
+          },
+          {
+            "id": "778811",
+            "transferSource": {
+              "competitionId": "GB1",
+              "countryId": 189,
+              "clubId": "1123",
+              "coachId": "2654"
+            },
+            "transferDestination": {
+              "competitionId": "GB1",
+              "countryId": 189,
+              "clubId": "148",
+              "coachId": "1696"
+            },
+            "details": {
+              "playerId": "132098",
+              "date": "2013-02-01T00:00:00+01:00",
+              "contractUntilDate": null,
+              "seasonId": 2012,
+              "isPending": false,
+              "marketValue": {
+                "value": 500000,
+                "currency": "EUR",
+                "compact": {
+                  "prefix": "€",
+                  "content": "500.00",
+                  "suffix": "K"
+                }
+              },
+              "age": 19,
+              "remainingContractPeriod": {
+                "days": 119,
+                "daysDisplay": "3 Months, 30 Days"
+              },
+              "season": {
+                "id": 2012,
+                "display": "12/13",
+                "cyclicalName": "2013",
+                "nonCyclicalName": "12/13"
+              }
+            },
+            "typeDetails": {
+              "type": "RETURNED_FROM_PREVIOUS_LOAN",
+              "name": "End of loan",
+              "feeDescription": "End of loan"
+            },
+            "relativeUrl": "/-/transfers/spieler/132098/transfer_id/778811"
+          },
+          {
+            "id": "778810",
+            "transferSource": {
+              "competitionId": "GB1",
+              "countryId": 189,
+              "clubId": "148",
+              "coachId": "1696"
+            },
+            "transferDestination": {
+              "competitionId": "GB1",
+              "countryId": 189,
+              "clubId": "1123",
+              "coachId": "2654"
+            },
+            "details": {
+              "playerId": "132098",
+              "date": "2012-08-31T00:00:00+02:00",
+              "contractUntilDate": "2013-05-31T00:00:00+02:00",
+              "seasonId": 2012,
+              "isPending": false,
+              "marketValue": {
+                "value": 0,
+                "currency": "EUR",
+                "compact": {
+                  "prefix": "€",
+                  "content": "0.00",
+                  "suffix": ""
+                }
+              },
+              "age": 19,
+              "season": {
+                "id": 2012,
+                "display": "12/13",
+                "cyclicalName": "2013",
+                "nonCyclicalName": "12/13"
+              }
+            },
+            "typeDetails": {
+              "type": "ACTIVE_LOAN_TRANSFER",
+              "name": "loan transfer",
+              "feeDescription": "loan transfer"
+            },
+            "relativeUrl": "/-/transfers/spieler/132098/transfer_id/778810"
+          },
+          {
+            "id": "663392",
+            "transferSource": {
+              "competitionId": "GB2",
+              "countryId": 189,
+              "clubId": "1028",
+              "coachId": "4155"
+            },
+            "transferDestination": {
+              "competitionId": "GB1",
+              "countryId": 189,
+              "clubId": "148",
+              "coachId": "448"
+            },
+            "details": {
+              "playerId": "132098",
+              "date": "2012-05-31T00:00:00+02:00",
+              "contractUntilDate": null,
+              "seasonId": 2011,
+              "isPending": false,
+              "marketValue": {
+                "value": 0,
+                "currency": "EUR",
+                "compact": {
+                  "prefix": "€",
+                  "content": "0.00",
+                  "suffix": ""
+                }
+              },
+              "age": 18,
+              "remainingContractPeriod": {
+                "days": 0,
+                "daysDisplay": "Unknown"
+              },
+              "season": {
+                "id": 2011,
+                "display": "11/12",
+                "cyclicalName": "2012",
+                "nonCyclicalName": "11/12"
+              }
+            },
+            "typeDetails": {
+              "type": "RETURNED_FROM_PREVIOUS_LOAN",
+              "name": "End of loan",
+              "feeDescription": "End of loan"
+            },
+            "relativeUrl": "/-/transfers/spieler/132098/transfer_id/663392"
+          },
+          {
+            "id": "663391",
+            "transferSource": {
+              "competitionId": "GB1",
+              "countryId": 189,
+              "clubId": "148",
+              "coachId": "448"
+            },
+            "transferDestination": {
+              "competitionId": "GB2",
+              "countryId": 189,
+              "clubId": "1028",
+              "coachId": "4155"
+            },
+            "details": {
+              "playerId": "132098",
+              "date": "2012-01-01T00:00:00+01:00",
+              "contractUntilDate": "2012-05-31T00:00:00+02:00",
+              "seasonId": 2011,
+              "isPending": false,
+              "marketValue": {
+                "value": 0,
+                "currency": "EUR",
+                "compact": {
+                  "prefix": "€",
+                  "content": "0.00",
+                  "suffix": ""
+                }
+              },
+              "age": 18,
+              "season": {
+                "id": 2011,
+                "display": "11/12",
+                "cyclicalName": "2012",
+                "nonCyclicalName": "11/12"
+              }
+            },
+            "typeDetails": {
+              "type": "ACTIVE_LOAN_TRANSFER",
+              "name": "loan transfer",
+              "feeDescription": "loan transfer"
+            },
+            "relativeUrl": "/-/transfers/spieler/132098/transfer_id/663391"
+          },
+          {
+            "id": "584585",
+            "transferSource": {
+              "competitionId": "GB3",
+              "countryId": 189,
+              "clubId": "1150",
+              "coachId": "3299"
+            },
+            "transferDestination": {
+              "competitionId": "GB1",
+              "countryId": 189,
+              "clubId": "148",
+              "coachId": "448"
+            },
+            "details": {
+              "playerId": "132098",
+              "date": "2011-05-31T00:00:00+02:00",
+              "contractUntilDate": null,
+              "seasonId": 2010,
+              "isPending": false,
+              "marketValue": {
+                "value": 0,
+                "currency": "EUR",
+                "compact": {
+                  "prefix": "€",
+                  "content": "0.00",
+                  "suffix": ""
+                }
+              },
+              "age": 17,
+              "remainingContractPeriod": {
+                "days": 0,
+                "daysDisplay": "Unknown"
+              },
+              "season": {
+                "id": 2010,
+                "display": "10/11",
+                "cyclicalName": "2011",
+                "nonCyclicalName": "10/11"
+              }
+            },
+            "typeDetails": {
+              "type": "RETURNED_FROM_PREVIOUS_LOAN",
+              "name": "End of loan",
+              "feeDescription": "End of loan"
+            },
+            "relativeUrl": "/-/transfers/spieler/132098/transfer_id/584585"
+          },
+          {
+            "id": "520156",
+            "transferSource": {
+              "competitionId": "GB1",
+              "countryId": 189,
+              "clubId": "148",
+              "coachId": "448"
+            },
+            "transferDestination": {
+              "competitionId": "GB3",
+              "countryId": 189,
+              "clubId": "1150",
+              "coachId": "3299"
+            },
+            "details": {
+              "playerId": "132098",
+              "date": "2011-01-07T00:00:00+01:00",
+              "contractUntilDate": "2011-05-31T00:00:00+02:00",
+              "seasonId": 2010,
+              "isPending": false,
+              "marketValue": {
+                "value": 0,
+                "currency": "EUR",
+                "compact": {
+                  "prefix": "€",
+                  "content": "0.00",
+                  "suffix": ""
+                }
+              },
+              "age": 17,
+              "remainingContractPeriod": {
+                "days": 4923,
+                "daysDisplay": "13 Years, 5 Months, 23 Days"
+              },
+              "season": {
+                "id": 2010,
+                "display": "10/11",
+                "cyclicalName": "2011",
+                "nonCyclicalName": "10/11"
+              }
+            },
+            "typeDetails": {
+              "type": "ACTIVE_LOAN_TRANSFER",
+              "name": "loan transfer",
+              "feeDescription": "loan transfer"
+            },
+            "relativeUrl": "/-/transfers/spieler/132098/transfer_id/520156"
+          },
+          {
+            "id": "520155",
+            "transferSource": {
+              "competitionId": "",
+              "countryId": 189,
+              "clubId": "6928",
+              "coachId": "0"
+            },
+            "transferDestination": {
+              "competitionId": "GB1",
+              "countryId": 189,
+              "clubId": "148",
+              "coachId": "448"
+            },
+            "details": {
+              "playerId": "132098",
+              "date": "2010-07-01T00:00:00+02:00",
+              "contractUntilDate": "2024-06-30T00:00:00+02:00",
+              "seasonId": 2010,
+              "isPending": false,
+              "marketValue": {
+                "value": 0,
+                "currency": "EUR",
+                "compact": {
+                  "prefix": "€",
+                  "content": "0.00",
+                  "suffix": ""
+                }
+              },
+              "age": 16,
+              "fee": {
+                "value": null,
+                "currency": "",
+                "compact": {
+                  "prefix": "",
+                  "content": "-",
+                  "suffix": ""
+                }
+              },
+              "season": {
+                "id": 2010,
+                "display": "10/11",
+                "cyclicalName": "2011",
+                "nonCyclicalName": "10/11"
+              }
+            },
+            "typeDetails": {
+              "type": "STANDARD",
+              "name": "",
+              "feeDescription": ""
+            },
+            "relativeUrl": "/-/transfers/spieler/132098/transfer_id/520155"
+          },
+          {
+            "id": "1709044",
+            "transferSource": {
+              "competitionId": "",
+              "countryId": 189,
+              "clubId": "51433",
+              "coachId": "146844"
+            },
+            "transferDestination": {
+              "competitionId": "",
+              "countryId": 189,
+              "clubId": "6928",
+              "coachId": "0"
+            },
+            "details": {
+              "playerId": "132098",
+              "date": "2009-07-01T00:00:00+02:00",
+              "contractUntilDate": null,
+              "seasonId": 2009,
+              "isPending": false,
+              "marketValue": {
+                "value": 0,
+                "currency": "EUR",
+                "compact": {
+                  "prefix": "€",
+                  "content": "0.00",
+                  "suffix": ""
+                }
+              },
+              "age": 15,
+              "fee": {
+                "value": null,
+                "currency": "",
+                "compact": {
+                  "prefix": "",
+                  "content": "-",
+                  "suffix": ""
+                }
+              },
+              "season": {
+                "id": 2009,
+                "display": "09/10",
+                "cyclicalName": "2010",
+                "nonCyclicalName": "09/10"
+              }
+            },
+            "typeDetails": {
+              "type": "STANDARD",
+              "name": "",
+              "feeDescription": ""
+            },
+            "relativeUrl": "/-/transfers/spieler/132098/transfer_id/1709044"
+          },
+          {
+            "id": "4611983",
+            "transferSource": {
+              "competitionId": "",
+              "countryId": 189,
+              "clubId": "51466",
+              "coachId": "26651"
+            },
+            "transferDestination": {
+              "competitionId": "",
+              "countryId": 189,
+              "clubId": "51433",
+              "coachId": "146844"
+            },
+            "details": {
+              "playerId": "132098",
+              "date": "2004-08-16T00:00:00+02:00",
+              "contractUntilDate": null,
+              "seasonId": 2004,
+              "isPending": false,
+              "marketValue": {
+                "value": 0,
+                "currency": "EUR",
+                "compact": {
+                  "prefix": "€",
+                  "content": "0.00",
+                  "suffix": ""
+                }
+              },
+              "age": 11,
+              "fee": {
+                "value": null,
+                "currency": "",
+                "compact": {
+                  "prefix": "",
+                  "content": "?",
+                  "suffix": ""
+                }
+              },
+              "season": {
+                "id": 2004,
+                "display": "04/05",
+                "cyclicalName": "2005",
+                "nonCyclicalName": "04/05"
+              }
+            },
+            "typeDetails": {
+              "type": "STANDARD",
+              "name": "",
+              "feeDescription": ""
+            },
+            "relativeUrl": "/-/transfers/spieler/132098/transfer_id/4611983"
+          },
+          {
+            "id": "4634951",
+            "transferSource": {
+              "competitionId": "",
+              "countryId": 189,
+              "clubId": "112605",
+              "coachId": "0"
+            },
+            "transferDestination": {
+              "competitionId": "",
+              "countryId": 189,
+              "clubId": "51466",
+              "coachId": "26651"
+            },
+            "details": {
+              "playerId": "132098",
+              "date": "2004-07-01T00:00:00+02:00",
+              "contractUntilDate": null,
+              "seasonId": 2004,
+              "isPending": false,
+              "marketValue": {
+                "value": 0,
+                "currency": "EUR",
+                "compact": {
+                  "prefix": "€",
+                  "content": "0.00",
+                  "suffix": ""
+                }
+              },
+              "age": 10,
+              "fee": {
+                "value": null,
+                "currency": "",
+                "compact": {
+                  "prefix": "",
+                  "content": "Free Transfer",
+                  "suffix": ""
+                }
+              },
+              "season": {
+                "id": 2004,
+                "display": "04/05",
+                "cyclicalName": "2005",
+                "nonCyclicalName": "04/05"
+              }
+            },
+            "typeDetails": {
+              "type": "STANDARD",
+              "name": "",
+              "feeDescription": ""
+            },
+            "relativeUrl": "/-/transfers/spieler/132098/transfer_id/4634951"
+          },
+          {
+            "id": "4634952",
+            "transferSource": {
+              "competitionId": "",
+              "countryId": 189,
+              "clubId": "50683",
+              "coachId": "106125"
+            },
+            "transferDestination": {
+              "competitionId": "",
+              "countryId": 189,
+              "clubId": "112605",
+              "coachId": "0"
+            },
+            "details": {
+              "playerId": "132098",
+              "date": "2002-07-01T00:00:00+02:00",
+              "contractUntilDate": null,
+              "seasonId": 2002,
+              "isPending": false,
+              "marketValue": {
+                "value": 0,
+                "currency": "EUR",
+                "compact": {
+                  "prefix": "€",
+                  "content": "0.00",
+                  "suffix": ""
+                }
+              },
+              "age": 8,
+              "fee": {
+                "value": null,
+                "currency": "",
+                "compact": {
+                  "prefix": "",
+                  "content": "Free Transfer",
+                  "suffix": ""
+                }
+              },
+              "season": {
+                "id": 2002,
+                "display": "02/03",
+                "cyclicalName": "2003",
+                "nonCyclicalName": "02/03"
+              }
+            },
+            "typeDetails": {
+              "type": "STANDARD",
+              "name": "",
+              "feeDescription": ""
+            },
+            "relativeUrl": "/-/transfers/spieler/132098/transfer_id/4634952"
+          },
+          {
+            "id": "4634953",
+            "transferSource": {
+              "competitionId": "",
+              "countryId": 189,
+              "clubId": "112605",
+              "coachId": "0"
+            },
+            "transferDestination": {
+              "competitionId": "",
+              "countryId": 189,
+              "clubId": "50683",
+              "coachId": "106125"
+            },
+            "details": {
+              "playerId": "132098",
+              "date": "2001-07-01T00:00:00+02:00",
+              "contractUntilDate": null,
+              "seasonId": 2001,
+              "isPending": false,
+              "marketValue": {
+                "value": 0,
+                "currency": "EUR",
+                "compact": {
+                  "prefix": "€",
+                  "content": "0.00",
+                  "suffix": ""
+                }
+              },
+              "age": 7,
+              "fee": {
+                "value": null,
+                "currency": "",
+                "compact": {
+                  "prefix": "",
+                  "content": "Free Transfer",
+                  "suffix": ""
+                }
+              },
+              "season": {
+                "id": 2001,
+                "display": "01/02",
+                "cyclicalName": "2002",
+                "nonCyclicalName": "01/02"
+              }
+            },
+            "typeDetails": {
+              "type": "STANDARD",
+              "name": "",
+              "feeDescription": ""
+            },
+            "relativeUrl": "/-/transfers/spieler/132098/transfer_id/4634953"
+          }
+        ],
+        "pending": [],
+        "url": "",
+        "feeSum": {
+          "value": 95000000,
+          "currency": "EUR",
+          "compact": {
+            "prefix": "€",
+            "content": "95.00",
+            "suffix": "M"
+          }
+        },
+        "averageAge": 32,
+        "totalMarketValue": {
+          "value": 65000000,
+          "currency": "EUR",
+          "compact": {
+            "prefix": "€",
+            "content": "65.00",
+            "suffix": "M"
+          }
+        }
+      },
+      "matches": [
+        {
+          "Matchday": "1",
+          "Date": "22/08/2025",
+          "Home team": "Bayern Munich",
+          "Home team.1": "Bayern Munich",
+          "Away team": "Leipzig",
+          "Away team.1": "Leipzig",
+          "Result": "6:0",
+          "Unnamed: 8": "3",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": "86'",
+          "Unnamed: 16": "1.1",
+          "Unnamed: 17": "86'",
+          "Position": "CF",
+          "Goals": "3",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": "86'",
+          "Minutes played": 86.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "2",
+          "Date": "30/08/2025",
+          "Home team": "Augsburg",
+          "Home team.1": "Augsburg (4.)",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich (1.)",
+          "Result": "2:3",
+          "Unnamed: 8": NaN,
+          "Unnamed: 9": "2",
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "1.7",
+          "Unnamed: 17": "90'",
+          "Position": "CF",
+          "Goals": NaN,
+          "Assists": "2",
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": null,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "3",
+          "Date": "13/09/2025",
+          "Home team": "Bayern Munich",
+          "Home team.1": "Bayern Munich (1.)",
+          "Away team": "Hamburg",
+          "Away team.1": "Hamburg (15.)",
+          "Result": "5:0",
+          "Unnamed: 8": "2",
+          "Unnamed: 9": "1",
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": "64'",
+          "Unnamed: 16": "1.3",
+          "Unnamed: 17": "64'",
+          "Position": "CF",
+          "Goals": "2",
+          "Assists": "1",
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": "64'",
+          "Minutes played": 64.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "4",
+          "Date": "20/09/2025",
+          "Home team": "Hoffenheim",
+          "Home team.1": "Hoffenheim (6.)",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich (1.)",
+          "Result": "1:4",
+          "Unnamed: 8": "3",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "1.2",
+          "Unnamed: 17": "90'",
+          "Position": "SS",
+          "Goals": "3",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": null,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "5",
+          "Date": "26/09/2025",
+          "Home team": "Bayern Munich",
+          "Home team.1": "Bayern Munich (1.)",
+          "Away team": "Werder Bremen",
+          "Away team.1": "Werder Bremen (14.)",
+          "Result": "4:0",
+          "Unnamed: 8": "2",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": "78'",
+          "Unnamed: 16": "1.3",
+          "Unnamed: 17": "78'",
+          "Position": "CF",
+          "Goals": "2",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": "78'",
+          "Minutes played": 78.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "6",
+          "Date": "04/10/2025",
+          "Home team": "Frankfurt",
+          "Home team.1": "Frankfurt (4.)",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich (1.)",
+          "Result": "0:3",
+          "Unnamed: 8": "1",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": "85'",
+          "Unnamed: 16": "1.9",
+          "Unnamed: 17": "85'",
+          "Position": "CF",
+          "Goals": "1",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": "85'",
+          "Minutes played": 85.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "7",
+          "Date": "18/10/2025",
+          "Home team": "Bayern Munich",
+          "Home team.1": "Bayern Munich (1.)",
+          "Away team": "Dortmund",
+          "Away team.1": "Dortmund (2.)",
+          "Result": "2:1",
+          "Unnamed: 8": "1",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "1.4",
+          "Unnamed: 17": "90'",
+          "Position": "SS",
+          "Goals": "1",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": null,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "8",
+          "Date": "25/10/2025",
+          "Home team": "Mönchengladbach",
+          "Home team.1": "Mönchengladbach (18.)",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich (1.)",
+          "Result": "0:3",
+          "Unnamed: 8": NaN,
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "2.8",
+          "Unnamed: 17": "90'",
+          "Position": "SS",
+          "Goals": NaN,
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": null,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "9",
+          "Date": "01/11/2025",
+          "Home team": "Bayern Munich",
+          "Home team.1": "Bayern Munich (1.)",
+          "Away team": "Leverkusen",
+          "Away team.1": "Leverkusen (5.)",
+          "Result": "3:0",
+          "Unnamed: 8": NaN,
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": "59'",
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "3.0",
+          "Unnamed: 17": "31'",
+          "Position": "CF",
+          "Goals": NaN,
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": "59'",
+          "Sub off": null,
+          "Minutes played": 31.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "10",
+          "Date": "08/11/2025",
+          "Home team": "Union Berlin",
+          "Home team.1": "Union Berlin (10.)",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich (1.)",
+          "Result": "2:2",
+          "Unnamed: 8": "1",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "2.6",
+          "Unnamed: 17": "90'",
+          "Position": "CF",
+          "Goals": "1",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": null,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "11",
+          "Date": "22/11/2025",
+          "Home team": "Bayern Munich",
+          "Home team.1": "Bayern Munich (1.)",
+          "Away team": "Freiburg",
+          "Away team.1": "Freiburg (10.)",
+          "Result": "6:2",
+          "Unnamed: 8": "1",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": "83'",
+          "Unnamed: 16": "2.2",
+          "Unnamed: 17": "83'",
+          "Position": "CF",
+          "Goals": "1",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": "83'",
+          "Minutes played": 83.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "12",
+          "Date": "29/11/2025",
+          "Home team": "Bayern Munich",
+          "Home team.1": "Bayern Munich (1.)",
+          "Away team": "St. Pauli",
+          "Away team.1": "St. Pauli (16.)",
+          "Result": "3:1",
+          "Unnamed: 8": NaN,
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "3.3",
+          "Unnamed: 17": "90'",
+          "Position": "CF",
+          "Goals": NaN,
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": null,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "13",
+          "Date": "06/12/2025",
+          "Home team": "Stuttgart",
+          "Home team.1": "Stuttgart (6.)",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich (1.)",
+          "Result": "0:5",
+          "Unnamed: 8": "3",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": "60'",
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "1.2",
+          "Unnamed: 17": "30'",
+          "Position": "CF",
+          "Goals": "3",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": "60'",
+          "Sub off": null,
+          "Minutes played": 30.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "14",
+          "Date": "14/12/2025",
+          "Home team": "Bayern Munich",
+          "Home team.1": "Bayern Munich (1.)",
+          "Away team": "Mainz",
+          "Away team.1": "Mainz (18.)",
+          "Result": "2:2",
+          "Unnamed: 8": "1",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "2.4",
+          "Unnamed: 17": "90'",
+          "Position": "CF",
+          "Goals": "1",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": null,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "15",
+          "Date": "21/12/2025",
+          "Home team": "Heidenheim",
+          "Home team.1": "Heidenheim (17.)",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich (1.)",
+          "Result": "0:4",
+          "Unnamed: 8": "1",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "2.0",
+          "Unnamed: 17": "90'",
+          "Position": "CF",
+          "Goals": "1",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": null,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "16",
+          "Date": "11/01/2026",
+          "Home team": "Bayern Munich",
+          "Home team.1": "Bayern Munich (1.)",
+          "Away team": "Wolfsburg",
+          "Away team.1": "Wolfsburg (14.)",
+          "Result": "8:1",
+          "Unnamed: 8": "1",
+          "Unnamed: 9": "1",
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": "77'",
+          "Unnamed: 16": "1.5",
+          "Unnamed: 17": "77'",
+          "Position": "CF",
+          "Goals": "1",
+          "Assists": "1",
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": "77'",
+          "Minutes played": 77.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "17",
+          "Date": "14/01/2026",
+          "Home team": "1.FC Köln",
+          "Home team.1": "1.FC Köln (11.)",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich (1.)",
+          "Result": "1:3",
+          "Unnamed: 8": NaN,
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "2.6",
+          "Unnamed: 17": "90'",
+          "Position": "CF",
+          "Goals": NaN,
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": null,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "18",
+          "Date": "17/01/2026",
+          "Home team": "Leipzig",
+          "Home team.1": "Leipzig (4.)",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich (1.)",
+          "Result": "1:5",
+          "Unnamed: 8": "1",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "1.8",
+          "Unnamed: 17": "90'",
+          "Position": "CF",
+          "Goals": "1",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": null,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "19",
+          "Date": "24/01/2026",
+          "Home team": "Bayern Munich",
+          "Home team.1": "Bayern Munich (1.)",
+          "Away team": "Augsburg",
+          "Away team.1": "Augsburg (15.)",
+          "Result": "1:2",
+          "Unnamed: 8": NaN,
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "3.5",
+          "Unnamed: 17": "90'",
+          "Position": "CF",
+          "Goals": NaN,
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": null,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "20",
+          "Date": "31/01/2026",
+          "Home team": "Hamburg",
+          "Home team.1": "Hamburg (14.)",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich (1.)",
+          "Result": "2:2",
+          "Unnamed: 8": "1",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": "87'",
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "2.5",
+          "Unnamed: 17": "90'",
+          "Position": "CF",
+          "Goals": "1",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": 87,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": null,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "21",
+          "Date": "08/02/2026",
+          "Home team": "Bayern Munich",
+          "Home team.1": "Bayern Munich (1.)",
+          "Away team": "Hoffenheim",
+          "Away team.1": "Hoffenheim (3.)",
+          "Result": "5:1",
+          "Unnamed: 8": "2",
+          "Unnamed: 9": "1",
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": "68'",
+          "Unnamed: 16": "1.4",
+          "Unnamed: 17": "68'",
+          "Position": "CF",
+          "Goals": "2",
+          "Assists": "1",
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": "68'",
+          "Minutes played": 68.0,
+          "Season": "2024/25",
+          "Competition": "Bundesliga"
+        },
+        {
+          "Matchday": "Group Stage",
+          "Date": "17/09/2025",
+          "Home team": "Bayern Munich",
+          "Home team.1": "Bayern Munich",
+          "Away team": "Chelsea",
+          "Away team.1": "Chelsea",
+          "Result": "3:1",
+          "Unnamed: 8": "2",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": "90'",
+          "Unnamed: 16": "90'",
+          "Unnamed: 17": NaN,
+          "Position": "CF",
+          "Goals": "2",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": NaN,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": "90'",
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "UEFA Champions League"
+        },
+        {
+          "Matchday": "Group Stage",
+          "Date": "30/09/2025",
+          "Home team": "Pafos",
+          "Home team.1": "Pafos (22.)",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich (6.)",
+          "Result": "1:5",
+          "Unnamed: 8": "2",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": "64'",
+          "Unnamed: 16": "64'",
+          "Unnamed: 17": NaN,
+          "Position": "SS",
+          "Goals": "2",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": NaN,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": "64'",
+          "Minutes played": 64.0,
+          "Season": "2024/25",
+          "Competition": "UEFA Champions League"
+        },
+        {
+          "Matchday": "Group Stage",
+          "Date": "22/10/2025",
+          "Home team": "Bayern Munich",
+          "Home team.1": "Bayern Munich (1.)",
+          "Away team": "Club Brugge",
+          "Away team.1": "Club Brugge (13.)",
+          "Result": "4:0",
+          "Unnamed: 8": "1",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": "69'",
+          "Unnamed: 16": "69'",
+          "Unnamed: 17": NaN,
+          "Position": "CF",
+          "Goals": "1",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": NaN,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": "69'",
+          "Minutes played": 69.0,
+          "Season": "2024/25",
+          "Competition": "UEFA Champions League"
+        },
+        {
+          "Matchday": "Group Stage",
+          "Date": "04/11/2025",
+          "Home team": "PSG",
+          "Home team.1": "PSG (1.)",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich (2.)",
+          "Result": "1:2",
+          "Unnamed: 8": NaN,
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": "88'",
+          "Unnamed: 16": "88'",
+          "Unnamed: 17": NaN,
+          "Position": "CF",
+          "Goals": NaN,
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": NaN,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": "88'",
+          "Minutes played": 88.0,
+          "Season": "2024/25",
+          "Competition": "UEFA Champions League"
+        },
+        {
+          "Matchday": "Group Stage",
+          "Date": "26/11/2025",
+          "Home team": "Arsenal",
+          "Home team.1": "Arsenal (2.)",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich (1.)",
+          "Result": "3:1",
+          "Unnamed: 8": NaN,
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "90'",
+          "Unnamed: 17": NaN,
+          "Position": "CF",
+          "Goals": NaN,
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": NaN,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": null,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "UEFA Champions League"
+        },
+        {
+          "Matchday": "Group Stage",
+          "Date": "09/12/2025",
+          "Home team": "Bayern Munich",
+          "Home team.1": "Bayern Munich (3.)",
+          "Away team": "Sporting",
+          "Away team.1": "Sporting (8.)",
+          "Result": "3:1",
+          "Unnamed: 8": NaN,
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": "90'",
+          "Unnamed: 16": "90'",
+          "Unnamed: 17": NaN,
+          "Position": "CF",
+          "Goals": NaN,
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": NaN,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": "90'",
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "UEFA Champions League"
+        },
+        {
+          "Matchday": "Group Stage",
+          "Date": "21/01/2026",
+          "Home team": "Bayern Munich",
+          "Home team.1": "Bayern Munich (2.)",
+          "Away team": "Union SG",
+          "Away team.1": "Union SG (27.)",
+          "Result": "2:0",
+          "Unnamed: 8": "2",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "90'",
+          "Unnamed: 17": NaN,
+          "Position": "CF",
+          "Goals": "2",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": NaN,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": null,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "UEFA Champions League"
+        },
+        {
+          "Matchday": "Group Stage",
+          "Date": "28/01/2026",
+          "Home team": "PSV",
+          "Home team.1": "PSV (22.)",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich (2.)",
+          "Result": "1:2",
+          "Unnamed: 8": "1",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": "62'",
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "28'",
+          "Unnamed: 17": NaN,
+          "Position": "CF",
+          "Goals": "1",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": NaN,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": "62'",
+          "Sub off": null,
+          "Minutes played": 28.0,
+          "Season": "2024/25",
+          "Competition": "UEFA Champions League"
+        },
+        {
+          "Matchday": "First Round",
+          "Date": "27/08/2025",
+          "Home team": "Wehen Wiesbaden",
+          "Home team.1": "Wehen Wiesbaden",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich",
+          "Result": "2:3",
+          "Unnamed: 8": "2",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "90'",
+          "Unnamed: 17": NaN,
+          "Position": "CF",
+          "Goals": "2",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": NaN,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "DFB-Pokal"
+        },
+        {
+          "Matchday": "Second Round",
+          "Date": "29/10/2025",
+          "Home team": "1.FC Köln",
+          "Home team.1": "1.FC Köln",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich",
+          "Result": "1:4",
+          "Unnamed: 8": "2",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": NaN,
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": "87'",
+          "Unnamed: 16": "87'",
+          "Unnamed: 17": NaN,
+          "Position": "CF",
+          "Goals": "2",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": null,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": "87'",
+          "Sub off": NaN,
+          "Minutes played": 87.0,
+          "Season": "2024/25",
+          "Competition": "DFB-Pokal"
+        },
+        {
+          "Matchday": "Round of 16",
+          "Date": "03/12/2025",
+          "Home team": "Union Berlin",
+          "Home team.1": "Union Berlin",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich",
+          "Result": "2:3",
+          "Unnamed: 8": "1",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": "54'",
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "90'",
+          "Unnamed: 17": NaN,
+          "Position": "CF",
+          "Goals": "1",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": 54,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": null,
+          "Sub off": NaN,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "DFB-Pokal"
+        },
+        {
+          "Matchday": "Final",
+          "Date": "16/08/2025",
+          "Home team": "Stuttgart",
+          "Home team.1": "Stuttgart",
+          "Away team": "Bayern Munich",
+          "Away team.1": "Bayern Munich",
+          "Result": "1:2",
+          "Unnamed: 8": "1",
+          "Unnamed: 9": NaN,
+          "Unnamed: 10": NaN,
+          "Unnamed: 11": "57'",
+          "Unnamed: 12": NaN,
+          "Unnamed: 13": NaN,
+          "Unnamed: 14": NaN,
+          "Unnamed: 15": NaN,
+          "Unnamed: 16": "90'",
+          "Unnamed: 17": NaN,
+          "Position": "CF",
+          "Goals": "1",
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": 57,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": NaN,
+          "Sub off": NaN,
+          "Minutes played": 90.0,
+          "Season": "2024/25",
+          "Competition": "Franz-Beckenbauer-Supercup"
+        },
+        {
+          "Matchday": "45",
+          "Date": "09/10/2025",
+          "Home team": "England",
+          "Home team.1": "England",
+          "Away team": "Wales",
+          "Away team.1": "Wales",
+          "Result": "3:0",
+          "Unnamed: 8": "on the bench",
+          "Unnamed: 9": "on the bench",
+          "Unnamed: 10": "on the bench",
+          "Unnamed: 11": "on the bench",
+          "Unnamed: 12": "on the bench",
+          "Unnamed: 13": "on the bench",
+          "Unnamed: 14": "on the bench",
+          "Unnamed: 15": "on the bench",
+          "Unnamed: 16": "on the bench",
+          "Unnamed: 17": "on the bench",
+          "Position": "on the bench",
+          "Goals": NaN,
+          "Assists": NaN,
+          "Own goals": NaN,
+          "Yellow cards": NaN,
+          "Second yellow cards": NaN,
+          "Red cards": NaN,
+          "Sub on": NaN,
+          "Sub off": NaN,
+          "Minutes played": NaN,
+          "Season": "2024/25",
+          "Competition": "International Friendlies"
+        }
+      ]
+    },
+    "fbref": {
+      "profile": {
+        "name": "fbref.com"
+      }
+    },
+    "wikipedia": {},
+    "sofascore": {},
+    "understat": {},
+    "whoscored": {}
+  }
+}

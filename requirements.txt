@@ -13,4 +13,8 @@ requests>=2.31.0
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
 html5lib>=1.1
+# Optional: for FBRef when 403 (playwright fallback)
+playwright>=1.40.0
+# Optional: for FBRef when 403 (selenium fallback, after playwright)
+selenium>=4.0.0
 

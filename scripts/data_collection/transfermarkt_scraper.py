@@ -649,85 +649,65 @@ class TransfermarktScraper:
             page_df = self._extract_table(page_soup, "table.items")
             if page_df.empty:
                 continue
-            
-            # Extract club information from this page
-            # First check if pd.read_html already extracted a club column (check common names)
-            club_col = None
-            for col_name in ["Club", "Verein", "Team", "Clubs"]:
-                if col_name in page_df.columns:
-                    club_col = col_name
-                    break
-            
-            if club_col:
-                # Already extracted, rename to "Club" for consistency
-                if club_col != "Club":
-                    page_df["Club"] = page_df[club_col]
-            else:
-                # Manually extract club information from HTML
-                # The club column in injury tables is typically in a specific position
-                # We need to identify which column contains clubs by looking at the table structure
-                table = page_soup.select_one("table.items")
-                page_clubs = []
-                if table:
-                    # First, try to identify the club column from the header
-                    headers = table.select("thead th")
-                    club_col_idx = None
-                    for idx, header in enumerate(headers):
-                        header_text = header.get_text(strip=True).lower()
-                        if any(term in header_text for term in ["club", "verein", "team"]):
-                            club_col_idx = idx
-                            break
-                    
-                    rows = table.select("tbody tr")
+
+            # Club names are in the "Lost games" column: club logo (img/link) + number.
+            # Extract club from logo's alt/title or link title, not from a separate Club column.
+            table = page_soup.select_one("table.items")
+            page_clubs = []
+            if table:
+                headers = table.select("thead th")
+                rows = table.select("tbody tr")
+                # Find the "Lost games" column index (club logo + number live here)
+                lost_games_header_terms = [
+                    "games missed", "lost games", "spiele", "partidos", "matches",
+                    "missed", "lost", "ausgefallen", "perdidos", "perdus",
+                ]
+                lost_games_col_idx = None
+                for idx, header in enumerate(headers):
+                    header_text = header.get_text(strip=True).lower()
+                    if any(term in header_text for term in lost_games_header_terms):
+                        lost_games_col_idx = idx
+                        break
+                # Fallback: column with most /verein/ links (club logo links)
+                if lost_games_col_idx is None and rows:
+                    num_cols = max(len(row.select("td")) for row in rows)
+                    col_verein_count = [0] * num_cols
                     for row in rows:
-                        club_names = []
-                        
-                        # If we found the club column index, extract from that column
-                        if club_col_idx is not None:
-                            cells = row.select("td")
-                            if club_col_idx < len(cells):
-                                club_cell = cells[club_col_idx]
-                                # Look for club links in this cell
-                                club_links = club_cell.select('a[href*="/verein/"]')
-                                for link in club_links:
-                                    link_text = link.get_text(strip=True)
-                                    if link_text:
-                                        club_names.append(link_text)
-                                # If no links, try the cell text itself (might be plain text club name)
-                                if not club_names:
-                                    cell_text = club_cell.get_text(strip=True)
-                                    # Only use if it doesn't look like an injury type or other data
-                                    if cell_text and not any(skip in cell_text.lower() for skip in 
-                                                             ['injury', 'muscle', 'knee', 'ankle', 'shoulder', 'back', 
-                                                              'hamstring', 'groin', 'calf', 'thigh', 'foot', 'wrist',
-                                                              'fracture', 'strain', 'tear', 'rupture', 'sprain',
-                                                              'dislocation', 'bruise', 'contusion', 'laceration']):
-                                        club_names.append(cell_text)
-                        else:
-                            # No header found, search the entire row for club links
-                            club_links = row.select('a[href*="/verein/"]')
-                            for link in club_links:
-                                href = link.get("href", "")
-                                link_text = link.get_text(strip=True)
-                                if link_text and "/verein/" in href:
-                                    club_name = link_text.strip()
-                                    if club_name and club_name not in club_names:
-                                        club_names.append(club_name)
-                        
-                        page_clubs.append(" / ".join(club_names) if club_names else None)
-                    
-                    # Ensure we have the same number of clubs as rows
-                    if len(page_clubs) == len(page_df):
-                        page_df["Club"] = page_clubs
-                    elif len(page_clubs) > 0:
-                        # Try to align: pad with None if needed
-                        while len(page_clubs) < len(page_df):
-                            page_clubs.append(None)
-                        page_df["Club"] = page_clubs[:len(page_df)]
-                    else:
-                        # No clubs found, create empty column
-                        page_df["Club"] = None
-            
+                        cells = row.select("td")
+                        for cidx, cell in enumerate(cells):
+                            if cidx < num_cols and cell.select('a[href*="/verein/"]'):
+                                col_verein_count[cidx] += 1
+                    if col_verein_count:
+                        best = max(range(len(col_verein_count)), key=lambda i: col_verein_count[i])
+                        if col_verein_count[best] > 0:
+                            lost_games_col_idx = best
+                for row in rows:
+                    club_names = []
+                    if lost_games_col_idx is not None:
+                        cells = row.select("td")
+                        if lost_games_col_idx < len(cells):
+                            cell = cells[lost_games_col_idx]
+                            # Prefer club from <a href="/verein/..."> title or link text
+                            for link in cell.select('a[href*="/verein/"]'):
+                                name = link.get("title") or link.get_text(strip=True)
+                                if name and not name.isdigit():
+                                    club_names.append(name.strip())
+                                for img in link.select("img"):
+                                    alt = img.get("alt") or img.get("title")
+                                    if alt and alt.strip() and alt not in club_names:
+                                        club_names.append(alt.strip())
+                            # Fallback: any img in cell (logo alt/title)
+                            if not club_names:
+                                for img in cell.select("img"):
+                                    alt = img.get("alt") or img.get("title")
+                                    if alt and alt.strip():
+                                        club_names.append(alt.strip())
+                                        break
+                    page_clubs.append(" / ".join(club_names) if club_names else None)
+                # Align length: pad with None or trim to match page_df
+                page_df["Club"] = (page_clubs + [None] * len(page_df))[:len(page_df)]
+            else:
+                page_df["Club"] = None
             all_dfs.append(page_df)
         
         # Combine all pages
@@ -876,9 +856,9 @@ class TransfermarktScraper:
         for table in all_tables:
             headers = table.select('thead th')
             if headers:
-                header_texts = [h.get_text(strip=True) for h in headers]
+                header_texts_flat = [h.get_text(strip=True) for h in headers]
                 # Check if this table has match data columns
-                if any(keyword in ' '.join(header_texts).lower() for keyword in ['matchday', 'date', 'venue', 'opponent', 'result']):
+                if any(keyword in ' '.join(header_texts_flat).lower() for keyword in ['matchday', 'date', 'venue', 'opponent', 'result']):
                     # Extract competition name from the div with class 'content-box-headline' before the table
                     competition_name = None
                     # Look for the closest heading before this table
@@ -941,11 +921,207 @@ class TransfermarktScraper:
                                 "Unnamed: 11": "Yellow cards",
                                 "Unnamed: 12": "Second yellow cards",
                                 "Unnamed: 13": "Red cards",
-                                "Unnamed: 14": "Sub on",
-                                "Unnamed: 15": "Sub off",
-                                "Unnamed: 16": "Minutes played",
-                                "Unnamed: 17": "TM-Whoscored grade",
                             }
+                            # Flatten column names if MultiIndex (pandas can produce tuples)
+                            col_names = list(table_df.columns)
+                            col_names_str = [
+                                "_".join(str(c) for c in (col if isinstance(col, (list, tuple)) else [col])).strip()
+                                if isinstance(col, (list, tuple)) else str(col)
+                                for col in col_names
+                            ]
+                            num_cols = len(col_names)
+                            # Build header row aligned with columns: expand colspan so one label per column
+                            header_texts = []
+                            for tr in table.select("thead tr"):
+                                cells = tr.select("th, td")
+                                row_labels = []
+                                for cell in cells:
+                                    text = cell.get_text(strip=True)
+                                    span = int(cell.get("colspan", 1))
+                                    row_labels.extend([text] * span)
+                                if len(row_labels) == num_cols:
+                                    header_texts = row_labels
+                                    break
+                                elif len(row_labels) > num_cols and not header_texts:
+                                    header_texts = row_labels[:num_cols]
+                                    break
+                            if not header_texts and header_texts_flat:
+                                header_texts = (header_texts_flat + [""] * num_cols)[:num_cols]
+                            # 1) Detect by DataFrame column names first (pandas may keep real headers)
+                            sub_on_col = sub_off_col = minutes_col = grade_col = None
+                            minutes_keywords = ["minute", "spielminute", "min.", "minutos", "mins", "einsatzzeit"]
+                            grade_keywords = ["grade", "note", "whoscored", "ppj", "rating", "bewertung"]
+                            for col_idx, col_name in enumerate(col_names):
+                                name_lower = col_names_str[col_idx].lower() if col_idx < len(col_names_str) else ""
+                                if any(x in name_lower for x in ["sub on", "einwechslung", "sub in"]):
+                                    sub_on_col = col_name
+                                elif any(x in name_lower for x in ["sub off", "auswechslung", "sub out"]):
+                                    sub_off_col = col_name
+                                elif any(x in name_lower for x in minutes_keywords):
+                                    minutes_col = col_name
+                                elif any(x in name_lower for x in grade_keywords):
+                                    grade_col = col_name
+                            # 2) For still-unmatched columns, use aligned header row
+                            for col_idx in range(num_cols):
+                                header = header_texts[col_idx] if col_idx < len(header_texts) else ""
+                                header_lower = header.lower()
+                                col_name = col_names[col_idx]
+                                if sub_on_col is None and any(x in header_lower for x in ["sub on", "einwechslung", "sub in"]):
+                                    sub_on_col = col_name
+                                elif sub_off_col is None and any(x in header_lower for x in ["sub off", "auswechslung", "sub out"]):
+                                    sub_off_col = col_name
+                                elif minutes_col is None and any(x in header_lower for x in minutes_keywords):
+                                    minutes_col = col_name
+                                elif grade_col is None and any(x in header_lower for x in grade_keywords):
+                                    grade_col = col_name
+                            # 3) Value heuristic: widen candidates (all unmapped stats columns), parse "90+3'", relax threshold
+                            skip_cols = {"Home team", "Away team", "Position", "Pos.", "Result", "Date", "Matchday", "Competition", "Season", "Goals", "Assists", "Own goals", "Yellow cards", "Second yellow cards", "Red cards"}
+                            def _is_team_col(c):
+                                s = str(c) if not isinstance(c, (list, tuple)) else str(c[0]) if c else ""
+                                return s.startswith("Home team") or s.startswith("Away team")
+                            candidates = [c for c in col_names if c not in skip_cols and not _is_team_col(c)]
+                            # For single-row (or very small) tables, accept 1 minute-like value so we can still detect minutes
+                            min_minute_count = 1 if len(table_df) <= 2 else 2
+                            minute_candidates = []
+                            if minutes_col is None or grade_col is None:
+                                def _parse_minute_or_grade(val):
+                                    if pd.isna(val) or str(val).strip() in ("", "nan"):
+                                        return None, None
+                                    v = str(val).strip()
+                                    if "+" in v:
+                                        parts = re.split(r"\s*\+\s*", v)
+                                        nums = re.findall(r"\d+", " ".join(parts))
+                                        if len(nums) >= 2:
+                                            try:
+                                                return int(nums[0]) + int(nums[1]), None
+                                            except (ValueError, TypeError):
+                                                pass
+                                        if nums:
+                                            try:
+                                                return int(nums[0]), None
+                                            except (ValueError, TypeError):
+                                                pass
+                                    nums = re.findall(r"[\d.]+", v.replace("'", ""))
+                                    if not nums:
+                                        return None, None
+                                    try:
+                                        n = float(nums[0])
+                                        if 0 <= n <= 150:
+                                            return int(n), None
+                                        if 1 <= n <= 10:
+                                            return None, n
+                                    except (ValueError, TypeError):
+                                        pass
+                                    return None, None
+                                for c in candidates:
+                                    if c == sub_on_col or c == sub_off_col or mapping.get(c):
+                                        continue
+                                    s = table_df[c].dropna()
+                                    if s.empty or len(s) < 1:
+                                        continue
+                                    sample = s.astype(str).head(30)
+                                    minute_vals = []
+                                    grade_vals = []
+                                    for v in sample:
+                                        m, g = _parse_minute_or_grade(v)
+                                        if m is not None:
+                                            minute_vals.append(m)
+                                        if g is not None:
+                                            grade_vals.append(g)
+                                    if minute_vals and (len(minute_vals) >= len(sample) // 3 or sum(1 for m in minute_vals if 0 <= m <= 120) >= min_minute_count):
+                                        minute_candidates.append((c, minute_vals))
+                                    if grade_col is None and grade_vals and len(grade_vals) >= 2:
+                                        grade_col = c
+                                # Pick best minute column: prefer one with 90/120 (full matches) and rightmost if tie
+                                if minutes_col is None and minute_candidates:
+                                    def _minutes_score(item):
+                                        col, vals = item
+                                        idx = col_names.index(col) if col in col_names else 0
+                                        full = sum(1 for x in vals if x in (90, 120))
+                                        return (full, sum(1 for x in vals if 0 <= x <= 120), idx)
+                                    best = max(minute_candidates, key=_minutes_score)
+                                    if _minutes_score(best)[1] >= min_minute_count:
+                                        minutes_col = best[0]
+                            # Fallback for Sub on / Sub off when header/name detection failed: use columns with minute-like values not chosen as minutes/grade
+                            if minute_candidates and (sub_on_col is None or sub_off_col is None):
+                                sub_minute_cols = sorted(
+                                    [c for c, _ in minute_candidates if c != minutes_col and c != grade_col],
+                                    key=lambda c: col_names.index(c) if c in col_names else 0,
+                                )
+                                if len(sub_minute_cols) >= 2:
+                                    if sub_on_col is None and sub_off_col is None:
+                                        sub_on_col, sub_off_col = sub_minute_cols[0], sub_minute_cols[1]
+                                    elif sub_on_col is None:
+                                        sub_on_col = sub_minute_cols[0]
+                                    elif sub_off_col is None:
+                                        sub_off_col = sub_minute_cols[1]
+                                elif len(sub_minute_cols) == 1:
+                                    if sub_on_col is None:
+                                        sub_on_col = sub_minute_cols[0]
+                                    elif sub_off_col is None:
+                                        sub_off_col = sub_minute_cols[0]
+                            # Last-resort: use last unmapped column(s) and assign by value (minutes 0-120 vs grade 1-10)
+                            assigned = {sub_on_col, sub_off_col, minutes_col, grade_col} - {None}
+                            remaining = [c for c in candidates if c not in assigned]
+                            if remaining and (minutes_col is None or grade_col is None):
+                                # Prefer last 2 columns (typical order: Sub on, Sub off, Minutes, Grade)
+                                tail = remaining[-2:] if len(remaining) >= 2 else remaining
+                                if len(tail) == 2:
+                                    a, b = tail[0], tail[1]
+                                    sa, sb = table_df[a].dropna().astype(str).head(30), table_df[b].dropna().astype(str).head(30)
+                                    ma, ga = [], []
+                                    for v in sa:
+                                        m, g = _parse_minute_or_grade(v)
+                                        if m is not None:
+                                            ma.append(m)
+                                        if g is not None:
+                                            ga.append(g)
+                                    mb, gb = [], []
+                                    for v in sb:
+                                        m, g = _parse_minute_or_grade(v)
+                                        if m is not None:
+                                            mb.append(m)
+                                        if g is not None:
+                                            gb.append(g)
+                                    # Prefer column that has 90/120 (full matches) for Minutes played
+                                    def _score_minutes(vals):
+                                        if not vals:
+                                            return 0
+                                        return sum(1 for x in vals if 0 <= x <= 120) + 2 * sum(1 for x in vals if x in (90, 120))
+                                    if minutes_col is None and grade_col is None:
+                                        if len(ma) >= min_minute_count or len(mb) >= min_minute_count:
+                                            score_a, score_b = _score_minutes(ma), _score_minutes(mb)
+                                            if score_a >= min_minute_count and score_a >= score_b:
+                                                minutes_col, grade_col = a, b
+                                            elif score_b >= min_minute_count:
+                                                minutes_col, grade_col = b, a
+                                        if grade_col is None and (len(ga) >= 2 or len(gb) >= 2):
+                                            if len(ga) >= len(gb):
+                                                grade_col = a
+                                                if minutes_col is None:
+                                                    minutes_col = b
+                                            else:
+                                                grade_col = b
+                                                if minutes_col is None:
+                                                    minutes_col = a
+                                elif len(tail) == 1 and minutes_col is None:
+                                    c = tail[0]
+                                    s = table_df[c].dropna().astype(str).head(30)
+                                    minute_vals = []
+                                    for v in s:
+                                        m, _ = _parse_minute_or_grade(v)
+                                        if m is not None:
+                                            minute_vals.append(m)
+                                    if sum(1 for x in minute_vals if 0 <= x <= 120) >= min_minute_count:
+                                        minutes_col = c
+                            # Map only when we identified a column (no fixed Unnamed fallback)
+                            if sub_on_col:
+                                mapping[sub_on_col] = "Sub on"
+                            if sub_off_col:
+                                mapping[sub_off_col] = "Sub off"
+                            if minutes_col:
+                                mapping[minutes_col] = "Minutes played"
+                                LOGGER.debug("Minutes played column: %s (competition: %s)", minutes_col, competition_name)
                             
                             # Apply mappings
                             for source_col, target_col in mapping.items():
@@ -1041,7 +1217,10 @@ class TransfermarktScraper:
                             if own_goals_col_found and own_goals_col_found != "Own goals":
                                 LOGGER.info(f"  Found own goals column as '{own_goals_col_found}', renaming to 'Own goals'")
                                 table_df["Own goals"] = table_df[own_goals_col_found]
-                                
+                            
+                            # Drop grade column only when identified (do not guess by index)
+                            if grade_col and grade_col in table_df.columns:
+                                table_df = table_df.drop(columns=[grade_col])
                             
                             # Add season column if we have it
                             if season:

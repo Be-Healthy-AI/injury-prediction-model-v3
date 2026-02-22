@@ -773,6 +773,68 @@ def has_consecutive_drops(scores, threshold=PERFORMANCE_DROP_THRESHOLD,
     
     return False
 
+
+def export_best_model_skeletal():
+    """
+    Load iterative results, get best iteration by combined_score (test).
+    Re-train that model with its feature list and save joblib + features JSON
+    for production deployment.
+    """
+    if not RESULTS_FILE.exists():
+        log_error(f"Results file not found: {RESULTS_FILE}. Run iterative training first.")
+        return 1
+    with open(RESULTS_FILE, 'r', encoding='utf-8') as f:
+        results = json.load(f)
+    iterations = results.get('iterations', [])
+    if not iterations:
+        log_error("No iterations in results file.")
+        return 1
+    best_it = results.get('best_iteration')
+    if best_it is None:
+        best_it = max(iterations, key=lambda x: x['combined_score'])['iteration']
+    best_entry = next((it for it in iterations if it['iteration'] == best_it), None)
+    if best_entry is None:
+        log_error(f"Best iteration {best_it} not found in results.")
+        return 1
+    feature_list = best_entry['features']
+    n_features = best_entry.get('n_features', len(feature_list))
+    combined_score = best_entry['combined_score']
+    log_message(f"Exporting best iteration: {best_it} ({n_features} features, combined_score={combined_score:.4f})")
+    log_message("Re-training model with best feature set...")
+    training_results = train_model_with_feature_subset(feature_list, verbose=True)
+    model = training_results['model']
+    feature_names_used = training_results['feature_names_used']
+    combined_score_test = calculate_combined_score(training_results['test_metrics'])
+    # Performance metrics from this re-training (train + test; skeletal has no val)
+    performance_metrics = {
+        'train': {k: v for k, v in training_results['train_metrics'].items() if k != 'confusion_matrix'},
+        'val': {},
+        'test': {k: v for k, v in training_results['test_metrics'].items() if k != 'confusion_matrix'}
+    }
+    performance_metrics['train']['confusion_matrix'] = training_results['train_metrics'].get('confusion_matrix')
+    performance_metrics['test']['confusion_matrix'] = training_results['test_metrics'].get('confusion_matrix')
+    performance_metrics = convert_numpy_types(performance_metrics)
+    MODEL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    model_path = MODEL_OUTPUT_DIR / 'lgbm_skeletal_best_iteration.joblib'
+    features_path = MODEL_OUTPUT_DIR / 'lgbm_skeletal_best_iteration_features.json'
+    joblib.dump(model, model_path)
+    meta = {
+        'n_features': len(feature_names_used),
+        'algorithm': 'lgbm',
+        'iteration': best_it,
+        'combined_score': float(combined_score),
+        'combined_score_test': float(combined_score_test),
+        'features': feature_names_used,
+        'performance_metrics': performance_metrics
+    }
+    with open(features_path, 'w', encoding='utf-8') as f:
+        json.dump(meta, f, indent=2)
+    log_message(f"Saved model to: {model_path}")
+    log_message(f"Saved feature list to: {features_path} (n_features={len(feature_names_used)})")
+    log_message(f"   Test combined score: {combined_score_test:.4f}")
+    return 0
+
+
 def run_iterative_training():
     """Main function to run iterative feature selection training for Model 2"""
     log_message("="*80)
@@ -1019,8 +1081,16 @@ def run_iterative_training():
     return 0
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Iterative feature selection for Model 2 (Skeletal)")
+    parser.add_argument("--export-best", action="store_true",
+                        help="Export best iteration: re-train and save model + features JSON for deployment")
+    args = parser.parse_args()
     try:
-        exit_code = run_iterative_training()
+        if args.export_best:
+            exit_code = export_best_model_skeletal()
+        else:
+            exit_code = run_iterative_training()
         sys.exit(exit_code)
     except KeyboardInterrupt:
         log_message("\n⚠️  Training interrupted by user")

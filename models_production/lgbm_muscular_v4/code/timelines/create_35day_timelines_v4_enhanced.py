@@ -1,26 +1,21 @@
 #!/usr/bin/env python3
 """
-V4 Enhanced 35-Day Timeline Generator - Consolidated Version
+V4 Enhanced 35-Day Timeline Generator - Dual target (muscular + skeletal)
 Generates timelines from V4 daily features with PL-only filtering.
 
 Key features:
 - Generates timelines season by season (YYYY_YYYY+1 format)
-- Dual targets: target1 (muscular injuries) and target2 (skeletal injuries)
-- Natural target ratios (all available positives and negatives)
-- Each injury generates 5 timelines (D-1, D-2, D-3, D-4, D-5)
-- Non-injury validation checks for ANY injury (any class) in 35 days after reference
+- Two targets: target1 = muscular injuries, target2 = skeletal injuries.
+- Positives (model-specific):
+  - Muscular (target1=1): reference date in [D-14, D-1] (inclusive), D = first day of muscular injury.
+  - Skeletal (target2=1): reference date in [D-21, D-1] (inclusive), D = first day of skeletal injury.
+- Negatives (same for both): target1=0, target2=0 when:
+  - No muscular/skeletal/unknown injury in [D-28, D+28] (28 days before or after reference date D);
+  - Player selected (played or on bench) at least once in [D-14, D] (activity condition).
+- Same labeling rules apply to train and test (seasons 2018/19 to 2025/26).
 - PL-only filtering using career data
 - Season segmentation: train (≤2024/25) and test (2025/26)
 - Activity flag: has_minimum_activity (≥90 minutes in 35-day window)
-
-IMPORTANT: Model Training Filtering
--------------------------------------
-When training models, use filter_timelines_for_model() to exclude other injury types:
-- Model 1 (muscular): Use only target1=1 (positives) and target1=0, target2=0 (negatives)
-- Model 2 (skeletal): Use only target2=1 (positives) and target1=0, target2=0 (negatives)
-
-This ensures each model learns to distinguish its specific injury type from non-injuries,
-not from other injury types.
 """
 
 import sys
@@ -60,8 +55,18 @@ SEASON_START_DAY = 1
 # Allowed injury classes for injury timelines (dual targets)
 ALLOWED_INJURY_CLASSES_MUSCULAR = {'muscular'}  # For target1
 ALLOWED_INJURY_CLASSES_SKELETAL = {'skeletal'}  # For target2
+# Injury classes that disqualify a reference date for non-injury
+INJURY_CLASSES_DISQUALIFYING_NON_INJURY = {'muscular', 'skeletal', 'unknown'}
 
-# Activity requirement configuration
+# Positive labeling windows (reference dates before injury day D)
+MUSCULAR_POSITIVE_DAYS_BEFORE = 14   # D-14 to D-1 (inclusive) for muscular
+SKELETAL_POSITIVE_DAYS_BEFORE = 21   # D-21 to D-1 (inclusive) for skeletal
+# Negative: no injury in this window around reference date D
+NEGATIVE_NO_INJURY_DAYS = 28        # [D-28, D+28]
+# Activity: at least 1 selection (played or on bench) in [D-14, D]
+ACTIVITY_DAYS_BEFORE = 14
+
+# Activity requirement configuration (has_minimum_activity flag)
 MIN_ACTIVITY_MINUTES = 90  # Minimum minutes in 35-day window for activity flag
 
 # Train/test split
@@ -824,7 +829,9 @@ def load_injuries_data(injuries_file: str) -> Dict[Tuple[int, pd.Timestamp], str
         injury_class = row.get('injury_class', '').lower() if pd.notna(row.get('injury_class')) else ''
         
         if pd.notna(player_id) and pd.notna(from_date):
-            injury_class_map[(int(player_id), pd.Timestamp(from_date).normalize())] = injury_class
+            ts = pd.Timestamp(from_date)
+            ts = ts.tz_localize(None) if getattr(ts, 'tz', None) is not None else ts
+            injury_class_map[(int(player_id), ts.normalize())] = injury_class
     
     print(f"   Loaded {len(injury_class_map)} injury records with injury_class")
     print(f"   Injury class distribution:")
@@ -888,8 +895,11 @@ def load_all_injury_dates(injuries_file: str) -> Dict[int, Set[pd.Timestamp]]:
 
 def create_windowed_features_vectorized(df: pd.DataFrame, start_date: pd.Timestamp, end_date: pd.Timestamp) -> Optional[Dict]:
     """Create windowed features using vectorized operations"""
-    # Filter data for the 35-day window
-    mask = (df['date'] >= start_date) & (df['date'] <= end_date)
+    # Filter data for the 35-day window (normalized comparison for type/timezone robustness)
+    dates_norm = pd.to_datetime(df['date']).dt.normalize()
+    start_norm = pd.Timestamp(start_date).normalize()
+    end_norm = pd.Timestamp(end_date).normalize()
+    mask = (dates_norm >= start_norm) & (dates_norm <= end_norm)
     window_data = df[mask].copy()
     
     if len(window_data) != 35:
@@ -964,148 +974,294 @@ def create_windowed_features_vectorized(df: pd.DataFrame, start_date: pd.Timesta
 def generate_injury_timelines_enhanced(player_id: int, player_name: str, df: pd.DataFrame,
                                        injury_class_map: Dict[Tuple[int, pd.Timestamp], str]) -> List[Dict]:
     """
-    Generate injury timelines for BOTH muscular and skeletal injuries
-    Each injury gets 5 timelines (D-1, D-2, D-3, D-4, D-5)
-    (PL filtering is done in post-processing, not during generation)
-    Returns timelines with target1 (muscular) and target2 (skeletal)
+    Generate injury timelines for muscular injuries only (target1=1).
+    Each muscular injury on day D generates 14 reference dates: D-14, D-13, ..., D-1.
+    Returns list of timeline dicts (target1=1; target2 set by caller when merging).
     """
     timelines = []
-    
-    # Vectorized injury start detection
     injury_starts = df[df['cum_inj_starts'] > df['cum_inj_starts'].shift(1)]
-    
     for _, injury_row in injury_starts.iterrows():
         injury_date = injury_row['date']
         injury_date_normalized = pd.Timestamp(injury_date).normalize()
-        
-        # Get injury class
         injury_class = injury_class_map.get((player_id, injury_date_normalized), '').lower()
-        
-        # Skip if not muscular or skeletal
-        if injury_class not in ALLOWED_INJURY_CLASSES_MUSCULAR and injury_class not in ALLOWED_INJURY_CLASSES_SKELETAL:
+        if injury_class not in ALLOWED_INJURY_CLASSES_MUSCULAR:
             continue
-        
-        # Determine targets
-        target1 = 1 if injury_class in ALLOWED_INJURY_CLASSES_MUSCULAR else 0
-        target2 = 1 if injury_class in ALLOWED_INJURY_CLASSES_SKELETAL else 0
-        
-        # Generate 5 timelines (D-1, D-2, D-3, D-4, D-5)
-        for days_before in range(1, 6):
+        for days_before in range(1, MUSCULAR_POSITIVE_DAYS_BEFORE + 1):
             reference_date = injury_date - timedelta(days=days_before)
-            start_date = reference_date - timedelta(days=34)  # 35 days before reference
-            
+            start_date = reference_date - timedelta(days=34)
             if start_date < df['date'].min():
                 continue
-            
-            # Create windowed features
             windowed_features = create_windowed_features_vectorized(df, start_date, reference_date)
             if windowed_features is None:
                 continue
-            
-            # Get static features from reference date
-            ref_mask = df['date'] == reference_date
+            ref_mask = (pd.to_datetime(df['date']).dt.normalize() == pd.Timestamp(reference_date).normalize())
             if not ref_mask.any():
                 continue
-                
             ref_row = df[ref_mask].iloc[0]
-            
-            # Build timeline with dual targets
-            timeline = build_timeline(player_id, player_name, reference_date, ref_row, windowed_features, 
-                                     target1=target1, target2=target2, player_df=df, window_start_date=start_date)
+            timeline = build_timeline(player_id, player_name, reference_date, ref_row, windowed_features,
+                                     target1=1, target2=None, player_df=df, window_start_date=start_date)
             timelines.append(timeline)
-    
     return timelines
+
+
+def generate_skeletal_injury_timelines_enhanced(player_id: int, player_name: str, df: pd.DataFrame,
+                                                injury_class_map: Dict[Tuple[int, pd.Timestamp], str]) -> List[Dict]:
+    """
+    Generate injury timelines for skeletal injuries only (target2=1).
+    Each skeletal injury on day D generates 21 reference dates: D-21, D-20, ..., D-1.
+    Returns list of timeline dicts (target2=1; target1 set by caller when merging).
+    """
+    timelines = []
+    injury_starts = df[df['cum_inj_starts'] > df['cum_inj_starts'].shift(1)]
+    for _, injury_row in injury_starts.iterrows():
+        injury_date = injury_row['date']
+        injury_date_normalized = pd.Timestamp(injury_date).normalize()
+        injury_class = injury_class_map.get((player_id, injury_date_normalized), '').lower()
+        if injury_class not in ALLOWED_INJURY_CLASSES_SKELETAL:
+            continue
+        for days_before in range(1, SKELETAL_POSITIVE_DAYS_BEFORE + 1):
+            reference_date = injury_date - timedelta(days=days_before)
+            start_date = reference_date - timedelta(days=34)
+            if start_date < df['date'].min():
+                continue
+            windowed_features = create_windowed_features_vectorized(df, start_date, reference_date)
+            if windowed_features is None:
+                continue
+            ref_mask = (pd.to_datetime(df['date']).dt.normalize() == pd.Timestamp(reference_date).normalize())
+            if not ref_mask.any():
+                continue
+            ref_row = df[ref_mask].iloc[0]
+            timeline = build_timeline(player_id, player_name, reference_date, ref_row, windowed_features,
+                                     target1=None, target2=1, player_df=df, window_start_date=start_date)
+            timelines.append(timeline)
+    return timelines
+
+
+def get_muscular_positive_reference_dates(
+    player_id: int,
+    df: pd.DataFrame,
+    injury_class_map: Dict[Tuple[int, pd.Timestamp], str],
+    season_start: pd.Timestamp,
+    season_end: pd.Timestamp,
+) -> Set[pd.Timestamp]:
+    """Return set of reference dates that are muscular positives (D-14..D-1 before a muscular injury D)."""
+    out = set()
+    injury_starts = df[df['cum_inj_starts'] > df['cum_inj_starts'].shift(1)]
+    for _, injury_row in injury_starts.iterrows():
+        injury_date = injury_row['date']
+        injury_date_normalized = pd.Timestamp(injury_date).normalize()
+        injury_class = injury_class_map.get((player_id, injury_date_normalized), '').lower()
+        if injury_class not in ALLOWED_INJURY_CLASSES_MUSCULAR:
+            continue
+        for days_before in range(1, MUSCULAR_POSITIVE_DAYS_BEFORE + 1):
+            reference_date = injury_date - timedelta(days=days_before)
+            ref_n = pd.Timestamp(reference_date).normalize()
+            if season_start <= ref_n <= season_end:
+                out.add(ref_n)
+    return out
+
+
+def get_skeletal_positive_reference_dates(
+    player_id: int,
+    df: pd.DataFrame,
+    injury_class_map: Dict[Tuple[int, pd.Timestamp], str],
+    season_start: pd.Timestamp,
+    season_end: pd.Timestamp,
+) -> Set[pd.Timestamp]:
+    """Return set of reference dates that are skeletal positives (D-21..D-1 before a skeletal injury D)."""
+    out = set()
+    injury_starts = df[df['cum_inj_starts'] > df['cum_inj_starts'].shift(1)]
+    for _, injury_row in injury_starts.iterrows():
+        injury_date = injury_row['date']
+        injury_date_normalized = pd.Timestamp(injury_date).normalize()
+        injury_class = injury_class_map.get((player_id, injury_date_normalized), '').lower()
+        if injury_class not in ALLOWED_INJURY_CLASSES_SKELETAL:
+            continue
+        for days_before in range(1, SKELETAL_POSITIVE_DAYS_BEFORE + 1):
+            reference_date = injury_date - timedelta(days=days_before)
+            ref_n = pd.Timestamp(reference_date).normalize()
+            if season_start <= ref_n <= season_end:
+                out.add(ref_n)
+    return out
+
 
 def get_valid_non_injury_dates(df: pd.DataFrame,
                                 season_start: pd.Timestamp,
                                 season_end: pd.Timestamp,
                                 all_injury_dates: Optional[Set[pd.Timestamp]] = None) -> List[pd.Timestamp]:
     """
-    Get all valid non-injury reference dates for a specific season
-    (PL filtering is done in post-processing, not during generation)
-    
-    Eligibility rules for PRODUCTION/DEPLOYMENT:
-    - Reference date must be within season date range
-    - Complete 35-day window must be available BEFORE reference date (for feature calculation)
-    - NO requirement for future data (allows predictions up to latest available date)
-    - NO filtering based on future injuries (all dates are included for prediction)
+    Get all valid non-injury (negative) reference dates. Same for both models (target1=0, target2=0).
+
+    all_injury_dates: set of relevant injury dates for this player (muscular/skeletal/unknown only).
+
+    Eligibility for a negative timeline at reference date D:
+    - Reference date within season date range
+    - Complete 35-day window available BEFORE reference date
+    - No muscular, skeletal, or unknown injury in [D-28, D+28]
+    - Player selected (played or on bench) at least once in [D-14, D]
     """
     valid_dates = []
-    
-    # Get all injury dates for this player (any class) - used for validation
     player_injury_dates = all_injury_dates if all_injury_dates is not None else set()
-    
     max_date = df['date'].max()
     min_date = df['date'].min()
-    # For production: allow reference dates up to max_date (no future window required)
     max_reference_date = min(max_date, season_end)
-    
-    # Create date range for potential reference dates
     potential_dates = pd.date_range(min_date, max_reference_date, freq='D')
-    
-    # Process valid dates
+    df_dates = pd.to_datetime(df['date']).dt.normalize()
+
     for reference_date in potential_dates:
-        # Check if reference date exists in data (normalize for proper comparison)
         reference_date_normalized = pd.Timestamp(reference_date).normalize()
-        if not (df['date'].dt.normalize() == reference_date_normalized).any():
+        if not (df_dates == reference_date_normalized).any():
             continue
-        
-        # Season filtering
         if not (season_start <= reference_date <= season_end):
             continue
-        
-        # Check if we can create a complete 35-day window BEFORE reference date
-        # (This is the only requirement for production - we need history, not future)
         start_date = reference_date - timedelta(days=34)
         if start_date < min_date:
             continue
+        # No muscular/skeletal/unknown injury in [D-28, D+28]
+        window_start_inj = reference_date_normalized - timedelta(days=NEGATIVE_NO_INJURY_DAYS)
+        window_end_inj = reference_date_normalized + timedelta(days=NEGATIVE_NO_INJURY_DAYS)
+        has_relevant_injury_around = False
+        for injury_date in player_injury_dates:
+            injury_date_n = pd.Timestamp(injury_date).normalize()
+            if window_start_inj <= injury_date_n <= window_end_inj:
+                has_relevant_injury_around = True
+                break
+        if has_relevant_injury_around:
+            continue
+        # Player selected (played or on bench) at least once in [D-14, D]
+        selection_start = reference_date_normalized - timedelta(days=ACTIVITY_DAYS_BEFORE)
+        selection_end = reference_date_normalized
+        sel_mask = (df_dates >= selection_start) & (df_dates <= selection_end)
+        sel_df = df.loc[sel_mask]
+        if sel_df.empty:
+            continue
+        has_selection = False
+        for _, row in sel_df.iterrows():
+            mp = row.get('matches_played', 0)
+            mb = row.get('matches_bench_unused', 0)
+            if (pd.notna(mp) and mp > 0) or (pd.notna(mb) and mb > 0):
+                has_selection = True
+                break
+        if not has_selection:
+            continue
         
-        # All checks passed - include this date for prediction
         valid_dates.append(reference_date)
     
     return valid_dates
 
-def generate_non_injury_timelines_for_dates(player_id: int, player_name: str, df: pd.DataFrame, 
-                                            reference_dates: List[pd.Timestamp]) -> List[Dict]:
-    """Generate non-injury timelines for specific reference dates (both targets = 0)"""
+
+def get_all_reference_dates_in_range(df: pd.DataFrame,
+                                     season_start: pd.Timestamp,
+                                     season_end: pd.Timestamp) -> List[pd.Timestamp]:
+    """
+    Get all reference dates in [season_start, season_end] where a timeline can be built.
+    Eligibility: D in range, row for D exists, full 35-day window before D available.
+    (No injury/activity filters; used only when building eligible-dates union.)
+    """
+    out = []
+    max_date = df['date'].max()
+    min_date = df['date'].min()
+    max_reference_date = min(max_date, season_end)
+    range_start = max(min_date, season_start)
+    if range_start > max_reference_date:
+        return out
+    potential_dates = pd.date_range(range_start, max_reference_date, freq='D')
+    df_dates = pd.to_datetime(df['date']).dt.normalize()
+    for reference_date in potential_dates:
+        ref_n = pd.Timestamp(reference_date).normalize()
+        if not (season_start <= ref_n <= season_end):
+            continue
+        if not (df_dates == ref_n).any():
+            continue
+        start_date = ref_n - timedelta(days=34)
+        if start_date < min_date:
+            continue
+        out.append(ref_n)
+    return out
+
+
+def get_eligible_reference_dates_with_targets(
+    df: pd.DataFrame,
+    season_start: pd.Timestamp,
+    season_end: pd.Timestamp,
+    muscular_positive_dates: Set[pd.Timestamp],
+    skeletal_positive_dates: Set[pd.Timestamp],
+    negative_eligible_dates: List[pd.Timestamp],
+) -> List[Tuple[pd.Timestamp, int, int]]:
+    """
+    Build list of (reference_date, target1, target2) for all eligible dates.
+    Eligible = muscular positives | skeletal positives | negative-eligible.
+    For each date: target1=1 if in muscular_positive_dates else 0, target2=1 if in skeletal_positive_dates else 0.
+    """
+    all_dates = (muscular_positive_dates | skeletal_positive_dates) | set(negative_eligible_dates)
+    date_target_list = []
+    for ref_n in sorted(all_dates):
+        t1 = 1 if ref_n in muscular_positive_dates else 0
+        t2 = 1 if ref_n in skeletal_positive_dates else 0
+        date_target_list.append((ref_n, t1, t2))
+    return date_target_list
+
+
+def generate_timelines_for_dates_with_targets(
+    player_id: int,
+    player_name: str,
+    df: pd.DataFrame,
+    date_target_list: List[Tuple[pd.Timestamp, int, int]],
+) -> List[Dict]:
+    """Generate one timeline per (reference_date, target1, target2). Each tuple is (ref_date, t1, t2)."""
     timelines = []
-    
-    for reference_date in reference_dates:
-        # Create windowed features
+    for reference_date, target1, target2 in date_target_list:
         start_date = reference_date - timedelta(days=34)
         windowed_features = create_windowed_features_vectorized(df, start_date, reference_date)
         if windowed_features is None:
             continue
-        
-        # Get static features from reference date
-        ref_mask = df['date'] == reference_date
+        ref_mask = (pd.to_datetime(df['date']).dt.normalize() == pd.Timestamp(reference_date).normalize())
         if not ref_mask.any():
             continue
         ref_row = df[ref_mask].iloc[0]
-        
-        # Build timeline with both targets = 0 (no injury)
-        timeline = build_timeline(player_id, player_name, reference_date, ref_row, windowed_features, 
-                                 target1=0, target2=0, player_df=df, window_start_date=start_date)
+        timeline = build_timeline(
+            player_id, player_name, reference_date, ref_row, windowed_features,
+            target1=int(target1), target2=int(target2), player_df=df, window_start_date=start_date
+        )
         timelines.append(timeline)
-    
     return timelines
 
-def build_timeline(player_id: int, player_name: str, reference_date: pd.Timestamp, 
-                  ref_row: pd.Series, windowed_features: Dict, 
-                  target1: int = None, target2: int = None,
+
+def generate_non_injury_timelines_for_dates(player_id: int, player_name: str, df: pd.DataFrame,
+                                            reference_dates: List[pd.Timestamp]) -> List[Dict]:
+    """Generate non-injury (negative) timelines for specific reference dates (target1=0, target2=0)."""
+    timelines = []
+    for reference_date in reference_dates:
+        start_date = reference_date - timedelta(days=34)
+        windowed_features = create_windowed_features_vectorized(df, start_date, reference_date)
+        if windowed_features is None:
+            continue
+        ref_mask = (pd.to_datetime(df['date']).dt.normalize() == pd.Timestamp(reference_date).normalize())
+        if not ref_mask.any():
+            continue
+        ref_row = df[ref_mask].iloc[0]
+        timeline = build_timeline(player_id, player_name, reference_date, ref_row, windowed_features,
+                                 target1=0, target2=0, player_df=df, window_start_date=start_date)
+        timelines.append(timeline)
+    return timelines
+
+def build_timeline(player_id: int, player_name: str, reference_date: pd.Timestamp,
+                  ref_row: pd.Series, windowed_features: Dict,
+                  target1: Optional[int] = None,
+                  target2: Optional[int] = None,
                   player_df: Optional[pd.DataFrame] = None,
                   window_start_date: Optional[pd.Timestamp] = None) -> Dict:
-    """Build a complete timeline with normalized cumulative features (simplified version for V4)
-    
+    """Build a complete timeline with normalized cumulative features (dual target: target1=muscular, target2=skeletal).
+
     Args:
         player_id: Player ID
         player_name: Player name
         reference_date: Reference date for the timeline
         ref_row: Reference row from daily features
         windowed_features: Windowed features dictionary
-        target1: Optional target1 value (muscular injuries). If None, target1 column is not included.
-        target2: Optional target2 value (skeletal injuries). If None, target2 column is not included.
-        player_df: Optional full player daily features dataframe to calculate career start and activity
+        target1: 1=muscular positive, 0=negative (or None to omit)
+        target2: 1=skeletal positive, 0=negative (or None to omit)
+        player_df: Optional full player daily features dataframe
         window_start_date: Optional start date of the 35-day window (for activity calculation)
     """
     # Build static features
@@ -1241,13 +1397,12 @@ def build_timeline(player_id: int, player_name: str, reference_date: pd.Timestam
     
     # Add activity flag
     timeline['has_minimum_activity'] = has_minimum_activity
-    
-    # Add targets if provided (for training/backtesting)
+
     if target1 is not None:
         timeline['target1'] = target1
     if target2 is not None:
         timeline['target2'] = target2
-    
+
     return timeline
 
 # ===== HELPER FUNCTIONS =====
@@ -1344,138 +1499,72 @@ def save_timelines_to_csv_chunked(timelines: List[Dict], output_file: str, chunk
 
 # ===== MODEL-SPECIFIC FILTERING FUNCTIONS =====
 
-def filter_timelines_for_model(timelines_df: pd.DataFrame, target_column: str) -> pd.DataFrame:
+def filter_timelines_for_model(timelines_df: pd.DataFrame, target_column: str = 'target1') -> pd.DataFrame:
     """
-    Filter timelines for a specific model, excluding other injury types from negatives.
-    
-    This ensures each model only learns to distinguish its target injury type from non-injuries,
-    not from other injury types.
-    
-    For Model 1 (muscular): Only includes timelines where target1=1 (positives) 
-    or (target1=0 AND target2=0) (negatives - only non-injuries)
-    
-    For Model 2 (skeletal): Only includes timelines where target2=1 (positives)
-    or (target1=0 AND target2=0) (negatives - only non-injuries)
-    
-    Args:
-        timelines_df: DataFrame with target1 and target2 columns
-        target_column: 'target1' for muscular model, 'target2' for skeletal model
-        
-    Returns:
-        Filtered DataFrame with only relevant timelines for the specified model
-        
-    Example:
-        >>> # Load timelines
-        >>> timelines_df = pd.read_csv('timelines_35day_season_2024_2025_v4_muscular_train.csv')
-        >>> 
-        >>> # Filter for Model 1 (muscular)
-        >>> model1_data = filter_timelines_for_model(timelines_df, 'target1')
-        >>> # Use model1_data['target1'] as the target variable
-        >>> 
-        >>> # Filter for Model 2 (skeletal)
-        >>> model2_data = filter_timelines_for_model(timelines_df, 'target2')
-        >>> # Use model2_data['target2'] as the target variable
+    Filter timelines for one model: target_column='target1' (muscular) or 'target2' (skeletal).
+    Returns the same DataFrame (all rows valid; column target1/target2 used as label).
     """
-    if target_column not in ['target1', 'target2']:
-        raise ValueError(f"Invalid target_column: {target_column}. Must be 'target1' or 'target2'")
-    
-    # Validate required columns exist
-    if 'target1' not in timelines_df.columns or 'target2' not in timelines_df.columns:
-        raise ValueError("DataFrame must contain both 'target1' and 'target2' columns")
-    
-    if target_column == 'target1':
-        # Model 1 (muscular): Include muscular injuries (target1=1) and non-injuries (both=0)
-        # Exclude skeletal injuries (target2=1, target1=0)
-        mask = (timelines_df['target1'] == 1) | ((timelines_df['target1'] == 0) & (timelines_df['target2'] == 0))
-        filtered_df = timelines_df[mask].copy()
-        
-        excluded_count = ((timelines_df['target1'] == 0) & (timelines_df['target2'] == 1)).sum()
-        positives = filtered_df['target1'].sum()
-        negatives = ((filtered_df['target1'] == 0) & (filtered_df['target2'] == 0)).sum()
-        
-        print(f"\n📊 Filtered for Model 1 (Muscular Injuries):")
-        print(f"   Original timelines: {len(timelines_df):,}")
-        print(f"   After filtering: {len(filtered_df):,}")
-        print(f"   Positives (target1=1): {positives:,}")
-        print(f"   Negatives (target1=0, target2=0): {negatives:,}")
-        print(f"   Excluded (skeletal injuries): {excluded_count:,}")
-        if len(filtered_df) > 0:
-            print(f"   Target ratio: {positives / len(filtered_df) * 100:.2f}%")
-        
-    else:  # target_column == 'target2'
-        # Model 2 (skeletal): Include skeletal injuries (target2=1) and non-injuries (both=0)
-        # Exclude muscular injuries (target1=1, target2=0)
-        mask = (timelines_df['target2'] == 1) | ((timelines_df['target1'] == 0) & (timelines_df['target2'] == 0))
-        filtered_df = timelines_df[mask].copy()
-        
-        excluded_count = ((timelines_df['target1'] == 1) & (timelines_df['target2'] == 0)).sum()
-        positives = filtered_df['target2'].sum()
-        negatives = ((filtered_df['target1'] == 0) & (filtered_df['target2'] == 0)).sum()
-        
-        print(f"\n📊 Filtered for Model 2 (Skeletal Injuries):")
-        print(f"   Original timelines: {len(timelines_df):,}")
-        print(f"   After filtering: {len(filtered_df):,}")
-        print(f"   Positives (target2=1): {positives:,}")
-        print(f"   Negatives (target1=0, target2=0): {negatives:,}")
-        print(f"   Excluded (muscular injuries): {excluded_count:,}")
-        if len(filtered_df) > 0:
-            print(f"   Target ratio: {positives / len(filtered_df) * 100:.2f}%")
-    
+    if target_column not in ('target1', 'target2'):
+        raise ValueError("target_column must be 'target1' (muscular) or 'target2' (skeletal).")
+    if target_column not in timelines_df.columns:
+        raise ValueError(f"DataFrame must contain '{target_column}' column")
+    filtered_df = timelines_df.copy()
+    positives = int(filtered_df[target_column].sum())
+    negatives = int((filtered_df[target_column] == 0).sum())
+    label = "Muscular (target1)" if target_column == 'target1' else "Skeletal (target2)"
+    print(f"\n📊 {label}:")
+    print(f"   Total timelines: {len(filtered_df):,}")
+    print(f"   Positives ({target_column}=1): {positives:,}")
+    print(f"   Negatives ({target_column}=0): {negatives:,}")
+    if len(filtered_df) > 0:
+        print(f"   Target ratio: {positives / len(filtered_df) * 100:.2f}%")
     return filtered_df
 
 # ===== SEASON PROCESSING (PL filtering done in post-processing) =====
 
 def process_season(season_start_year: int, daily_features_dir: str, 
                   all_injury_dates_by_player: Dict[int, Set[pd.Timestamp]],
+                  relevant_injury_dates_by_player: Dict[int, Set[pd.Timestamp]],
                   injury_class_map: Dict[Tuple[int, pd.Timestamp], str],
                   player_names_map: Dict[int, str],
                   player_ids: List[int],
+                  player_pl_periods: Dict[int, List[Tuple[pd.Timestamp, pd.Timestamp]]],
                   output_dir: str,
-                  max_players: Optional[int] = None) -> Tuple[Optional[str], int, int, int]:
-    """Process a single season and generate timeline file (PL filtering done in post-processing)"""
+                  max_players: Optional[int] = None) -> Tuple[Optional[str], int, int]:
+    """Process a single season: dual target (target1=muscular, target2=skeletal). Same eligible-date rules for train and test."""
     season_start, season_end = get_season_date_range(season_start_year)
-    
-    # Determine if this is train or test season
     is_test_season = season_start_year >= TEST_SEASON_START
     if is_test_season:
         output_file = str(V4_TIMELINES_TEST / f'timelines_35day_season_{season_start_year}_{season_start_year+1}_v4_muscular_test.csv')
     else:
         output_file = str(V4_TIMELINES_TRAIN / f'timelines_35day_season_{season_start_year}_{season_start_year+1}_v4_muscular_train.csv')
-    
+
     print(f"\n{'='*80}")
     print(f"PROCESSING SEASON {season_start_year}_{season_start_year+1} ({'TEST' if is_test_season else 'TRAIN'})")
     print(f"{'='*80}")
     print(f"   Date range: {season_start.date()} to {season_end.date()}")
-    
+
     season_start_time = datetime.now()
-    
-    # Apply limit if specified (for testing)
     if max_players is not None:
         season_player_ids = player_ids[:max_players]
     else:
         season_player_ids = player_ids
-    
-    # ===== PASS 1: Generate all injury timelines and collect valid non-injury dates =====
-    print(f"\n📊 PASS 1: Generating injury timelines and identifying valid dates")
-    
-    all_injury_timelines = []
-    all_valid_non_injury_dates = []
+
+    # ===== PASS 1: Collect (player_id, date_target_list) with date_target_list = [(ref_date, target1, target2), ...] =====
+    # Same rules for train and test: eligible dates = muscular positives | skeletal positives | negative-eligible (28d no-injury + activity)
+    player_dates_with_targets: List[Tuple[int, List[Tuple[pd.Timestamp, int, int]]]] = []
     processed_players = 0
     skipped_players_info = []
-    
+    print(f"\n📊 PASS 1: Collecting eligible reference dates (muscular 14d, skeletal 21d, negatives 28d + activity)")
+
     for player_id in tqdm(season_player_ids, desc=f"Pass 1: {season_start_year}_{season_start_year+1}", unit="player"):
         try:
-            # Load player data
             df = pd.read_csv(f'{daily_features_dir}/player_{player_id}_daily_features.csv')
             df['date'] = pd.to_datetime(df['date'])
-            
-            # Filter to season date range (with 35-day buffer before season start for windows)
             buffer_start = season_start - timedelta(days=34)
             season_mask = (df['date'] >= buffer_start) & (df['date'] <= season_end)
             df_season = df[season_mask].copy()
-            
             if len(df_season) == 0:
-                # Track skipped player
                 file_min = df['date'].min() if len(df) > 0 else None
                 file_max = df['date'].max() if len(df) > 0 else None
                 skipped_players_info.append({
@@ -1484,55 +1573,36 @@ def process_season(season_start_year: int, daily_features_dir: str,
                     'file_date_range': f'{file_min.date()} to {file_max.date()}' if file_min is not None else 'N/A',
                     'total_rows_in_file': len(df)
                 })
-                continue  # No data for this season
-            
-            # Get player name
-            player_name = get_player_name_from_df(df_season, player_id=player_id, player_names_map=player_names_map)
-            
-            # Get all injury dates for this player (any class) for non-injury validation
-            player_all_injury_dates = all_injury_dates_by_player.get(player_id, set())
-            
-            # Generate injury timelines (filtered by injury_class and season, NO PL filtering)
-            injury_timelines = generate_injury_timelines_enhanced(
-                player_id, player_name, df_season, injury_class_map
+                continue
+
+            muscular_positive_dates = get_muscular_positive_reference_dates(
+                player_id, df_season, injury_class_map, season_start, season_end
             )
-            
-            # Filter injury timelines to this season
-            season_injury_timelines = []
-            for timeline in injury_timelines:
-                ref_date_str = timeline.get('reference_date', '')
-                if ref_date_str:
-                    ref_date = pd.to_datetime(ref_date_str)
-                    if season_start <= ref_date <= season_end:
-                        season_injury_timelines.append(timeline)
-            
-            all_injury_timelines.extend(season_injury_timelines)
-            
-            # Get valid non-injury dates for this season (NO PL filtering)
-            valid_dates = get_valid_non_injury_dates(
-                df_season,
-                season_start=season_start,
-                season_end=season_end,
-                all_injury_dates=player_all_injury_dates
+            skeletal_positive_dates = get_skeletal_positive_reference_dates(
+                player_id, df_season, injury_class_map, season_start, season_end
             )
-            for date in valid_dates:
-                all_valid_non_injury_dates.append((player_id, date))
-            
-            # Track if player has no timelines at all
-            if len(valid_dates) == 0 and len(season_injury_timelines) == 0:
+            player_relevant_injury_dates = relevant_injury_dates_by_player.get(player_id, set())
+            negative_eligible_dates = get_valid_non_injury_dates(
+                df_season, season_start=season_start, season_end=season_end,
+                all_injury_dates=player_relevant_injury_dates
+            )
+            date_target_list = get_eligible_reference_dates_with_targets(
+                df_season, season_start, season_end,
+                muscular_positive_dates, skeletal_positive_dates, negative_eligible_dates
+            )
+            if not date_target_list:
                 skipped_players_info.append({
                     'player_id': player_id,
-                    'reason': 'No injury timelines and no valid non-injury dates',
-                    'injury_timelines_count': len(injury_timelines),
-                    'season_injury_timelines_count': len(season_injury_timelines),
-                    'valid_dates_count': len(valid_dates),
-                    'season_data_rows': len(df_season),
-                    'injury_dates_count': len(player_all_injury_dates)
+                    'reason': 'No eligible reference dates (no muscular/skeletal positives and no valid negatives)',
+                    'muscular_pos': len(muscular_positive_dates),
+                    'skeletal_pos': len(skeletal_positive_dates),
+                    'negative_eligible': len(negative_eligible_dates)
                 })
-            
+                del df, df_season
+                continue
+            player_dates_with_targets.append((player_id, date_target_list))
             processed_players += 1
             del df, df_season
-                
         except Exception as e:
             skipped_players_info.append({
                 'player_id': player_id,
@@ -1541,104 +1611,73 @@ def process_season(season_start_year: int, daily_features_dir: str,
             })
             print(f"\n❌ Error processing player {player_id} for season {season_start_year}: {e}")
             continue
-    
+
+    total_ref_days = sum(len(dtl) for _, dtl in player_dates_with_targets)
+    n_t1 = sum(1 for _, dtl in player_dates_with_targets for _, t1, t2 in dtl if t1 == 1)
+    n_t2 = sum(1 for _, dtl in player_dates_with_targets for _, t1, t2 in dtl if t2 == 1)
     print(f"\n✅ PASS 1 Complete for {season_start_year}_{season_start_year+1}:")
-    print(f"   Injury timelines: {len(all_injury_timelines)}")
-    print(f"   Valid non-injury dates: {len(all_valid_non_injury_dates)}")
-    print(f"   Processed players: {processed_players}")
-    
-    # Log skipped players if any
+    print(f"   Players with timelines: {len(player_dates_with_targets)}")
+    print(f"   Total reference days: {total_ref_days:,} (target1=1: {n_t1:,}, target2=1: {n_t2:,})")
+
     if skipped_players_info:
         print(f"\n⚠️  SKIPPED PLAYERS ({len(skipped_players_info)}):")
         for info in skipped_players_info:
             print(f"   Player {info['player_id']}: {info['reason']}")
-            if 'file_date_range' in info:
-                print(f"      File date range: {info['file_date_range']}")
-            if 'valid_dates_count' in info:
-                print(f"      Injury timelines: {info.get('season_injury_timelines_count', 0)}, Valid dates: {info['valid_dates_count']}")
-            if 'injury_dates_count' in info:
-                print(f"      Total injury dates in data: {info['injury_dates_count']}")
     else:
         print(f"   ✅ All {len(season_player_ids)} players processed successfully")
-    
-    # Use natural target ratio (all available dates)
-    selected_dates = all_valid_non_injury_dates
-    print(f"\n📊 DATASET COMPOSITION (Natural Ratio, All Players):")
-    print(f"   Injury timelines: {len(all_injury_timelines)}")
-    print(f"   Non-injury dates: {len(selected_dates)}")
-    print(f"   ✅ Using all {len(selected_dates)} available dates")
-    
-    # ===== PASS 2: Generate timelines for selected dates =====
-    print(f"\n📊 PASS 2: Generating non-injury timelines")
-    
-    all_non_injury_timelines = []
-    dates_by_player = defaultdict(list)
-    for player_id, date in selected_dates:
-        dates_by_player[player_id].append(date)
-    
-    for player_id, dates in tqdm(dates_by_player.items(), desc=f"Pass 2: {season_start_year}_{season_start_year+1}", unit="player"):
+
+    # ===== PASS 2: Generate timelines for all (player_id, date_target_list) =====
+    print(f"\n📊 PASS 2: Generating timelines for all eligible reference days (dual target)")
+    all_timelines = []
+    for player_id, date_target_list in tqdm(player_dates_with_targets, desc=f"Pass 2: {season_start_year}_{season_start_year+1}", unit="player"):
         try:
             df = pd.read_csv(f'{daily_features_dir}/player_{player_id}_daily_features.csv')
             df['date'] = pd.to_datetime(df['date'])
-            
-            # Filter to season date range (with buffer)
             buffer_start = season_start - timedelta(days=34)
             season_mask = (df['date'] >= buffer_start) & (df['date'] <= season_end)
             df_season = df[season_mask].copy()
-            
             if len(df_season) == 0:
                 continue
-            
             player_name = get_player_name_from_df(df_season, player_id=player_id, player_names_map=player_names_map)
-            
-            # Generate non-injury timelines
-            non_injury_timelines = generate_non_injury_timelines_for_dates(player_id, player_name, df_season, dates)
-            all_non_injury_timelines.extend(non_injury_timelines)
-            
+            timelines = generate_timelines_for_dates_with_targets(player_id, player_name, df_season, date_target_list)
+            all_timelines.extend(timelines)
             del df, df_season
-            
         except Exception as e:
-            print(f"\n❌ Error generating non-injury timelines for player {player_id}: {e}")
+            print(f"\n❌ Error generating timelines for player {player_id}: {e}")
             continue
-    
+
     # Combine and save
     print(f"\n📊 FINALIZING DATASET FOR {season_start_year}_{season_start_year+1}")
-    
-    injury_count = len(all_injury_timelines)
-    non_injury_count = len(all_non_injury_timelines)
-    final_timelines = all_injury_timelines + all_non_injury_timelines
+    final_timelines = all_timelines
+    injury_count = sum(1 for t in final_timelines if t.get('target1') == 1)
+    non_injury_count = len(final_timelines) - injury_count
     random.shuffle(final_timelines)
     
-    total_count = len(final_timelines)
-    final_ratio = (injury_count / total_count) if total_count > 0 else 0.0
+    # Apply PL filter (post-processing)
+    if player_pl_periods and final_timelines:
+        timelines_df = pd.DataFrame(final_timelines)
+        timelines_df = filter_timelines_pl_only(timelines_df, player_pl_periods)
+        final_timelines = timelines_df.to_dict('records')
+        del timelines_df
+        print(f"   Applied PL filter: {len(final_timelines):,} timelines after filter")
     
-    # Calculate statistics for dual targets
+    total_count = len(final_timelines)
     target1_count = sum(1 for t in final_timelines if t.get('target1') == 1)
     target2_count = sum(1 for t in final_timelines if t.get('target2') == 1)
-    both_targets_count = sum(1 for t in final_timelines if t.get('target1') == 1 and t.get('target2') == 1)
     activity_flag_count = sum(1 for t in final_timelines if t.get('has_minimum_activity') == 1)
-    
-    final_ratio1 = (target1_count / total_count) if total_count > 0 else 0.0
-    final_ratio2 = (target2_count / total_count) if total_count > 0 else 0.0
-    
-    print(f"\n📈 SEASON {season_start_year}_{season_start_year+1} DATASET (PL-only):")
+
+    print(f"\n📈 SEASON {season_start_year}_{season_start_year+1} DATASET (PL-only, dual target):")
     print(f"   Total timelines: {total_count:,}")
-    print(f"   Injury timelines (target1=1): {target1_count:,}")
-    print(f"   Injury timelines (target2=1): {target2_count:,}")
-    print(f"   Injury timelines (both=1): {both_targets_count:,}")
-    print(f"   Non-injury timelines (both=0): {non_injury_count:,}")
+    print(f"   target1=1 (muscular): {target1_count:,}")
+    print(f"   target2=1 (skeletal): {target2_count:,}")
     if total_count > 0:
         print(f"   Timelines with minimum activity: {activity_flag_count:,} ({activity_flag_count/total_count*100:.1f}%)")
-        print(f"   Final target1 ratio: {final_ratio1:.1%} (natural)")
-        print(f"   Final target2 ratio: {final_ratio2:.1%} (natural)")
+        print(f"   target1 ratio: {target1_count/total_count:.1%}  target2 ratio: {target2_count/total_count:.1%}")
     else:
-        print(f"   Timelines with minimum activity: {activity_flag_count:,} (N/A - no timelines)")
-        print(f"   Final target1 ratio: N/A (no timelines)")
-        print(f"   Final target2 ratio: N/A (no timelines)")
+        print(f"   Timelines with minimum activity: {activity_flag_count:,} (N/A)")
     
     if final_timelines:
         print(f"\n💾 Saving timelines to CSV...")
-        # Ensure output directory exists
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
         shape = save_timelines_to_csv_chunked(final_timelines, output_file)
         print(f"✅ Saved to: {output_file}")
@@ -1650,7 +1689,7 @@ def process_season(season_start_year: int, daily_features_dir: str,
     season_time = datetime.now() - season_start_time
     print(f"⏱️  Season processing time: {season_time}")
     
-    return output_file, target1_count, target2_count, non_injury_count
+    return output_file, target1_count, non_injury_count
 
 def main(max_players: Optional[int] = None, seasons: Optional[List[int]] = None):
     """Main function - processes all seasons with PL filtering
@@ -1665,7 +1704,7 @@ def main(max_players: Optional[int] = None, seasons: Optional[List[int]] = None)
     print("⚡ Processing: Season-by-season with natural target ratios")
     print("🎯 Target ratios: Natural (all available positives and negatives)")
     print(f"📊 Activity flag: has_minimum_activity (≥{MIN_ACTIVITY_MINUTES} minutes in 35-day window)")
-    print(f"🔍 Injury filtering: Only muscular injuries for injury timelines")
+    print(f"🔍 Dual target: target1=muscular (D-14..D-1), target2=skeletal (D-21..D-1); negatives 28d no-injury + activity")
     print(f"🏆 PL filtering: Only timelines when player was in Premier League")
     print(f"📊 Season split: Train (≤{TRAIN_SEASON_CUTOFF}/25), Test ({TEST_SEASON_START}/26)")
     
@@ -1751,6 +1790,14 @@ def main(max_players: Optional[int] = None, seasons: Optional[List[int]] = None)
     injury_class_map = load_injuries_data(injuries_file)
     all_injury_dates_by_player = load_all_injury_dates(injuries_file)
     print(f"✅ Loaded injury data for {len(all_injury_dates_by_player)} players")
+    # For non-injury validation: only muscular/skeletal/unknown disqualify; other/no_injury do not
+    relevant_injury_dates_by_player = defaultdict(set)
+    for (pid, date), cls in injury_class_map.items():
+        c = (cls or '').strip().lower()
+        if c in INJURY_CLASSES_DISQUALIFYING_NON_INJURY:
+            relevant_injury_dates_by_player[pid].add(date)
+    relevant_injury_dates_by_player = dict(relevant_injury_dates_by_player)
+    print(f"   Relevant injury dates (muscular/skeletal/unknown) for non-injury check: {sum(len(s) for s in relevant_injury_dates_by_player.values())} total")
     
     # Step 4: Get all player IDs
     print("\n" + "=" * 80)
@@ -1783,14 +1830,14 @@ def main(max_players: Optional[int] = None, seasons: Optional[List[int]] = None)
     
     output_files = []
     total_target1 = 0
-    total_target2 = 0
     total_non_injuries = 0
     
     for season_start_year in seasons_to_process:
-        output_file, target1_count, target2_count, non_injury_count = process_season(
+        output_file, target1_count, non_injury_count = process_season(
             season_start_year,
             daily_features_dir,
             all_injury_dates_by_player,
+            relevant_injury_dates_by_player,
             injury_class_map,
             player_names_map,
             player_ids,
@@ -1801,22 +1848,19 @@ def main(max_players: Optional[int] = None, seasons: Optional[List[int]] = None)
         if output_file:
             output_files.append(output_file)
             total_target1 += target1_count
-            total_target2 += target2_count
             total_non_injuries += non_injury_count
     
     # Summary
     print(f"\n{'='*80}")
     print("📊 FINAL SUMMARY")
     print(f"{'='*80}")
-    total_timelines = total_target1 + total_target2 + total_non_injuries
+    total_timelines = total_target1 + total_non_injuries
     print(f"   Processed {len(output_files)} seasons")
     print(f"   Total timelines: {total_timelines:,}")
-    print(f"   Total injury timelines (target1=1): {total_target1:,}")
-    print(f"   Total injury timelines (target2=1): {total_target2:,}")
-    print(f"   Total non-injury timelines (both=0): {total_non_injuries:,}")
+    print(f"   Positives (target1=1): {total_target1:,}")
+    print(f"   Negatives (target1=0): {total_non_injuries:,}")
     if total_timelines > 0:
         print(f"   Final target1 ratio: {total_target1 / total_timelines:.1%}")
-        print(f"   Final target2 ratio: {total_target2 / total_timelines:.1%}")
     print(f"   Note: Activity flag statistics available in individual season files")
     print(f"\n   Generated files:")
     for f in output_files:

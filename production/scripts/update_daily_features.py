@@ -16,7 +16,7 @@ import traceback
 import argparse
 import re
 import bisect
-from typing import Dict, Optional, Tuple, List, Any
+from typing import Dict, Optional, Tuple, List, Any, Set
 from datetime import datetime, timedelta
 
 # Add scripts directory to path for imports
@@ -35,6 +35,15 @@ from benfica_parity_config import (
     map_competition_importance_benfica_parity,
     detect_disciplinary_action_benfica_parity,
 )
+
+# Transfer utils for club stint dates (truncate at transfer-out)
+try:
+    from production.scripts.transfer_utils import get_club_stint_dates
+except ImportError:
+    try:
+        from transfer_utils import get_club_stint_dates
+    except ImportError:
+        get_club_stint_dates = None  # type: ignore
 
 # Import position normalization
 try:
@@ -199,6 +208,37 @@ def load_player_ids_from_config(config_path: str) -> List[int]:
     except Exception as e:
         logger.error(f"Error loading config from {config_path}: {e}")
         return []
+
+def get_goalkeeper_player_ids_from_profile(data_dir: str) -> Set[int]:
+    """Return set of player IDs whose position is Goalkeeper in players_profile.csv.
+    Uses same logic as Transfermarkt profile (position 'goalkeeper' or 'gk').
+    data_dir: path to raw data folder (e.g. production/raw_data/england/20260129).
+    """
+    profile_path = os.path.join(data_dir, 'players_profile.csv')
+    if not os.path.exists(profile_path):
+        logger.warning(f"Profile not found: {profile_path}; not excluding goalkeepers")
+        return set()
+    try:
+        df = pd.read_csv(profile_path, sep=';', encoding='utf-8-sig', low_memory=False)
+    except Exception as e:
+        logger.warning(f"Could not read profile {profile_path}: {e}; not excluding goalkeepers")
+        return set()
+    player_id_col = 'player_id' if 'player_id' in df.columns else 'id'
+    if player_id_col not in df.columns or 'position' not in df.columns:
+        logger.warning(f"Profile missing '{player_id_col}' or 'position'; not excluding goalkeepers")
+        return set()
+    goalkeeper_ids = set()
+    for _, row in df.iterrows():
+        try:
+            pid = row.get(player_id_col)
+            if pd.isna(pid):
+                continue
+            pos = str(row.get('position', '')).strip().lower()
+            if pos in ('goalkeeper', 'gk'):
+                goalkeeper_ids.add(int(pid))
+        except (ValueError, TypeError):
+            continue
+    return goalkeeper_ids
 
 def parse_date_flexible(date_str: Any, formats: List[str] = None) -> Optional[pd.Timestamp]:
     """Parse date string trying multiple formats."""
@@ -705,23 +745,26 @@ def determine_calendar(
     injuries: pd.DataFrame, 
     reference_date: pd.Timestamp,
     player_row: Optional[pd.Series] = None,
-    max_date: Optional[pd.Timestamp] = None
+    max_date: Optional[pd.Timestamp] = None,
+    min_date: Optional[pd.Timestamp] = None
 ) -> pd.DatetimeIndex:
     """
     Determine the date range for feature generation.
     
-    CRITICAL: Calendar starts from FIRST SEASON START (01/07/YYYY), not first match date.
-    This matches the reference implementation logic.
+    CRITICAL: Calendar starts from min_date (if provided) or FIRST SEASON START (01/07/YYYY).
     
     Args:
         matches: DataFrame with player matches
         injuries: DataFrame with player injuries
         reference_date: Reference date to cap the calendar
         player_row: Optional player row for fallback to DOB if no matches
+        max_date: Optional maximum date to cap the calendar
+        min_date: Optional minimum date to start the calendar (e.g., season_start).
+                  If provided, overrides the calculated start date.
     """
     logger.debug("=== Determining calendar ===")
     
-    # FIXED: Calendar starts from FIRST SEASON START (01/07/YYYY), not first match date
+    # Calendar starts from the beginning of the first season with match data (01/07/YYYY)
     if not matches.empty and 'date' in matches.columns:
         first_match_date = matches['date'].min()
         if pd.notna(first_match_date):
@@ -732,7 +775,7 @@ def determine_calendar(
             else:
                 # Match is in first half of year, season started previous year
                 start_date = pd.Timestamp(f'{first_match_date.year - 1}-07-01')
-            logger.info(f"[CALENDAR] Player starts from FIRST SEASON START: {start_date.date()} (first match: {first_match_date.date()})")
+            logger.info(f"[CALENDAR] Player starts from first season start: {start_date.date()} (first match: {first_match_date.date()})")
         else:
             # Fallback if no valid dates
             if player_row is not None and 'date_of_birth' in player_row and pd.notna(player_row['date_of_birth']):
@@ -808,6 +851,13 @@ def determine_calendar(
     
     start_date = pd.Timestamp(start_date).normalize()
     end_date = pd.Timestamp(end_date).normalize()
+    
+    # Apply min_date floor (e.g. season_start) so we only regenerate from this date onward
+    if min_date is not None:
+        min_date_norm = pd.Timestamp(min_date).normalize()
+        if start_date < min_date_norm:
+            logger.info(f"[CALENDAR] Clamping calendar start from {start_date.date()} to {min_date_norm.date()} (min_date / season_start)")
+            start_date = min_date_norm
     
     # Apply reference_date cap
     if end_date > reference_date:
@@ -2475,16 +2525,152 @@ def calculate_interaction_features(
     logger.info("=== Completed calculate_interaction_features ===")
     return pd.DataFrame(features, index=profile_df.index)
 
+
+def _club_as_of_date(career: pd.DataFrame, as_of: pd.Timestamp, normalize_fn) -> Optional[str]:
+    """Return the club (To) from the last career row with Date <= as_of."""
+    if career is None or career.empty or "Date" not in career.columns or "To" not in career.columns:
+        return None
+    c = career.copy()
+    c["Date"] = pd.to_datetime(c["Date"], errors="coerce")
+    c = c.dropna(subset=["Date"])
+    if c.empty:
+        return None
+    c = c[c["Date"] <= pd.Timestamp(as_of)]
+    if c.empty:
+        return None
+    last = c.sort_values("Date").iloc[-1]
+    to_val = last.get("To")
+    return str(to_val).strip() if pd.notna(to_val) else None
+
+
+def _compute_seed_row_before_date(
+    matches: pd.DataFrame,
+    before_date: pd.Timestamp,
+    career: pd.DataFrame,
+    player_row: pd.Series,
+    team_country_map: Dict[str, str],
+) -> Optional[pd.Series]:
+    """Build a seed row (state as of before_date) from matches before that date."""
+    if matches.empty or "date_norm" not in matches.columns:
+        return None
+    before_norm = pd.Timestamp(before_date).normalize()
+    m = matches[matches["date_norm"] < before_norm]
+    if m.empty:
+        return None
+
+    cum_minutes = int(m["minutes_played_numeric"].fillna(0).sum())
+    cum_goals = int(m["goals_numeric"].fillna(0).sum())
+    cum_assists = int(m["assists_numeric"].fillna(0).sum())
+    cum_yellow = int(m["yellow_cards_numeric"].fillna(0).sum())
+    cum_red = int(m["red_cards_numeric"].fillna(0).sum())
+    cum_matches_played = int(m["matches_played"].fillna(0).sum())
+    cum_matches_bench = int(m["matches_bench_unused"].fillna(0).sum())
+    cum_matches_not_selected = int(m["matches_not_selected"].fillna(0).sum())
+    cum_matches_injured = int(m["matches_injured"].fillna(0).sum())
+    cum_disciplinary = int(m["disciplinary_action"].fillna(0).max()) if "disciplinary_action" in m.columns else 0
+
+    last_match_date = m["date_norm"].max()
+
+    national_matches_count = 0
+    national_minutes_total = 0
+    for _, row in m.iterrows():
+        team = identify_player_team(row, None)
+        if team and is_national_team(team):
+            national_matches_count += 1
+            national_minutes_total += int(row.get("minutes_played_numeric", 0) or 0)
+
+    team_wins = 0
+    team_draws = 0
+    team_losses = 0
+    if "result" in m.columns:
+        for _, row in m.iterrows():
+            res = str(row.get("result", "")).strip().lower()
+            if "won" in res or res == "w":
+                team_wins += 1
+            elif "draw" in res or res == "d":
+                team_draws += 1
+            else:
+                team_losses += 1
+    elif "home_goals" in m.columns and "away_goals" in m.columns:
+        for _, row in m.iterrows():
+            try:
+                h = int(row.get("home_goals", 0) or 0)
+                a = int(row.get("away_goals", 0) or 0)
+                if h > a:
+                    team_wins += 1
+                elif h < a:
+                    team_losses += 1
+                else:
+                    team_draws += 1
+            except (TypeError, ValueError):
+                team_losses += 1
+
+    current_club = _club_as_of_date(career, before_norm, normalize_team_name)
+    club_cum_goals = 0
+    club_cum_assists = 0
+    club_cum_minutes = 0
+    club_cum_matches = 0
+    club_cum_yellow = 0
+    club_cum_red = 0
+    if current_club:
+        club_norm = normalize_team_name(current_club)
+        for _, row in m.iterrows():
+            team = identify_player_team(row, current_club)
+            if team and normalize_team_name(team) == club_norm:
+                club_cum_goals += int(row.get("goals_numeric", 0) or 0)
+                club_cum_assists += int(row.get("assists_numeric", 0) or 0)
+                club_cum_minutes += int(row.get("minutes_played_numeric", 0) or 0)
+                club_cum_matches += 1 if (row.get("matches_played", 0) or 0) else 0
+                club_cum_yellow += int(row.get("yellow_cards_numeric", 0) or 0)
+                club_cum_red += int(row.get("red_cards_numeric", 0) or 0)
+
+    seed = pd.Series(dtype=object)
+    seed["date"] = before_norm
+    seed["cum_minutes_played_numeric"] = cum_minutes
+    seed["cum_goals_numeric"] = cum_goals
+    seed["cum_assists_numeric"] = cum_assists
+    seed["cum_yellow_cards_numeric"] = cum_yellow
+    seed["cum_red_cards_numeric"] = cum_red
+    seed["cum_matches_played"] = cum_matches_played
+    seed["cum_matches_bench"] = cum_matches_bench
+    seed["cum_matches_not_selected"] = cum_matches_not_selected
+    seed["cum_matches_injured"] = cum_matches_injured
+    seed["cum_disciplinary_actions"] = cum_disciplinary
+    seed["national_team_appearances"] = national_matches_count
+    seed["national_team_minutes"] = national_minutes_total
+    seed["days_since_last_national_match"] = (before_norm - last_match_date).days if pd.notna(last_match_date) else 0
+    seed["cum_team_wins"] = team_wins
+    seed["cum_team_draws"] = team_draws
+    seed["cum_team_losses"] = team_losses
+    seed["current_club"] = current_club or ""
+    seed["club_cum_goals"] = club_cum_goals
+    seed["club_cum_assists"] = club_cum_assists
+    seed["club_cum_minutes"] = club_cum_minutes
+    seed["club_cum_matches_played"] = club_cum_matches
+    seed["club_cum_yellow_cards"] = club_cum_yellow
+    seed["club_cum_red_cards"] = club_cum_red
+    seed["days_since_last_match"] = (before_norm - last_match_date).days if pd.notna(last_match_date) else 0
+    seed["senior_national_team"] = 1 if national_matches_count > 0 else 0
+    return seed
+
+
 def generate_daily_features_for_player(
     player_id: int,
     data_dir: str = DATA_DIR,
     reference_date: pd.Timestamp = REFERENCE_DATE,
     output_dir: str = OUTPUT_DIR,
     existing_file_path: Optional[str] = None,
-    incremental: bool = True,
-    max_date: Optional[pd.Timestamp] = None
+    incremental: bool = False,
+    max_date: Optional[pd.Timestamp] = None,
+    season_start: Optional[pd.Timestamp] = None,
+    club_name: Optional[str] = None,
 ) -> pd.DataFrame:
-    """Generate daily features for a single player."""
+    """Generate daily features for a single player.
+    
+    By default (incremental=False), regenerates all features from season_start to max_date.
+    If club_name is set, output is truncated at the player's transfer-out date for this club
+    (PL→non-PL or PL→PL: keep data only up to and including last day at club).
+    """
     # OPTIMIZATION: Track total time for file generation
     file_start_time = time.time()
     logger.info(f"=== Generating daily features for player {player_id} ===")
@@ -2541,6 +2727,28 @@ def generate_daily_features_for_player(
             logger.warning(f"[INCREMENTAL] Error loading existing file: {e}, generating full history")
             existing_df = None
     
+    # When regenerating from season_start only (not incremental): load existing file for preserve + seed
+    preserved = None
+    season_start_norm = pd.Timestamp(season_start).normalize() if season_start is not None else None
+    if not incremental and season_start_norm is not None:
+        path_to_load = existing_file_path or (os.path.join(output_dir, f'player_{player_id}_daily_features.csv') if output_dir else None)
+        if path_to_load and os.path.exists(path_to_load):
+            try:
+                existing_df = pd.read_csv(path_to_load, parse_dates=['date'], encoding='utf-8-sig')
+                if not existing_df.empty and 'date' in existing_df.columns:
+                    existing_df['date_norm'] = pd.to_datetime(existing_df['date']).dt.normalize()
+                    preserved = existing_df[existing_df['date_norm'] < season_start_norm].copy()
+                    if max_date is not None:
+                        preserved = preserved[preserved['date_norm'] <= pd.Timestamp(max_date).normalize()].copy()
+                    preserved = preserved.drop(columns=['date_norm'], errors='ignore')
+                    logger.info(f"[PRESERVE] Keeping {len(preserved)} rows before {season_start_norm.date()} from existing file")
+                    existing_df = None  # Use preserved for seed only; do not pass full file to calculate_match_features
+                else:
+                    existing_df = None
+            except Exception as e:
+                logger.warning(f"[PRESERVE] Could not load existing file: {e}")
+                existing_df = None
+    
     # Preprocess matches
     step_start = time.time()
     logger.info("[Step 2] Preprocessing matches...")
@@ -2551,7 +2759,8 @@ def generate_daily_features_for_player(
     # Determine calendar
     step_start = time.time()
     logger.info("[Step 3] Determining calendar...")
-    calendar = determine_calendar(matches, injuries, reference_date, player_row, max_date=max_date)
+    # Pass season_start as min_date to ensure we always start from at least the season start
+    calendar = determine_calendar(matches, injuries, reference_date, player_row, max_date=max_date, min_date=season_start)
     
     # If incremental update, filter calendar to only include new dates
     if start_date_override is not None:
@@ -2561,8 +2770,43 @@ def generate_daily_features_for_player(
             logger.info("[INCREMENTAL] No new dates to generate, returning existing data")
             return existing_df if existing_df is not None else pd.DataFrame()
     
+    # Truncate at transfer-out date for this club (PL→non-PL or PL→PL: keep only up to last day at club)
+    transfer_out_date = None
+    if club_name and get_club_stint_dates is not None and not career.empty:
+        try:
+            _transfer_in, transfer_out_date = get_club_stint_dates(career, club_name, normalize_team_name)
+            if transfer_out_date is not None:
+                transfer_out_date = pd.Timestamp(transfer_out_date).normalize()
+                calendar = calendar[calendar <= transfer_out_date]
+                logger.info(f"[TRANSFER] Truncating at transfer-out date: {transfer_out_date.date()} (club: {club_name})")
+                if preserved is not None and not preserved.empty:
+                    preserved = preserved[preserved['date'] <= transfer_out_date].copy()
+                if existing_df is not None and not existing_df.empty:
+                    before_count = len(existing_df)
+                    existing_df = existing_df[existing_df['date'] <= transfer_out_date].copy()
+                    if len(existing_df) < before_count:
+                        logger.info(f"[TRANSFER] Truncated existing file: removed {before_count - len(existing_df)} rows after transfer-out")
+                        if existing_file_path and os.path.exists(existing_file_path):
+                            existing_df.to_csv(existing_file_path, index=False, encoding='utf-8-sig')
+                    if existing_df.empty:
+                        existing_df = None
+                if len(calendar) == 0 and (preserved is None or preserved.empty):
+                    logger.info("[TRANSFER] No calendar days at this club, returning existing (truncated) or empty")
+                    return existing_df if existing_df is not None else pd.DataFrame()
+        except Exception as e:
+            logger.warning(f"[TRANSFER] Could not get club stint dates: {e}")
+    
     step_time = time.time() - step_start
     logger.debug(f"[Step 3] Completed in {step_time:.2f} seconds")
+    
+    # When calendar is empty but we have preserved rows (e.g. transfer-out truncated calendar): return preserved only
+    if len(calendar) == 0 and preserved is not None and not preserved.empty:
+        logger.info("[PRESERVE] Calendar empty after transfer truncation; returning preserved rows only (no new dates to generate)")
+        if transfer_out_date is not None and not preserved.empty and 'date' in preserved.columns:
+            out = preserved[preserved['date'] <= transfer_out_date].copy() if transfer_out_date is not None else preserved.copy()
+        else:
+            out = preserved.copy()
+        return out
     
     # Calculate features
     step_start = time.time()
@@ -2580,11 +2824,29 @@ def generate_daily_features_for_player(
         existing_last_row = existing_df.iloc[-1]
         logger.debug(f"[INCREMENTAL] Using last row from existing file for club_cum_* initialization (date: {existing_last_row['date'].date()})")
     
-    # Get career start date (first day of calendar before filtering for incremental updates)
+    # When regenerating from season_start only: use preserved last row as seed, or compute seed from matches before season_start
+    if not incremental and season_start_norm is not None:
+        if preserved is not None and not preserved.empty:
+            existing_last_row = preserved.iloc[-1]
+            logger.debug(f"[PRESERVE] Using last preserved row for club_cum_* initialization (date: {existing_last_row['date'].date()})")
+        else:
+            matches_with_date_norm = matches.copy()
+            matches_with_date_norm['date_norm'] = pd.to_datetime(matches_with_date_norm['date']).dt.normalize()
+            existing_last_row = _compute_seed_row_before_date(
+                matches_with_date_norm, season_start_norm, career, player_row, team_country_map
+            )
+            if existing_last_row is not None:
+                logger.debug(f"[SEED] Using computed seed from matches before {season_start_norm.date()} for club_cum_* initialization")
+    
+    # Get career start date (first day of calendar before filtering for incremental updates or season_start)
     career_start_date = None
     if incremental and existing_df is not None and not existing_df.empty:
         # Use the first date from the original calendar (before filtering)
         original_calendar = determine_calendar(matches, injuries, reference_date, player_row)
+        career_start_date = original_calendar[0] if len(original_calendar) > 0 else None
+    elif not incremental and season_start_norm is not None:
+        # Full calendar (no min_date) so injury/match "career" metrics are correct for regenerated rows
+        original_calendar = determine_calendar(matches, injuries, reference_date, player_row, max_date=max_date, min_date=None)
         career_start_date = original_calendar[0] if len(original_calendar) > 0 else None
     
     match_df = calculate_match_features(matches, calendar, player_row, team_country_map, existing_last_row, existing_df, career_start_date)
@@ -2664,9 +2926,33 @@ def generate_daily_features_for_player(
         # Concatenate and deduplicate
         combined = pd.concat([existing_df, daily_features], ignore_index=True)
         combined = combined.sort_values('date').drop_duplicates(subset=['date'], keep='first').reset_index(drop=True)
+        if transfer_out_date is not None and not combined.empty and 'date' in combined.columns:
+            combined = combined[combined['date'] <= transfer_out_date].copy()
+            logger.info(f"[TRANSFER] Truncated combined output at transfer-out: {len(combined)} rows")
         logger.info(f"[INCREMENTAL] Combined result: {len(combined)} rows (from {combined['date'].min().date()} to {combined['date'].max().date()})")
         return combined
     
+    # When we regenerated from season_start only: combine preserved (historical) + regenerated rows
+    if preserved is not None and not preserved.empty:
+        logger.info(f"[PRESERVE] Combining {len(preserved)} preserved rows with {len(daily_features)} regenerated rows")
+        existing_cols = set(preserved.columns)
+        new_cols = set(daily_features.columns)
+        for col in new_cols - existing_cols:
+            preserved[col] = pd.NA
+        for col in existing_cols - new_cols:
+            daily_features[col] = pd.NA
+        daily_features = daily_features[preserved.columns]
+        combined = pd.concat([preserved, daily_features], ignore_index=True)
+        combined = combined.sort_values('date').drop_duplicates(subset=['date'], keep='first').reset_index(drop=True)
+        if transfer_out_date is not None and not combined.empty and 'date' in combined.columns:
+            combined = combined[combined['date'] <= transfer_out_date].copy()
+            logger.info(f"[TRANSFER] Truncated combined output at transfer-out: {len(combined)} rows")
+        logger.info(f"[PRESERVE] Combined result: {len(combined)} rows (from {combined['date'].min().date()} to {combined['date'].max().date()})")
+        return combined
+    
+    if transfer_out_date is not None and not daily_features.empty and 'date' in daily_features.columns:
+        daily_features = daily_features[daily_features['date'] <= transfer_out_date].copy()
+        logger.info(f"[TRANSFER] Truncated output at transfer-out: {len(daily_features)} rows")
     return daily_features
 
 def print_progress_bar(current, total, bar_length=50, prefix="Progress"):
@@ -2680,18 +2966,19 @@ def print_progress_bar(current, total, bar_length=50, prefix="Progress"):
     return f"{prefix}: |{bar}| {current}/{total} ({percent_str})"
 
 def main():
-    """Main entry point - Production version with incremental updates."""
+    """Main entry point - Production version with full regeneration from season start."""
     parser = argparse.ArgumentParser(description='Update daily features for football players (Production)')
     parser.add_argument('--country', type=str, default='England', help='Country name (default: England)')
     parser.add_argument('--club', type=str, required=True, help='Club name (required)')
     parser.add_argument('--data-date', type=str, default=None, help='Raw data date (YYYYMMDD), auto-detects latest if not provided')
     parser.add_argument('--reference-date', type=str, default=None, help='Reference date (YYYY-MM-DD), defaults to data-date')
     parser.add_argument('--max-date', type=str, default=None, help='Maximum date to generate features (YYYY-MM-DD). Truncates existing files beyond this date.')
+    parser.add_argument('--season-start', type=str, default='2025-07-01', help='Season start date (YYYY-MM-DD). Default: 2025-07-01')
     parser.add_argument('--player-id', type=int, default=None, help='Player ID to process (if not provided, processes all players from config)')
     parser.add_argument('--data-dir', type=str, default=None, help='Explicit data directory (overrides country/data-date)')
     parser.add_argument('--output-dir', type=str, default=None, help='Explicit output directory (overrides country/club)')
-    parser.add_argument('--incremental', action='store_true', default=True, help='Append new rows to existing files (default: True)')
-    parser.add_argument('--force', action='store_true', help='Force full regeneration (ignore existing files)')
+    parser.add_argument('--incremental', action='store_true', default=False, help='Append new rows to existing files (default: False - always regenerate from season-start)')
+    parser.add_argument('--force', action='store_true', help='[DEPRECATED] Full regeneration is now the default behavior')
     parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose logging (DEBUG level)')
     
     args = parser.parse_args()
@@ -2748,6 +3035,8 @@ def main():
         max_date_str = f"{args.data_date[:4]}-{args.data_date[4:6]}-{args.data_date[6:8]}"
         max_date = pd.Timestamp(max_date_str)
     
+    season_start = pd.Timestamp(args.season_start)
+    
     logger.info("=" * 70)
     logger.info("DAILY FEATURES UPDATER - PRODUCTION")
     logger.info("=" * 70)
@@ -2757,9 +3046,11 @@ def main():
     logger.info(f"Reference date: {reference_date.date()}")
     if max_date:
         logger.info(f"Max date (cap): {max_date.date()}")
+    logger.info(f"Season start: {season_start.date()}")
     logger.info(f"Output directory: {output_dir}")
     logger.info(f"Incremental mode: {args.incremental}")
-    logger.info(f"Force regeneration: {args.force}")
+    if args.force:
+        logger.info(f"Force flag: {args.force} (NOTE: Full regeneration is now the default)")
     logger.info(f"Verbose mode: {args.verbose}")
     logger.info("=" * 70)
     
@@ -2770,6 +3061,10 @@ def main():
     
     # Determine which players to process
     if args.player_id:
+        goalkeeper_ids = get_goalkeeper_player_ids_from_profile(data_dir)
+        if args.player_id in goalkeeper_ids:
+            logger.warning(f"Player {args.player_id} is a goalkeeper; skipping (not used in timelines/predictions)")
+            return
         player_ids = [args.player_id]
         logger.info(f"Processing single player: {args.player_id}")
     else:
@@ -2779,7 +3074,15 @@ def main():
         if not player_ids:
             logger.error(f"No player IDs found. Check config.json at: {config_path}")
             return
-        logger.info(f"Processing {len(player_ids)} players from config.json")
+        # Exclude goalkeepers (from profile – not used in timelines/predictions)
+        goalkeeper_ids = get_goalkeeper_player_ids_from_profile(data_dir)
+        original_count = len(player_ids)
+        player_ids = [p for p in player_ids if p not in goalkeeper_ids]
+        excluded = original_count - len(player_ids)
+        if excluded:
+            logger.info(f"Excluded {excluded} goalkeeper(s); processing {len(player_ids)} players from config.json")
+        else:
+            logger.info(f"Processing {len(player_ids)} players from config.json")
     
     # Process all players
     total_players = len(player_ids)
@@ -2803,18 +3106,16 @@ def main():
         # Output file path
         output_file = os.path.join(output_dir, f'player_{player_id}_daily_features.csv')
         
-        # Determine if we should use incremental mode
+        # Determine if we should use incremental mode (default is now full regeneration from season_start)
         use_incremental = args.incremental and not args.force
         existing_file_path = output_file if (use_incremental and os.path.exists(output_file)) else None
         
         if existing_file_path:
             logger.info(f"[{idx}/{total_players}] [INCREMENTAL] Player {player_id}: Appending to existing file")
-        elif os.path.exists(output_file) and args.force:
-            logger.info(f"[{idx}/{total_players}] [FORCE] Player {player_id}: Regenerating from scratch")
-            existing_file_path = None
-            use_incremental = False
+        elif os.path.exists(output_file):
+            logger.info(f"[{idx}/{total_players}] [REGENERATE] Player {player_id}: Full regeneration from {season_start.date()}")
         else:
-            logger.info(f"[{idx}/{total_players}] [NEW] Player {player_id}: Generating full history")
+            logger.info(f"[{idx}/{total_players}] [NEW] Player {player_id}: Generating from {season_start.date()}")
         
         # Overall progress visualization (every 5 seconds or every 10 players)
         current_time = time.time()
@@ -2853,7 +3154,9 @@ def main():
                 output_dir=output_dir,
                 existing_file_path=existing_file_path,
                 incremental=use_incremental,
-                max_date=max_date
+                max_date=max_date,
+                season_start=season_start,
+                club_name=args.club,
             )
             
             if daily_features.empty:

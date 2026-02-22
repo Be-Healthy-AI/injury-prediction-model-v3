@@ -62,6 +62,9 @@ timelines_35day_enhanced_balanced_v3.csv
 *.bak
 *.cache
 
+# IPM preprocessed cache (recreated by scripts; do not version)
+cache/
+
 # V2 Reference (temporary copy for setup)
 v2_reference/
 

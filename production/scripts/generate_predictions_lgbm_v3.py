@@ -527,7 +527,22 @@ def main():
         players_processed += 1
     
     print(f"[PLAYERS] Generated {players_processed} per-player prediction files")
-    
+
+    # Cleanup: remove per-player prediction files for this suffix whose player_id is no longer in timelines
+    timeline_player_ids = set(predictions['player_id'].unique())
+    stale_removed = 0
+    for path in players_dir.glob(f"player_*_predictions_v3_{date_str}.csv"):
+        try:
+            # Filename: player_{id}_predictions_v3_{date_str}.csv
+            pid = int(path.stem.split("_")[1])
+            if pid not in timeline_player_ids:
+                path.unlink()
+                stale_removed += 1
+        except (ValueError, IndexError):
+            continue
+    if stale_removed:
+        print(f"[CLEANUP] Removed {stale_removed} stale per-player prediction file(s) for suffix {date_str}")
+
     # Print summary statistics
     print("\n" + "=" * 80)
     print("PREDICTION SUMMARY")

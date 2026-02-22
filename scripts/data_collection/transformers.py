@@ -78,7 +78,6 @@ MATCH_COLUMNS = [
     "substitutions_on",
     "substitutions_off",
     "minutes_played",
-    "transfermarkt_score",
 ]
 
 TEAMS_COLUMNS = ["team", "country"]
@@ -252,6 +251,20 @@ def transform_injuries(
             injury_mappings = {}
             LOGGER.warning(f"Injury mappings file not found: {mapping_file}")
     
+    # Ensure we have a club column: scraper or raw table may use "Verein", "Clubs", "Team"
+    if "Club" not in df.columns:
+        for alt in ["Verein", "Clubs", "Team"]:
+            if alt in df.columns:
+                df["Club"] = df[alt]
+                break
+    # Don't use Club if it's actually numeric (e.g. wrong column from TM "Lost games")
+    if "Club" in df.columns and df["Club"].notna().any():
+        try:
+            numeric = pd.to_numeric(df["Club"], errors="coerce")
+            if numeric.notna().sum() == df["Club"].notna().sum():
+                df["Club"] = None
+        except (TypeError, ValueError):
+            pass
     rename_map = {
         "Injury": "injury_type",
         "Injury type": "injury_type",
@@ -357,8 +370,6 @@ def transform_matches(
         "Sub on": "substitutions_on",
         "Sub off": "substitutions_off",
         "Minutes played": "minutes_played",
-        "TM-Whoscored grade": "transfermarkt_score",
-        "Grade": "transfermarkt_score",
     }
     df = df.rename(columns=rename_map)
     df["player_id"] = player_id
@@ -373,7 +384,6 @@ def transform_matches(
         "red_cards",
         "substitutions_on",
         "substitutions_off",
-        "transfermarkt_score",
     ]
     for col in numeric_cols:
         if col in df.columns:
@@ -408,7 +418,7 @@ def transform_matches(
     # Remove duplicate columns before reindexing (can happen if both "Position" and "Pos." exist)
     df = df.loc[:, ~df.columns.duplicated()]
     
-    # Include all match columns with stats
+    # Include all match columns with stats (transfermarkt_score excluded by design)
     DESIRED_COLUMNS = [
         "season",
         "player_id", 
@@ -429,7 +439,6 @@ def transform_matches(
         "substitutions_on",
         "substitutions_off",
         "minutes_played",
-        "transfermarkt_score",
     ]
     desired = df.reindex(columns=DESIRED_COLUMNS)
     
@@ -456,6 +465,8 @@ def transform_matches(
     else:
         desired["season"] = desired["season"].astype(str)
     
+    # Ensure transfermarkt_score is never in output (header or column)
+    desired = desired.drop(columns=["transfermarkt_score"], errors="ignore")
     return desired
 
 

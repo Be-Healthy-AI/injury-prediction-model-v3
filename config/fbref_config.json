@@ -1,6 +1,6 @@
 {
   "base_url": "https://fbref.com",
-  "rate_limit_seconds": 3.0,
+  "rate_limit_seconds": 8,
   "max_retries": 5,
   "timeout_sec": 30,
   "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",

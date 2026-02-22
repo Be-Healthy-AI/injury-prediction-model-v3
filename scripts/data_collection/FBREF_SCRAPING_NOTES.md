@@ -1,55 +1,23 @@
 # FBRef Scraping Notes
 
-## Current Issue: 403 Forbidden
+## 403 Forbidden and Fallback
 
-FBRef is currently blocking automated requests with 403 Forbidden errors. This is likely due to:
-- Cloudflare protection
-- Bot detection
-- Rate limiting
+FBRef often returns 403 for automated requests (Cloudflare/bot detection). The scraper handles this by:
 
-## Solutions
-
-### Option 1: Use cloudscraper (Recommended)
-`cloudscraper` is a Python library that bypasses Cloudflare protection:
+1. **cloudscraper** – Used by default when installed (`pip install cloudscraper`).
+2. **Playwright fallback** – If requests still get 403 after retries, the scraper automatically tries a headless Chromium browser:
 
 ```bash
-pip install cloudscraper
+pip install playwright
+python -m playwright install chromium
 ```
 
-Then modify `fbref_scraper.py` to use `cloudscraper` instead of `requests`:
-
-```python
-import cloudscraper
-
-# In __init__:
-self.session = cloudscraper.create_scraper()
-```
-
-### Option 2: Use Selenium/Playwright
-For more complex bot protection, use a headless browser:
-
-```bash
-pip install selenium playwright
-```
-
-### Option 3: Manual Testing
-Test the scraper structure manually by:
-1. Opening FBRef in a browser
-2. Inspecting the HTML structure
-3. Verifying the selectors work
-4. Then implementing the scraping logic
-
-## Next Steps
-
-1. Try `cloudscraper` first (easiest solution)
-2. If that doesn't work, consider Selenium/Playwright
-3. Alternatively, check if FBRef has an API or RSS feed
+No code changes needed: when 403 persists, the scraper logs "Trying Playwright fallback after 403..." and fetches the page with Playwright. Add `playwright>=1.40.0` to requirements for CI/production.
 
 ## Testing
 
-Once the 403 issue is resolved, test with:
-- Cole Palmer: `dc7f8a28`
-- URL: https://fbref.com/en/players/dc7f8a28/
+- Harry Kane: `21a04d7d` – https://fbref.com/en/players/21a04d7d/
+- Cole Palmer: `dc7f8a28` – https://fbref.com/en/players/dc7f8a28/
 
 
 

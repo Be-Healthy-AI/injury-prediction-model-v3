@@ -42,7 +42,12 @@ if str(ROOT_DIR) not in sys.path:
 
 from scripts.data_collection.transfermarkt_scraper import ScraperConfig, TransfermarktScraper
 
-# Paths
+try:
+    from production.scripts.transfer_utils import get_pl_club_names, get_deployments_dir
+except ImportError:
+    from transfer_utils import get_pl_club_names, get_deployments_dir
+
+# Paths (per-country; use get_deployments_dir(country) when country is known)
 DEPLOYMENTS_DIR = PRODUCTION_ROOT / "deployments" / "England"
 
 # Club name mapping (our names -> Transfermarkt names)
@@ -83,9 +88,10 @@ def get_latest_raw_data_folder(country: str = "england") -> Optional[Path]:
     return max(date_folders, key=lambda x: x.name)
 
 
-def load_config(club_name: str) -> Tuple[Optional[Dict], Path]:
-    """Load config.json for a club."""
-    config_path = DEPLOYMENTS_DIR / club_name / "config.json"
+def load_config(club_name: str, country: Optional[str] = None) -> Tuple[Optional[Dict], Path]:
+    """Load config.json for a club. If country is given, use deployments/{country}/."""
+    base = get_deployments_dir(country) if country else DEPLOYMENTS_DIR
+    config_path = base / club_name / "config.json"
     
     if not config_path.exists():
         return None, config_path
@@ -310,7 +316,7 @@ def validate_and_sync_club_config(
     print()
     
     # Load config
-    config, config_path = load_config(club_name)
+    config, config_path = load_config(club_name, country)
     if not config:
         print(f"ERROR: Could not load config from {config_path}")
         return {
@@ -417,6 +423,23 @@ def validate_and_sync_club_config(
                 'on_transfermarkt': False,
             })
     
+    # Classify players_to_remove: PL→PL if current_club is another PL club
+    pl_clubs = get_pl_club_names(country)
+    for p in players_to_remove:
+        current = p.get('current_club')
+        if current:
+            current_str = str(current).strip().lower()
+            for c in pl_clubs:
+                c_lower = c.lower().strip()
+                if c_lower in current_str or current_str in c_lower:
+                    p['transfer_type'] = 'pl_to_pl'
+                    p['to_club'] = c
+                    break
+            if 'transfer_type' not in p:
+                p['transfer_type'] = 'pl_to_non_pl'
+        else:
+            p['transfer_type'] = 'pl_to_non_pl'
+    
     # Find players with raw data but missing from config
     print("Finding players with raw data but missing from config...")
     players_to_add = []
@@ -491,17 +514,41 @@ def validate_and_sync_club_config(
         print("=" * 80)
         
         new_player_ids = set(current_player_ids)
+        club_path = config_path.parent  # deployments/{country}/{club}
+        daily_features_dir = club_path / "daily_features"
+        players_dir = club_path / "predictions" / "players"
+        
+        # Remove transferred/orphaned players and clean up their files (non-PL→PL only)
+        for p in players_to_remove + orphaned_players:
+            pid = p['player_id']
+            if pid in new_player_ids:
+                new_player_ids.remove(pid)
+                print(f"  [-] Removing player {pid}: {p['reason']}")
+            
+            # Delete daily_features file for non-PL→PL (PL→PL: orchestrator will move file)
+            is_pl_to_pl = p.get('transfer_type') == 'pl_to_pl'
+            if not is_pl_to_pl and daily_features_dir.exists():
+                df_file = daily_features_dir / f"player_{pid}_daily_features.csv"
+                if df_file.exists():
+                    try:
+                        df_file.unlink()
+                        print(f"  [CLEANUP] Removed daily_features: {df_file.name}")
+                    except OSError as e:
+                        print(f"  [WARNING] Could not remove {df_file}: {e}")
+            
+            # Optional: remove per-player prediction files for removed players
+            if not is_pl_to_pl and players_dir.exists():
+                for pred_file in players_dir.glob(f"player_{pid}_predictions_v3_*.csv"):
+                    try:
+                        pred_file.unlink()
+                        print(f"  [CLEANUP] Removed prediction: {pred_file.name}")
+                    except OSError as e:
+                        print(f"  [WARNING] Could not remove {pred_file}: {e}")
         
         # Add missing players
         for p in players_to_add:
             new_player_ids.add(p['player_id'])
             print(f"  [+] Adding player {p['player_id']}")
-        
-        # Remove transferred/orphaned players
-        for p in players_to_remove + orphaned_players:
-            if p['player_id'] in new_player_ids:
-                new_player_ids.remove(p['player_id'])
-                print(f"  [-] Removing player {p['player_id']}: {p['reason']}")
         
         # Update config (convert to regular Python ints for JSON serialization)
         config['player_ids'] = sorted([int(pid) for pid in new_player_ids])
@@ -513,6 +560,39 @@ def validate_and_sync_club_config(
             print(f"\n[ERROR] Failed to save config")
     elif auto_fix:
         print("No changes needed - config is already in sync")
+    
+    # Persist sync result for orchestrator (deploy_all_clubs_v3) to read PL→PL moves
+    result_data = {
+        'players_to_add': players_to_add,
+        'players_to_remove': players_to_remove,
+        'orphaned_players': orphaned,
+        'incomplete_players': incomplete,
+        'config_updated': config_updated,
+        'config_path': str(config_path),
+        'club_name': club_name,
+        'country': country,
+        'data_date': data_date,
+    }
+    sync_result_path = get_deployments_dir(country) / f".sync_result_{data_date}.json"
+    try:
+        existing = {}
+        if sync_result_path.exists():
+            with open(sync_result_path, 'r', encoding='utf-8') as f:
+                existing = json.load(f)
+        if 'clubs' not in existing:
+            existing['clubs'] = {}
+        # Merge this club's result (overwrite key)
+        existing['clubs'][club_name] = {
+            'players_to_remove': players_to_remove,
+            'players_to_add': [{'player_id': p['player_id'], 'current_club': p.get('current_club')} for p in players_to_add],
+            'pl_to_pl': [{'player_id': p['player_id'], 'to_club': p['to_club']} for p in players_to_remove if p.get('transfer_type') == 'pl_to_pl'],
+        }
+        existing['data_date'] = data_date
+        existing['country'] = country
+        with open(sync_result_path, 'w', encoding='utf-8') as f:
+            json.dump(existing, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"  [WARNING] Could not write sync result to {sync_result_path}: {e}")
     
     return {
         'players_to_add': players_to_add,
