@@ -25,11 +25,13 @@ Usage for all clubs:
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
+import shutil
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import List, Set
+from typing import List, Set, Tuple
 
 # Calculate paths relative to this script
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -97,6 +99,67 @@ def run_script(script_name: str, args: List[str] = None, cwd: Path = None) -> bo
         return False
     
     return True
+
+
+def move_daily_features_pl_to_pl_challenger(
+    country: str,
+    player_id: int,
+    from_club: str,
+    to_club: str,
+) -> bool:
+    """Move daily_features and daily_features_enhanced from from_club to to_club (PL->PL transfer).
+    Challenger paths only. Same idea as V3 move_daily_features_pl_to_pl; V4 has two layers."""
+    challenger_dir = PRODUCTION_ROOT / "deployments" / country / "challenger"
+    ok = True
+    # Layer 1: daily_features
+    src1 = challenger_dir / from_club / "daily_features" / f"player_{player_id}_daily_features.csv"
+    dst_dir1 = challenger_dir / to_club / "daily_features"
+    dst1 = dst_dir1 / f"player_{player_id}_daily_features.csv"
+    if src1.exists():
+        dst_dir1.mkdir(parents=True, exist_ok=True)
+        try:
+            shutil.copy2(src1, dst1)
+            src1.unlink()
+            print(f"  [PL->PL] Moved daily_features player_{player_id} from {from_club} to {to_club}")
+        except OSError as e:
+            print(f"  [ERROR] PL->PL move failed for player {player_id} (Layer 1): {e}")
+            ok = False
+    # Layer 2: daily_features_enhanced
+    src2 = challenger_dir / from_club / "daily_features_enhanced" / f"player_{player_id}_daily_features.csv"
+    dst_dir2 = challenger_dir / to_club / "daily_features_enhanced"
+    dst2 = dst_dir2 / f"player_{player_id}_daily_features.csv"
+    if src2.exists():
+        dst_dir2.mkdir(parents=True, exist_ok=True)
+        try:
+            shutil.copy2(src2, dst2)
+            src2.unlink()
+            print(f"  [PL->PL] Moved daily_features_enhanced player_{player_id} from {from_club} to {to_club}")
+        except OSError as e:
+            print(f"  [ERROR] PL->PL move failed for player {player_id} (Layer 2): {e}")
+            ok = False
+    return ok
+
+
+def collect_pl_to_pl_moves_challenger(country: str, data_date: str) -> List[Tuple[int, str, str]]:
+    """Read .sync_result_challenger_{data_date}.json and return [(player_id, from_club, to_club), ...].
+    Same structure as V3 collect_pl_to_pl_moves but for challenger sync result."""
+    sync_result_path = PRODUCTION_ROOT / "deployments" / country / "challenger" / f".sync_result_challenger_{data_date}.json"
+    if not sync_result_path.exists():
+        return []
+    try:
+        with open(sync_result_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
+    clubs_data = data.get('clubs', {})
+    moves = []
+    for from_club, club_result in clubs_data.items():
+        for p in club_result.get('pl_to_pl', []):
+            player_id = p.get('player_id')
+            to_club = p.get('to_club')
+            if player_id is not None and to_club:
+                moves.append((int(player_id), from_club, to_club))
+    return moves
 
 
 def run_config_sync_all_clubs_challenger(
@@ -458,6 +521,12 @@ def main():
             auto_fix=args.auto_fix_configs,
             sync_transfermarkt=args.sync_transfermarkt,
         )
+        # PL->PL: move daily_features and daily_features_enhanced from old club to new club (same as V3)
+        pl_to_pl_moves = collect_pl_to_pl_moves_challenger(args.country, data_date)
+        if pl_to_pl_moves:
+            print(f"\n[PL->PL] Moving daily_features and daily_features_enhanced for {len(pl_to_pl_moves)} player(s)...")
+            for player_id, from_club, to_club in pl_to_pl_moves:
+                move_daily_features_pl_to_pl_challenger(args.country, player_id, from_club, to_club)
         print("[OK] Pre-step config sync completed\n")
     
     # Step 0: Fetch raw data for all clubs (once, if not skipped)

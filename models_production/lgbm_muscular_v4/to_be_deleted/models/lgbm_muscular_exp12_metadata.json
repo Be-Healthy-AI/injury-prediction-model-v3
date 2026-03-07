@@ -1,0 +1,23 @@
+{
+  "experiment": 12,
+  "iteration": 16,
+  "n_features": 320,
+  "test_gini": 0.5553952278372485,
+  "combined_score_test": 0.3645488433314041,
+  "test_metrics": {
+    "accuracy": 0.9340606672132181,
+    "precision": 0.044857546979187715,
+    "recall": 0.3070539419087137,
+    "f1": 0.07827926657263752,
+    "roc_auc": 0.7776976139186242,
+    "gini": 0.5553952278372485,
+    "confusion_matrix": {"tn": 73835, "fp": 4727, "fn": 501, "tp": 222}
+  },
+  "description": "Exp 12: Exp 10 data + exclude timelines with reference_date in [D, D+5] for muscular onset D. Iteration 16 (320 features), standard preset, 100% data. Test negatives ref_date < 2025-11-01.",
+  "train_command": "python models_production/lgbm_muscular_v4/code/modeling/train_iterative_feature_selection_muscular_standalone.py --exp12-data --test-negatives-before 2025-11-01 --only-iteration 16 --no-resume --train-on-full-data",
+  "artifacts": {
+    "model": "lgbm_muscular_best_iteration_exp12.joblib",
+    "features_json": "lgbm_muscular_best_iteration_features_exp12.json",
+    "deployment_dir": "model_muscular_lgbm_exp12"
+  }
+}

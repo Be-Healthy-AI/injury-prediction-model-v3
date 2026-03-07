@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
 """
-35-Day Timeline Generator - Version 4 - Production Wrapper
+35-Day Timeline Generator - Version 4 - Production Wrapper (V3-style)
 
-This script wraps the V4 timeline generator for production use.
-It adapts the V4 training script to work with the production directory structure
-and generates a single timeline file per club (combining all seasons).
+This script generates V4 timelines for production use without touching
+models_production/lgbm_muscular_v4. It reuses the V3 pattern: all logic and
+output paths are owned by production; we only import V4 helper functions and
+write to the club's timelines folder (or temp then merge).
 
 Key features:
 - Reads from production/deployments/England/challenger/{club}/daily_features/
-- Writes to production/deployments/England/challenger/{club}/timelines/
+- Writes only to production/deployments/.../timelines/ (never to model folder)
+- Processes only the current season (2025/26, from 01/07/2025)
 - Prefers enriched features (Layer 2), falls back to Layer 1
-- Supports incremental updates
-- Handles date capping (max-date parameter)
-- Processes one club at a time
-- Uses config.json to get player list
-- Generates single timeline file per club (combines all seasons)
+- Supports incremental updates and date capping (min-date, max-date)
+- Uses config.json for player list; single timeline file per club
 """
 
 from __future__ import annotations
@@ -26,6 +25,7 @@ import os
 import sys
 import time
 import traceback
+import random
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional, Dict, Set, Tuple
@@ -51,7 +51,8 @@ if str(V4_CODE_DIR) not in sys.path:
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-# Import V4 timeline functions
+# Import V4 timeline helpers only (do NOT call process_season - it writes to model folder).
+# We replicate the V3 pattern: production owns the flow and writes only to output_dir.
 try:
     import importlib.util
     v4_timeline_module_path = V4_CODE_DIR / "create_35day_timelines_v4_enhanced.py"
@@ -59,8 +60,6 @@ try:
     v4_timeline_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(v4_timeline_module)
     
-    # Get functions we need
-    process_season_v4 = v4_timeline_module.process_season
     get_all_seasons_from_daily_features_v4 = v4_timeline_module.get_all_seasons_from_daily_features
     build_pl_clubs_per_season_v4 = v4_timeline_module.build_pl_clubs_per_season
     build_player_pl_membership_periods_v4 = v4_timeline_module.build_player_pl_membership_periods
@@ -69,6 +68,14 @@ try:
     load_player_names_mapping_v4 = v4_timeline_module.load_player_names_mapping
     get_season_date_range_v4 = v4_timeline_module.get_season_date_range
     filter_timelines_pl_only_v4 = v4_timeline_module.filter_timelines_pl_only
+    get_muscular_positive_reference_dates_v4 = v4_timeline_module.get_muscular_positive_reference_dates
+    get_skeletal_positive_reference_dates_v4 = v4_timeline_module.get_skeletal_positive_reference_dates
+    get_valid_non_injury_dates_v4 = v4_timeline_module.get_valid_non_injury_dates
+    get_eligible_reference_dates_with_targets_v4 = v4_timeline_module.get_eligible_reference_dates_with_targets
+    get_all_reference_dates_in_range_v4 = v4_timeline_module.get_all_reference_dates_in_range
+    generate_timelines_for_dates_with_targets_v4 = v4_timeline_module.generate_timelines_for_dates_with_targets
+    get_player_name_from_df_v4 = v4_timeline_module.get_player_name_from_df
+    save_timelines_to_csv_chunked_v4 = v4_timeline_module.save_timelines_to_csv_chunked
     
 except Exception as e:
     print(f"[ERROR] Failed to import V4 timeline module: {e}")
@@ -112,6 +119,127 @@ def load_player_ids_from_config(config_path: Path) -> List[int]:
     except Exception as e:
         logging.getLogger(__name__).error(f"Error loading config from {config_path}: {e}")
         return []
+
+
+# Path we must never write to (V4 model data folder)
+_V4_MODEL_DATA_ROOT = (ROOT_DIR / "models_production" / "lgbm_muscular_v4").resolve()
+
+
+def _process_season_production(
+    season_start_year: int,
+    daily_features_dir: str,
+    all_injury_dates_by_player: Dict[int, Set],
+    relevant_injury_dates_by_player: Dict[int, Set],
+    injury_class_map: Dict,
+    player_names_map: Dict[int, str],
+    player_ids: List[int],
+    player_pl_periods: Dict,
+    output_dir: str,
+    logger: logging.Logger,
+    max_players: Optional[int] = None,
+    production_all_dates: bool = True,
+) -> Tuple[Optional[str], int, int]:
+    """
+    Process one season using V4 logic and save to output_dir only (V3-style).
+    Does NOT call the V4 module's process_season; we only use its helper functions.
+    All writes go to output_dir — never to models_production/lgbm_muscular_v4.
+    """
+    out_resolved = Path(output_dir).resolve()
+    try:
+        out_resolved.relative_to(_V4_MODEL_DATA_ROOT)
+        raise ValueError(f"Refusing to write to model folder: {out_resolved}")
+    except ValueError as e:
+        if "Refusing to write" in str(e):
+            raise
+        # Path is not relative to model folder — OK
+        pass
+    season_start, season_end = get_season_date_range_v4(season_start_year)
+    output_filename = f'timelines_35day_season_{season_start_year}_{season_start_year+1}_v4_muscular.csv'
+    output_path = str(out_resolved / output_filename)
+
+    season_player_ids = player_ids[:max_players] if max_players else player_ids
+    player_dates_with_targets: List[Tuple[int, List[Tuple]]] = []
+
+    # Pass 1: collect (player_id, date_target_list)
+    for player_id in season_player_ids:
+        try:
+            df = pd.read_csv(os.path.join(daily_features_dir, f'player_{player_id}_daily_features.csv'))
+            df['date'] = pd.to_datetime(df['date'])
+            buffer_start = season_start - timedelta(days=34)
+            season_mask = (df['date'] >= buffer_start) & (df['date'] <= season_end)
+            df_season = df[season_mask].copy()
+            if len(df_season) == 0:
+                del df, df_season
+                continue
+            muscular_positive_dates = get_muscular_positive_reference_dates_v4(
+                player_id, df_season, injury_class_map, season_start, season_end
+            )
+            skeletal_positive_dates = get_skeletal_positive_reference_dates_v4(
+                player_id, df_season, injury_class_map, season_start, season_end
+            )
+            if production_all_dates:
+                all_ref_dates = get_all_reference_dates_in_range_v4(df_season, season_start, season_end)
+                date_target_list = [
+                    (ref_n, 1 if ref_n in muscular_positive_dates else 0, 1 if ref_n in skeletal_positive_dates else 0)
+                    for ref_n in sorted(all_ref_dates)
+                ]
+            else:
+                player_relevant = relevant_injury_dates_by_player.get(player_id, set())
+                negative_eligible = get_valid_non_injury_dates_v4(
+                    df_season, season_start=season_start, season_end=season_end,
+                    all_injury_dates=player_relevant
+                )
+                date_target_list = get_eligible_reference_dates_with_targets_v4(
+                    df_season, season_start, season_end,
+                    muscular_positive_dates, skeletal_positive_dates, negative_eligible
+                )
+            if not date_target_list:
+                del df, df_season
+                continue
+            player_dates_with_targets.append((player_id, date_target_list))
+            del df, df_season
+        except Exception as e:
+            logger.debug(f"Pass 1 skip player {player_id}: {e}")
+            continue
+
+    if not player_dates_with_targets:
+        return None, 0, 0
+
+    # Pass 2: generate timelines
+    all_timelines: List[Dict] = []
+    for player_id, date_target_list in player_dates_with_targets:
+        try:
+            df = pd.read_csv(os.path.join(daily_features_dir, f'player_{player_id}_daily_features.csv'))
+            df['date'] = pd.to_datetime(df['date'])
+            buffer_start = season_start - timedelta(days=34)
+            season_mask = (df['date'] >= buffer_start) & (df['date'] <= season_end)
+            df_season = df[season_mask].copy()
+            if len(df_season) == 0:
+                continue
+            player_name = get_player_name_from_df_v4(df_season, player_id=player_id, player_names_map=player_names_map)
+            timelines = generate_timelines_for_dates_with_targets_v4(
+                player_id, player_name, df_season, date_target_list
+            )
+            all_timelines.extend(timelines)
+            del df, df_season
+        except Exception as e:
+            logger.debug(f"Pass 2 skip player {player_id}: {e}")
+            continue
+
+    if not all_timelines:
+        return None, 0, 0
+
+    random.shuffle(all_timelines)
+    if player_pl_periods and all_timelines:
+        timelines_df = pd.DataFrame(all_timelines)
+        timelines_df = filter_timelines_pl_only_v4(timelines_df, player_pl_periods)
+        all_timelines = timelines_df.to_dict('records')
+
+    target1_count = sum(1 for t in all_timelines if t.get('target1') == 1)
+    non_injury_count = len(all_timelines) - target1_count
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    save_timelines_to_csv_chunked_v4(all_timelines, output_path)
+    return output_path, target1_count, non_injury_count
 
 
 def main():
@@ -236,6 +364,23 @@ def main():
         logger.error(f"No player IDs found. Check config.json at: {config_path}")
         return 1
     
+    # Only include players with both Layer 1 and Layer 2 daily features (same as V3: skip if file missing)
+    layer1_dir = challenger_path / "daily_features"
+    layer2_dir = challenger_path / "daily_features_enhanced"
+    player_ids_with_files = []
+    for pid in player_ids:
+        f1 = layer1_dir / f"player_{pid}_daily_features.csv"
+        f2 = layer2_dir / f"player_{pid}_daily_features.csv"
+        if f1.exists() and f2.exists():
+            player_ids_with_files.append(pid)
+    skipped = len(player_ids) - len(player_ids_with_files)
+    if skipped:
+        logger.info(f"[FILTER] Skipped {skipped} player(s) without both Layer 1 and Layer 2 daily features (only include if updated)")
+    player_ids = player_ids_with_files
+    if not player_ids:
+        logger.error("No players with both daily_features and daily_features_enhanced files; nothing to process")
+        return 1
+    
     if args.max_players:
         player_ids = player_ids[:args.max_players]
         logger.info(f"[TEST] Processing {len(player_ids)} players (limited from config)")
@@ -270,8 +415,8 @@ def main():
                             max_existing_date = None
                             existing_timelines = None
                     
-                    # Handle max_date truncation
-                    if max_date_ts:
+                    # Handle max_date truncation (only if we still have existing timelines)
+                    if max_date_ts and existing_timelines is not None:
                         before_count = len(existing_timelines)
                         existing_timelines = existing_timelines[existing_timelines['reference_date'] <= max_date_ts].copy()
                         after_count = len(existing_timelines)
@@ -300,11 +445,16 @@ def main():
             logger.warning(f"[WARNING] Error loading existing timelines: {e}, will generate from scratch")
             existing_timelines = None
     
-    # Get available seasons from daily features
+    # Get available seasons from daily features; production only processes current season (V3-style)
+    CURRENT_SEASON_START = 2025  # 2025/26 - from 01/07/2025
     logger.info("[SCAN] Scanning daily features to determine available seasons...")
     try:
-        available_seasons = get_all_seasons_from_daily_features_v4(str(daily_features_dir))
-        logger.info(f"[SCAN] Found seasons: {available_seasons}")
+        all_seasons = get_all_seasons_from_daily_features_v4(str(daily_features_dir))
+        available_seasons = [y for y in all_seasons if y == CURRENT_SEASON_START]
+        if not available_seasons:
+            logger.warning(f"[SCAN] No data for current season {CURRENT_SEASON_START}/{CURRENT_SEASON_START+1}; found seasons: {all_seasons}")
+        else:
+            logger.info(f"[SCAN] Production mode: processing only current season {CURRENT_SEASON_START}/{CURRENT_SEASON_START+1}")
     except Exception as e:
         logger.error(f"[ERROR] Failed to scan seasons: {e}")
         return 1
@@ -357,6 +507,17 @@ def main():
         logger.error(f"[ERROR] Failed to load injuries: {e}")
         return 1
     
+    # Build relevant_injury_dates_by_player (muscular/skeletal/unknown) for non-injury eligibility
+    from collections import defaultdict
+    INJURY_CLASSES_DISQUALIFYING_NON_INJURY = {'muscular', 'skeletal', 'unknown'}
+    relevant_injury_dates_by_player = defaultdict(set)
+    for (pid, date), cls in injury_class_map.items():
+        c = (cls or '').strip().lower()
+        if c in INJURY_CLASSES_DISQUALIFYING_NON_INJURY:
+            relevant_injury_dates_by_player[pid].add(date)
+    relevant_injury_dates_by_player = dict(relevant_injury_dates_by_player)
+    logger.info(f"[LOAD] Relevant injury dates (muscular/skeletal/unknown): {sum(len(s) for s in relevant_injury_dates_by_player.values())} total")
+    
     # Load player names
     logger.info("[LOAD] Loading player names...")
     try:
@@ -395,21 +556,25 @@ def main():
         logger.info(f"   Date range: {season_start.date()} to {season_end.date()}")
         
         try:
-            # Call V4 process_season function
-            # Note: V4 function expects output_dir to be V4_TIMELINES_TRAIN or V4_TIMELINES_TEST
-            # We'll use a temp directory and then combine
+            # V3-style: we own the output path; write only to temp_dir (never to models_production/lgbm_muscular_v4)
             import tempfile
             with tempfile.TemporaryDirectory() as temp_dir:
-                output_file, target1_count, target2_count, non_injury_count = process_season_v4(
+                result = _process_season_production(
                     season_start_year=season_start_year,
                     daily_features_dir=str(daily_features_dir),
                     all_injury_dates_by_player=all_injury_dates_by_player,
+                    relevant_injury_dates_by_player=relevant_injury_dates_by_player,
                     injury_class_map=injury_class_map,
                     player_names_map=player_names_map,
-                    player_ids=player_ids,  # Filter by club's players
+                    player_ids=player_ids,
+                    player_pl_periods={},
                     output_dir=temp_dir,
-                    max_players=args.max_players
+                    logger=logger,
+                    max_players=args.max_players,
+                    production_all_dates=True,  # V3-style: one timeline per reference date from season start
                 )
+                output_file, target1_count, non_injury_count = result[0], result[1], result[2]
+                target2_count = 0
                 
                 if output_file and Path(output_file).exists():
                     # Load the season timeline file

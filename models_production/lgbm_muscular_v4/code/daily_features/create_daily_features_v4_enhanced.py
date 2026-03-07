@@ -451,8 +451,15 @@ def load_player_data(player_id: int, data_dir: str, reference_date: pd.Timestamp
         players = players[players['id'] == player_id].copy()
         logger.debug(f"Filtered to player {player_id}: {len(players)} rows")
         if 'date_of_birth' in players.columns:
-            # FIXED: Use pd.to_datetime without format to auto-detect ISO format (YYYY-MM-DD) and other formats
-            players['date_of_birth'] = pd.to_datetime(players['date_of_birth'], errors='coerce')
+            # Parse as European (DD/MM/YYYY or DD-MM-YYYY); fallback dayfirst=True so 04/12/1994 = 4 Dec not 12 Apr
+            original_dob = players['date_of_birth'].copy()
+            players['date_of_birth'] = pd.to_datetime(players['date_of_birth'], format='%d/%m/%Y', errors='coerce')
+            if players['date_of_birth'].isna().sum() > len(players) * 0.5:
+                players['date_of_birth'] = pd.to_datetime(original_dob, format='%d-%m-%Y', errors='coerce')
+            if players['date_of_birth'].isna().sum() > len(players) * 0.5:
+                players['date_of_birth'] = pd.to_datetime(original_dob, dayfirst=True, errors='coerce')
+            if players['date_of_birth'].isna().sum() > len(players) * 0.5:
+                players['date_of_birth'] = pd.to_datetime(original_dob, errors='coerce')  # ISO YYYY-MM-DD last
             logger.debug(f"Parsed date_of_birth: {players['date_of_birth'].notna().sum()} valid dates out of {len(players)}")
     else:
         logger.warning(f"Profile file not found: {players_path}")
@@ -481,6 +488,16 @@ def load_player_data(player_id: int, data_dir: str, reference_date: pd.Timestamp
             # If that also fails, try auto-detect with dayfirst=True to prefer DD/MM/YYYY over MM/DD/YYYY
             if injuries['fromDate'].isna().sum() > len(injuries) * 0.5:
                 injuries['fromDate'] = pd.to_datetime(original_dates, dayfirst=True, errors='coerce')
+            # Fill any remaining NaT with ISO format (YYYY-MM-DD) used in many raw files
+            still_nat = injuries['fromDate'].isna()
+            if still_nat.any():
+                iso_parsed = pd.to_datetime(original_dates[still_nat], format='%Y-%m-%d', errors='coerce')
+                injuries.loc[still_nat, 'fromDate'] = iso_parsed
+            # Force ISO parse for raw strings that look like YYYY-MM-DD (avoid MM-DD misinterpretation)
+            iso_like = original_dates.astype(str).str.match(r'^\d{4}-\d{2}-\d{2}$')
+            if iso_like.any():
+                iso_parsed = pd.to_datetime(original_dates[iso_like], format='%Y-%m-%d', errors='coerce')
+                injuries.loc[iso_like, 'fromDate'] = iso_parsed
             
             logger.debug(f"Parsed fromDate: {injuries['fromDate'].notna().sum()} valid dates out of {len(injuries)}")
         if 'untilDate' in injuries.columns:
@@ -498,6 +515,34 @@ def load_player_data(player_id: int, data_dir: str, reference_date: pd.Timestamp
             # If that also fails, try auto-detect with dayfirst=True to prefer DD/MM/YYYY over MM/DD/YYYY
             if injuries['untilDate'].isna().sum() > len(injuries) * 0.5:
                 injuries['untilDate'] = pd.to_datetime(original_until_dates, dayfirst=True, errors='coerce')
+            # Fill any remaining NaT with ISO format (YYYY-MM-DD) used in many raw files
+            still_nat = injuries['untilDate'].isna()
+            if still_nat.any():
+                iso_parsed = pd.to_datetime(original_until_dates[still_nat], format='%Y-%m-%d', errors='coerce')
+                injuries.loc[still_nat, 'untilDate'] = iso_parsed
+            
+            # Correct mis-parsed ISO dates: where untilDate < fromDate (invalid period), try re-parsing raw as YYYY-MM-DD
+            if 'fromDate' in injuries.columns:
+                invalid_period = (
+                    injuries['untilDate'].notna() & injuries['fromDate'].notna() &
+                    (injuries['untilDate'] < injuries['fromDate'])
+                )
+                if invalid_period.any():
+                    iso_reparsed = pd.to_datetime(
+                        original_until_dates[invalid_period], format='%Y-%m-%d', errors='coerce'
+                    )
+                    from_dates = injuries.loc[invalid_period, 'fromDate']
+                    use_iso = iso_reparsed.notna() & (iso_reparsed >= from_dates.values)
+                    injuries.loc[invalid_period, 'untilDate'] = injuries.loc[invalid_period, 'untilDate'].where(
+                        ~use_iso.values, iso_reparsed.values
+                    )
+            # Force ISO parse for raw strings that look like YYYY-MM-DD (avoid MM-DD misinterpretation)
+            iso_like_until = original_until_dates.astype(str).str.match(r'^\d{4}-\d{2}-\d{2}$')
+            if iso_like_until.any():
+                iso_parsed_until = pd.to_datetime(
+                    original_until_dates[iso_like_until], format='%Y-%m-%d', errors='coerce'
+                )
+                injuries.loc[iso_like_until, 'untilDate'] = iso_parsed_until
             
             logger.debug(f"Parsed untilDate: {injuries['untilDate'].notna().sum()} valid dates out of {len(injuries)}")
         
@@ -1795,6 +1840,36 @@ def calculate_match_features(
         else:
             past_matches = pd.DataFrame()
         
+        # Recalculate cumulative match features from past_matches (all matches with date <= today)
+        # so deployment matches training regardless of iteration/ordering.
+        if not past_matches.empty:
+            features['cum_matches_not_selected'][i] = int(past_matches['matches_not_selected'].fillna(0).sum())
+            features['cum_matches_played'][i] = int(past_matches['matches_played'].fillna(0).sum())
+            features['cum_matches_bench'][i] = int(past_matches['matches_bench_unused'].fillna(0).sum())
+            features['cum_matches_injured'][i] = int(past_matches['matches_injured'].fillna(0).sum())
+            features['cum_minutes_played_numeric'][i] = int(past_matches['minutes_played_numeric'].fillna(0).sum())
+            features['cum_goals_numeric'][i] = int(past_matches['goals_numeric'].fillna(0).sum())
+            features['cum_assists_numeric'][i] = int(past_matches['assists_numeric'].fillna(0).sum())
+            features['cum_yellow_cards_numeric'][i] = int(past_matches['yellow_cards_numeric'].fillna(0).sum())
+            features['cum_red_cards_numeric'][i] = int(past_matches['red_cards_numeric'].fillna(0).sum())
+            # Career features: only on match days (match original training behaviour); 0 on non-match days
+            if day_agg:
+                features['career_matches'][i] = features['cum_matches_played'][i]
+                features['career_goals'][i] = features['cum_goals_numeric'][i]
+                features['career_assists'][i] = features['cum_assists_numeric'][i]
+                features['career_minutes'][i] = features['cum_minutes_played_numeric'][i]
+            else:
+                features['career_matches'][i] = 0
+                features['career_goals'][i] = 0
+                features['career_assists'][i] = 0
+                features['career_minutes'][i] = 0
+        else:
+            # No past matches: career features are 0
+            features['career_matches'][i] = 0
+            features['career_goals'][i] = 0
+            features['career_assists'][i] = 0
+            features['career_minutes'][i] = 0
+        
         # Average competition importance
         if not past_matches.empty and 'competition_importance' in past_matches.columns:
             features['avg_competition_importance'][i] = past_matches['competition_importance'].mean()
@@ -1850,11 +1925,17 @@ def calculate_match_features(
             features['national_team_this_season'][i] = len(season_national_this)
             features['national_team_last_season'][i] = len(season_national_last)
         
-        # National team frequency
+        # National team frequency: recalculate from past_matches (count national matches up to today / years_span)
         days_span = (date_norm - calendar[0]).days + 1
         years_span = days_span / 365.25
-        if years_span > 0:
-            features['national_team_frequency'][i] = national_matches_count / years_span
+        if years_span > 0 and not past_matches.empty:
+            national_count_i = past_matches.apply(
+                lambda m: is_national_team(m.get('home_team', '') or '') or is_national_team(m.get('away_team', '') or ''),
+                axis=1
+            ).sum()
+            features['national_team_frequency'][i] = national_count_i / years_span
+        elif years_span > 0:
+            features['national_team_frequency'][i] = 0.0
         
         # V4 Enhanced: Removed national_team_intensity calculation
         
@@ -1902,14 +1983,58 @@ def calculate_match_features(
         
         # V4 Enhanced: Removed substitution_mood_indicator calculation
         
-        # Team results (cumulative)
-        features['cum_team_wins'][i] = team_wins
-        features['cum_team_draws'][i] = team_draws
-        features['cum_team_losses'][i] = team_losses
-        total_results = team_wins + team_draws + team_losses
+        # Team results (cumulative): recalculate from past_matches so deployment matches training
+        team_wins_recalc = 0
+        team_draws_recalc = 0
+        team_losses_recalc = 0
+        current_club_recalc = None
+        for _, match_row in past_matches.iterrows():
+            player_team = identify_player_team(match_row, current_club_recalc)
+            if player_team:
+                player_team_norm = normalize_team_name(player_team)
+                current_club_norm = normalize_team_name(current_club_recalc) if current_club_recalc else None
+                if current_club_norm != player_team_norm:
+                    current_club_recalc = player_team
+            match_home_team = match_row.get('home_team', '') or ''
+            match_away_team = match_row.get('away_team', '') or ''
+            result = match_row.get('result', '') or ''
+            if pd.notna(result) and result != '' and player_team:
+                try:
+                    result_str = str(result).strip()
+                    result_str = re.sub(r'\s+on\s+pens.*$', '', result_str, flags=re.IGNORECASE)
+                    result_str = re.sub(r'\s+a\.e\.t\..*$', '', result_str, flags=re.IGNORECASE)
+                    result_str = re.sub(r'\s+after\s+extra\s+time.*$', '', result_str, flags=re.IGNORECASE)
+                    result_str = result_str.strip()
+                    separator = ':' if ':' in result_str else ('-' if '-' in result_str else None)
+                    if separator and len(result_str.split(separator)) == 2:
+                        parts = result_str.split(separator)
+                        home_score = int(parts[0].strip())
+                        away_score = int(parts[1].strip())
+                        is_home = (normalize_team_name(player_team) == normalize_team_name(match_home_team)) or (player_team == match_home_team)
+                        is_away = (normalize_team_name(player_team) == normalize_team_name(match_away_team)) or (player_team == match_away_team)
+                        if is_home:
+                            if home_score > away_score:
+                                team_wins_recalc += 1
+                            elif home_score == away_score:
+                                team_draws_recalc += 1
+                            else:
+                                team_losses_recalc += 1
+                        elif is_away:
+                            if away_score > home_score:
+                                team_wins_recalc += 1
+                            elif away_score == home_score:
+                                team_draws_recalc += 1
+                            else:
+                                team_losses_recalc += 1
+                except (ValueError, IndexError):
+                    pass
+        total_results = team_wins_recalc + team_draws_recalc + team_losses_recalc
+        features['cum_team_wins'][i] = team_wins_recalc
+        features['cum_team_draws'][i] = team_draws_recalc
+        features['cum_team_losses'][i] = team_losses_recalc
         if total_results > 0:
-            features['team_win_rate'][i] = team_wins / total_results
-        features['cum_team_points'][i] = team_wins * 3 + team_draws
+            features['team_win_rate'][i] = team_wins_recalc / total_results
+        features['cum_team_points'][i] = team_wins_recalc * 3 + team_draws_recalc
         
         # V4 Enhanced: Removed team_points_rolling5 and team_mood_score calculations
         # (keeping recent_results for potential future use, but not calculating features from it)
@@ -1919,11 +2044,7 @@ def calculate_match_features(
         if features['senior_national_team'][i-1] == 1:
             features['senior_national_team'][i] = 1
     
-    # Forward-fill last_match_position to non-match days
-    # This ensures position is available even on non-match days
-    for i in range(1, n_days):
-        if not features['last_match_position'][i] or features['last_match_position'][i] == '':
-            features['last_match_position'][i] = features['last_match_position'][i-1]
+    # Do NOT forward-fill last_match_position: keep values only on match days (match original training behaviour).
     
     # Summary statistics
     logger.debug("Match features summary:")
@@ -1937,7 +2058,7 @@ def calculate_match_features(
     logger.info("=== Completed calculate_match_features ===")
     return pd.DataFrame(features, index=calendar)
 
-def calculate_injury_features(injuries: pd.DataFrame, calendar: pd.DatetimeIndex) -> pd.DataFrame:
+def calculate_injury_features(injuries: pd.DataFrame, calendar: pd.DatetimeIndex, player_id: Optional[int] = None, reference_date: Optional[pd.Timestamp] = None) -> pd.DataFrame:
     """
     Calculate comprehensive injury features for ALL injury classes.
     NO TARGET/FEATURE DISTINCTION - all injury classes are treated as features.
@@ -2055,8 +2176,42 @@ def calculate_injury_features(injuries: pd.DataFrame, calendar: pd.DatetimeIndex
         logger.info("Normalizing injury dates...")
         all_injuries['start_norm'] = all_injuries['fromDate'].apply(lambda x: x.normalize() if pd.notna(x) else pd.NaT)
         all_injuries['end_norm'] = all_injuries['untilDate'].apply(lambda x: x.normalize() if pd.notna(x) else pd.NaT)
+        # Cap end_norm at reference_date so no injury "ends" after reference (avoids huge/decreasing cum_inj_days)
+        ref_norm = reference_date.normalize() if reference_date is not None else (calendar.max().normalize() if len(calendar) else pd.Timestamp.now().normalize())
+        all_injuries['end_norm'] = all_injuries['end_norm'].clip(upper=ref_norm)
+        # Ensure end_norm >= start_norm (invalid periods from bad parsing)
+        mask_invalid = all_injuries['end_norm'].notna() & all_injuries['start_norm'].notna() & (all_injuries['end_norm'] < all_injuries['start_norm'])
+        if mask_invalid.any():
+            all_injuries.loc[mask_invalid, 'end_norm'] = all_injuries.loc[mask_invalid, 'start_norm']
         logger.info("Injury dates normalized")
         sys.stdout.flush()
+        
+        # Inspection: log each injury row (raw untilDate and parsed end_norm) before the loop
+        if not all_injuries.empty and player_id is not None:
+            logger.info(f"[CUM_INJ_DAYS] Injury rows for player {player_id} (before daily loop):")
+            for k in range(len(all_injuries)):
+                row = all_injuries.iloc[k]
+                from_d = row.get('fromDate', pd.NaT)
+                until_d = row.get('untilDate', pd.NaT)
+                start_n = row.get('start_norm', pd.NaT)
+                end_n = row.get('end_norm', pd.NaT)
+                from_str = from_d.strftime('%Y-%m-%d') if pd.notna(from_d) else 'NaT'
+                until_str = until_d.strftime('%Y-%m-%d') if pd.notna(until_d) else 'NaT'
+                start_str = start_n.strftime('%Y-%m-%d') if pd.notna(start_n) else 'NaT'
+                end_str = end_n.strftime('%Y-%m-%d') if pd.notna(end_n) else 'NaT'
+                end_is_nat = pd.isna(end_n)
+                logger.info(f"  injury {k}: fromDate={from_str}, untilDate={until_str}, start_norm={start_str}, end_norm={end_str}, end_norm_is_NaT={end_is_nat}")
+            nat_count = all_injuries['end_norm'].isna().sum()
+            if nat_count > 0:
+                logger.warning(f"[CUM_INJ_DAYS] Player {player_id}: {nat_count} injury row(s) have end_norm=NaT (missing/failed untilDate); cum_inj_days may grow for those.")
+        
+        # Sanity check: warn on likely bad injury dates
+        if not all_injuries.empty:
+            ref = reference_date.normalize() if reference_date is not None else (calendar.max().normalize() if len(calendar) else pd.Timestamp.now().normalize())
+            bad_start = (all_injuries['start_norm'] > ref) | (all_injuries['start_norm'].dt.year < 1990)
+            if bad_start.any():
+                pid_msg = f"Player {player_id}: " if player_id is not None else ""
+                logger.warning(f"{pid_msg}{bad_start.sum()} injury row(s) with fromDate after reference or before 1990 (check raw injuries_data)")
         
         # OPTIMIZATION: Pre-compute sorted injury dates for binary search
         injury_start_dates = all_injuries['start_norm'].dropna()
@@ -2244,15 +2399,36 @@ def calculate_injury_features(injuries: pd.DataFrame, calendar: pd.DatetimeIndex
                 
                 # Injury days - calculate total days injured up to current date (VECTORIZED)
                 if len(past_injuries) > 0:
-                    # Vectorized calculation: cap end dates and calculate days
-                    end_dates = past_injuries['end_norm'].fillna(date_norm)
-                    end_dates = end_dates.clip(upper=date_norm)  # Cap at current date
+                    # When end_norm is NaT (missing untilDate), do NOT use date_norm as end (that would make
+                    # each injury "run until today" and duration grow every day, causing +N per day and never stopping).
+                    # Use "next injury start - 1 day" as effective end when available; only use date_norm for the last injury.
+                    n_past = len(past_injuries)
+                    next_starts = [
+                        all_injuries.iloc[k + 1]['start_norm'] if (k + 1) < len(all_injuries) else pd.NaT
+                        for k in range(n_past)
+                    ]
                     start_dates = past_injuries['start_norm']
-                    # Only count injuries that started on or before current date
+                    end_norm_vals = past_injuries['end_norm']
+                    effective_end = end_norm_vals.copy()
+                    for k in range(n_past):
+                        if pd.isna(effective_end.iloc[k]) or effective_end.iloc[k] > date_norm:
+                            ns = next_starts[k]
+                            if pd.notna(ns):
+                                day_before_next = ns - pd.Timedelta(days=1)
+                                effective_end.iloc[k] = min(date_norm, day_before_next)
+                            else:
+                                effective_end.iloc[k] = min(date_norm, ref_norm)
+                    effective_end = effective_end.clip(upper=date_norm)
+                    effective_end = effective_end.clip(lower=start_dates)
                     valid_mask = start_dates <= date_norm
                     if valid_mask.any():
-                        injury_days = ((end_dates[valid_mask] - start_dates[valid_mask]).dt.days + 1).sum()
-                        features['cum_inj_days'][i] = int(injury_days)
+                        durations_days = (effective_end[valid_mask] - start_dates[valid_mask]).dt.days + 1
+                        max_duration_per_injury = 730
+                        durations_capped = durations_days.clip(lower=0, upper=max_duration_per_injury)
+                        if (durations_days > max_duration_per_injury).any():
+                            logger.warning(f"Player {player_id} date {date_norm.date()}: capped {int((durations_days > max_duration_per_injury).sum())} injury period(s) to {max_duration_per_injury} days (check fromDate/untilDate in raw data)")
+                        injury_days = int(durations_capped.sum())
+                        features['cum_inj_days'][i] = injury_days
                     else:
                         features['cum_inj_days'][i] = 0
                 else:
@@ -2278,15 +2454,31 @@ def calculate_injury_features(injuries: pd.DataFrame, calendar: pd.DatetimeIndex
                     else:
                         features[f'{class_name}_injury_count'][i] = len(class_injuries)
                     
-                    # Injury days by class (VECTORIZED)
+                    # Injury days by class (VECTORIZED); use same effective-end logic as cum_inj_days (no fillna(date_norm) for NaT)
                     if len(class_injuries) > 0:
-                        end_dates = class_injuries['end_norm'].fillna(date_norm)
-                        end_dates = end_dates.clip(upper=date_norm)
-                        start_dates = class_injuries['start_norm']
-                        valid_mask = start_dates <= date_norm
-                        if valid_mask.any():
-                            class_days = ((end_dates[valid_mask] - start_dates[valid_mask]).dt.days + 1).sum()
-                            features[f'{class_name}_injury_days'][i] = int(class_days)
+                        c_indices = class_injuries.index
+                        next_starts_c = [
+                            all_injuries.iloc[k + 1]['start_norm'] if (k + 1) < len(all_injuries) else pd.NaT
+                            for k in c_indices
+                        ]
+                        start_dates_c = class_injuries['start_norm']
+                        end_norm_c = class_injuries['end_norm']
+                        effective_end_c = end_norm_c.copy()
+                        for pos, k in enumerate(c_indices):
+                            if pd.isna(effective_end_c.iloc[pos]) or effective_end_c.iloc[pos] > date_norm:
+                                ns = next_starts_c[pos]
+                                if pd.notna(ns):
+                                    day_before_next = ns - pd.Timedelta(days=1)
+                                    effective_end_c.iloc[pos] = min(date_norm, day_before_next)
+                                else:
+                                    effective_end_c.iloc[pos] = min(date_norm, ref_norm)
+                        effective_end_c = effective_end_c.clip(upper=date_norm).clip(lower=start_dates_c)
+                        valid_mask_c = start_dates_c <= date_norm
+                        if valid_mask_c.any():
+                            durations_days_c = (effective_end_c[valid_mask_c] - start_dates_c[valid_mask_c]).dt.days + 1
+                            durations_capped_c = durations_days_c.clip(lower=0, upper=730)
+                            class_days = int(durations_capped_c.sum())
+                            features[f'{class_name}_injury_days'][i] = class_days
                         else:
                             features[f'{class_name}_injury_days'][i] = 0
                     else:
@@ -2926,7 +3118,7 @@ def calculate_interaction_features(
     
     # Age x career matches
     if 'age' in profile_df.columns and 'career_matches' in match_df.columns:
-        features['age_x_career_matches'] = profile_df['age'] * match_df['career_matches']
+        features['age_x_career_matches'] = (profile_df['age'] * match_df['career_matches']).where(match_df['career_matches'] > 0, 0.0)
         logger.debug(f"Calculated age_x_career_matches: min={features['age_x_career_matches'].min():.2f}, max={features['age_x_career_matches'].max():.2f}")
     else:
         logger.warning("Missing columns for age_x_career_matches")
@@ -2934,7 +3126,7 @@ def calculate_interaction_features(
     
     # Age x career goals
     if 'age' in profile_df.columns and 'career_goals' in match_df.columns:
-        features['age_x_career_goals'] = profile_df['age'] * match_df['career_goals']
+        features['age_x_career_goals'] = (profile_df['age'] * match_df['career_goals']).where(match_df['career_goals'] > 0, 0.0)
         logger.debug(f"Calculated age_x_career_goals: min={features['age_x_career_goals'].min():.2f}, max={features['age_x_career_goals'].max():.2f}")
     else:
         logger.warning("Missing columns for age_x_career_goals")
@@ -3020,7 +3212,7 @@ def generate_daily_features_for_player(
     
     step_start = time.time()
     logger.info("[Step 6] Calculating injury features...")
-    injury_df = calculate_injury_features(injuries, calendar)  # Single consolidated function
+    injury_df = calculate_injury_features(injuries, calendar, player_id=player_id, reference_date=reference_date)  # Single consolidated function
     step_time = time.time() - step_start
     logger.debug(f"[Step 6] Injury features: {len(injury_df)} rows × {len(injury_df.columns)} columns | Completed in {step_time:.2f} seconds")
     
@@ -3115,7 +3307,7 @@ def generate_daily_features_for_player(
     # Total time for file generation
     total_time = time.time() - file_start_time
     logger.info(f"=== Completed generating daily features for player {player_id} ===")
-    logger.info(f"⏱️  TOTAL TIME: {total_time:.2f} seconds ({total_time/60:.2f} minutes)")
+    logger.info(f"[TIME] TOTAL TIME: {total_time:.2f} seconds ({total_time/60:.2f} minutes)")
     
     logger.info(f"[COMPLETE] Generated {len(daily_features)} rows, {len(daily_features.columns)} columns")
     logger.debug(f"Feature columns: {list(daily_features.columns)[:10]}..." if len(daily_features.columns) > 10 else f"Feature columns: {list(daily_features.columns)}")
@@ -3254,7 +3446,7 @@ def main():
             logger.info("📊 OVERALL PROGRESS")
             logger.info("=" * 70)
             logger.info(progress_bar)
-            logger.info(f"   ⏱️  Elapsed: {elapsed_str} | ETA: {eta_str}")
+            logger.info(f"   [TIME] Elapsed: {elapsed_str} | ETA: {eta_str}")
             logger.info(f"   📈 Success: {successful} | Failed: {failed} | Skipped: {skipped}")
             if successful > 0:
                 logger.info(f"   ⚡ Avg time/player: {total_time/successful:.1f}s | Rate: {successful/(elapsed_total/3600):.1f} players/hour")
@@ -3318,7 +3510,7 @@ def main():
             logger.info(f"   📁 Output: {os.path.basename(output_file)}")
             logger.info(f"   📊 Rows: {len(daily_features):,}, Columns: {len(daily_features.columns)}")
             logger.info(f"   💾 File size: {file_size:.2f} MB")
-            logger.info(f"   ⏱️  Time: {player_elapsed:.2f}s ({player_elapsed/60:.2f} min)")
+            logger.info(f"   [TIME] Time: {player_elapsed:.2f}s ({player_elapsed/60:.2f} min)")
             logger.info(f"   📈 Rate: {len(daily_features)/player_elapsed:.0f} rows/sec")
             
         except Exception as e:
@@ -3341,7 +3533,7 @@ def main():
     logger.info(f"   ❌ Failed: {failed} ({failed*100//total_players if total_players > 0 else 0}%)")
     logger.info(f"   ⏭️  Skipped: {skipped} ({skipped*100//total_players if total_players > 0 else 0}%)")
     logger.info(f"")
-    logger.info(f"⏱️  Total time: {total_elapsed:.2f} seconds ({total_elapsed/60:.2f} minutes / {total_elapsed/3600:.2f} hours)")
+    logger.info(f"[TIME] Total time: {total_elapsed:.2f} seconds ({total_elapsed/60:.2f} minutes / {total_elapsed/3600:.2f} hours)")
     if successful > 0:
         logger.info(f"📈 Average time per player: {total_time/successful:.2f} seconds")
         logger.info(f"📈 Processing rate: {successful/(total_elapsed/3600):.2f} players/hour")

@@ -38,6 +38,7 @@ from tqdm import tqdm
 SCRIPT_DIR = Path(__file__).resolve().parent
 ROOT_DIR = SCRIPT_DIR.parent.parent.parent.parent
 MODEL_OUTPUT_DIR = ROOT_DIR / 'models_production' / 'lgbm_muscular_v4' / 'models'
+DEPLOYMENT_DIR_SKELETAL = MODEL_OUTPUT_DIR.parent / 'model_skeletal'
 TIMELINES_DIR = SCRIPT_DIR.parent / 'timelines'
 CACHE_DIR = ROOT_DIR / 'cache'
 
@@ -561,20 +562,22 @@ def filter_features(X_train, X_test, feature_subset):
     
     return X_train[requested_features], X_test[requested_features]
 
-def train_model_with_feature_subset(feature_subset, verbose=True):
+def train_model_with_feature_subset(feature_subset, verbose=True, return_test_export=False):
     """
     Train Model 2 (Skeletal) using a specific feature subset.
-    
+
     Args:
         feature_subset: List of feature names to use for training
         verbose: Whether to print progress messages
-        
+        return_test_export: If True, include X_test, y_test, df_test_export in returned dict (for exporting test predictions)
+
     Returns:
         Dictionary containing:
         - model: Trained skeletal model
         - train_metrics: Training metrics for Model 2
         - test_metrics: Test metrics for Model 2
         - feature_names_used: List of features actually used
+        - X_test, y_test, df_test_export: (only if return_test_export=True) test features, labels, and player_id/reference_date DataFrame
     """
     if verbose:
         log_message(f"\n{'='*80}")
@@ -611,6 +614,14 @@ def train_model_with_feature_subset(feature_subset, verbose=True):
     
     df_train_skeletal = df_train_skeletal.reset_index(drop=True)
     df_test_skeletal = df_test_skeletal.reset_index(drop=True)
+    
+    # Categorical base names (for encoding_schema export): object columns before encoding
+    feature_columns_for_schema = [
+        col for col in df_train_skeletal.columns
+        if col not in ['player_id', 'reference_date', 'date', 'player_name', 'target1', 'target2', 'target', 'has_minimum_activity']
+    ]
+    df_schema = df_train_skeletal[feature_columns_for_schema]
+    categorical_base_names = df_schema.select_dtypes(include=['object']).columns.tolist()
     
     if verbose:
         log_message("   Preparing features for Model 2 (Skeletal)...")
@@ -675,13 +686,19 @@ def train_model_with_feature_subset(feature_subset, verbose=True):
     # Convert numpy types for JSON serialization
     train_metrics = convert_numpy_types(train_metrics)
     test_metrics = convert_numpy_types(test_metrics)
-    
-    return {
+
+    out = {
         'model': lgbm_model,
         'train_metrics': train_metrics,
         'test_metrics': test_metrics,
         'feature_names_used': features_used
     }
+    if return_test_export:
+        out['X_test'] = X_test_skeletal
+        out['y_test'] = y_test_skeletal
+        out['df_test_export'] = df_test_skeletal[['player_id', 'reference_date']].copy()
+        out['categorical_base_names'] = categorical_base_names
+    return out
 
 # ============================================================================
 # ITERATIVE TRAINING FUNCTIONS
@@ -801,7 +818,7 @@ def export_best_model_skeletal():
     combined_score = best_entry['combined_score']
     log_message(f"Exporting best iteration: {best_it} ({n_features} features, combined_score={combined_score:.4f})")
     log_message("Re-training model with best feature set...")
-    training_results = train_model_with_feature_subset(feature_list, verbose=True)
+    training_results = train_model_with_feature_subset(feature_list, verbose=True, return_test_export=True)
     model = training_results['model']
     feature_names_used = training_results['feature_names_used']
     combined_score_test = calculate_combined_score(training_results['test_metrics'])
@@ -832,6 +849,61 @@ def export_best_model_skeletal():
     log_message(f"Saved model to: {model_path}")
     log_message(f"Saved feature list to: {features_path} (n_features={len(feature_names_used)})")
     log_message(f"   Test combined score: {combined_score_test:.4f}")
+    # Write deployment outputs to model_skeletal (test predictions + guidelines)
+    DEPLOYMENT_DIR_SKELETAL.mkdir(parents=True, exist_ok=True)
+    if 'X_test' in training_results and 'df_test_export' in training_results:
+        proba_test = model.predict_proba(training_results['X_test'])[:, 1]
+        export_df = training_results['df_test_export'].copy()
+        export_df['predicted_probability'] = proba_test
+        export_df['target2'] = training_results['y_test']
+        export_path = DEPLOYMENT_DIR_SKELETAL / "test_predictions_from_training_pipeline.csv"
+        export_df.to_csv(export_path, index=False)
+        log_message(f"Exported test predictions to: {export_path}")
+        log_message(f"   Rows: {len(export_df):,} (player_id, reference_date, predicted_probability, target2)")
+    # Export encoding schema so production can match training encoding (fixed one-hot universe)
+    categorical_base_names = training_results.get('categorical_base_names', [])
+    encoding_schema = {}
+    for base in categorical_base_names:
+        cols = [c for c in feature_names_used if c.startswith(base + "_")]
+        if cols:
+            encoding_schema[base] = sorted(cols)
+    if encoding_schema:
+        schema_path = DEPLOYMENT_DIR_SKELETAL / "encoding_schema.json"
+        with open(schema_path, 'w', encoding='utf-8') as f:
+            json.dump(encoding_schema, f, indent=2)
+        log_message(f"Exported encoding_schema.json to: {schema_path} ({len(encoding_schema)} categoricals)")
+    guidelines_path = DEPLOYMENT_DIR_SKELETAL / "DEPLOYMENT_GUIDELINES.md"
+    guidelines_content = f"""# Deployment guidelines – model_skeletal (best iteration {best_it})
+
+Use these steps when deploying the skeletal model so production predictions match the training pipeline.
+
+## 1. Training (already done)
+
+- Model 2 (Skeletal) best iteration ({best_it}) was exported.
+- Artifacts produced in `models_production/lgbm_muscular_v4/models/`:
+  - `lgbm_skeletal_best_iteration.joblib`
+  - `lgbm_skeletal_best_iteration_features.json`
+- Test predictions from this training run have been exported to:
+  - `models_production/lgbm_muscular_v4/model_skeletal/test_predictions_from_training_pipeline.csv`
+  - Columns: `player_id`, `reference_date`, `predicted_probability`, `target2`
+  - Use this file to validate that production predictions match the training pipeline.
+
+## 2. Prepare artifacts for the deploy script
+
+Artifacts already have the expected names; no copy needed. Proceed to step 3.
+
+## 3. Deploy to production
+
+From the repository root:
+
+```
+python models_production/lgbm_muscular_v4/code/modeling/deploy_gb_to_production.py --model skeletal
+```
+
+This refreshes `models_production/lgbm_muscular_v4/model_skeletal/` (e.g. `model.joblib`, `columns.json`, `MODEL_METADATA.json`, `encoding_schema.json`).
+"""
+    guidelines_path.write_text(guidelines_content, encoding="utf-8")
+    log_message(f"Exported deployment guidelines to: {guidelines_path}")
     return 0
 
 

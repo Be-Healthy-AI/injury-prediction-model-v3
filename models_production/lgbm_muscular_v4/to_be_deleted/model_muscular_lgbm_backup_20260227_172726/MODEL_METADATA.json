@@ -1,0 +1,70 @@
+{
+  "model_version": "V4_Muscular_LGBM_500feat",
+  "model_name": "V4 Muscular Injury Prediction - LGBM (500 features, below_strong, 100% data)",
+  "target": "muscular_lgbm",
+  "creation_date": "2026-02-22 10:56:02",
+  "training_configuration": {
+    "algorithm": "LightGBM",
+    "feature_selection": {
+      "method": "iterative_feature_selection",
+      "iteration": 10,
+      "n_features": 500,
+      "combined_score": 0.46644554601318133,
+      "optimize_on": "validation",
+      "experiment": "LGBM iterative feature selection, below_strong, trained on 100%% data"
+    },
+    "combined_score_val": null,
+    "combined_score_test": 0.3883643693228391
+  },
+  "performance_metrics": {
+    "train": {
+      "accuracy": 0.6809153166633096,
+      "precision": 0.045923543131627546,
+      "recall": 0.8610095098756401,
+      "f1": 0.08719630899415151,
+      "roc_auc": 0.8571737862635431,
+      "gini": 0.7143475725270862,
+      "confusion_matrix": {
+        "tn": 462684,
+        "fp": 220073,
+        "fn": 1710,
+        "tp": 10593
+      }
+    },
+    "val": {
+      "accuracy": 0.6817080539809512,
+      "precision": 0.04810144148207254,
+      "recall": 0.865210608424337,
+      "f1": 0.09113616196141584,
+      "roc_auc": 0.8583259010238459,
+      "gini": 0.7166518020476917,
+      "confusion_matrix": {
+        "tn": 115684,
+        "fp": 54876,
+        "fn": 432,
+        "tp": 2773
+      }
+    },
+    "test": {
+      "accuracy": 0.45225747142386347,
+      "precision": 0.03881117810902635,
+      "recall": 0.8781163434903048,
+      "f1": 0.0743368019932581,
+      "roc_auc": 0.7990595940191358,
+      "gini": 0.5981191880382717,
+      "confusion_matrix": {
+        "tn": 24806,
+        "fp": 31403,
+        "fn": 176,
+        "tp": 1268
+      }
+    }
+  },
+  "deployment_info": {
+    "model_file": "model.joblib",
+    "columns_file": "columns.json",
+    "feature_count": 500,
+    "deployment_date": "2026-02-22 10:56:02",
+    "production_dir": "model_muscular_lgbm"
+  }
+}

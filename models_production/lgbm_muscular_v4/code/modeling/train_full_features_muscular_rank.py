@@ -8,6 +8,9 @@ This script:
 3. Extracts gain-based feature importances
 4. Saves feature_ranking.json with ranked_features for use by iterative feature selection
 
+With --exp10: use D-7 labeled data, train seasons >= 2020/21, Exp 10 negative filter (onset-only in [ref, ref+35]),
+optional --test-negatives-before 2025-11-01; saves feature_ranking_exp10.json for the iterative script when run with --exp10-data.
+
 Run this once after regenerating timelines, then run train_iterative_feature_selection_muscular_standalone.py.
 """
 
@@ -31,8 +34,12 @@ from tqdm import tqdm
 # Paths
 SCRIPT_DIR = Path(__file__).resolve().parent
 ROOT_DIR = SCRIPT_DIR.parent.parent.parent.parent
+if str(SCRIPT_DIR.parent) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR.parent))
 MODEL_OUTPUT_DIR = ROOT_DIR / 'models_production' / 'lgbm_muscular_v4' / 'models'
 CACHE_DIR = ROOT_DIR / 'cache'
+V4_RAW_DATA = ROOT_DIR / 'models_production' / 'lgbm_muscular_v4' / 'data' / 'raw_data'
+INJURIES_FILE = V4_RAW_DATA / 'injuries_data.csv'
 
 # Config (match iterative script)
 MIN_SEASON = '2018_2019'
@@ -42,6 +49,7 @@ TEST_DIR = ROOT_DIR / 'models_production' / 'lgbm_muscular_v4' / 'data' / 'timel
 USE_CACHE = True
 
 RANKING_OUTPUT_FILE = MODEL_OUTPUT_DIR / 'feature_ranking.json'
+RANKING_OUTPUT_FILE_EXP10 = MODEL_OUTPUT_DIR / 'feature_ranking_exp10.json'
 FULL_MODEL_PATH = MODEL_OUTPUT_DIR / 'lgbm_muscular_full_features_model.joblib'
 FULL_MODEL_COLUMNS_PATH = MODEL_OUTPUT_DIR / 'lgbm_muscular_full_features_columns.json'
 
@@ -99,9 +107,15 @@ def sanitize_feature_name(name):
 # Data loading (muscular-only; target1 only required)
 # ---------------------------------------------------------------------------
 
-def load_train_data(min_season=None, exclude_season='2025_2026'):
-    """Load and combine train season CSVs. Requires only target1 column."""
-    pattern = str(TRAIN_DIR / 'timelines_35day_season_*_v4_muscular_train.csv')
+def load_train_data(min_season=None, exclude_season='2025_2026', labeled_suffix=None):
+    """Load and combine train season CSVs. Requires only target1 column.
+    If labeled_suffix is set (e.g. _v4_labeled_muscle_skeletal_only_d7.csv), use that pattern instead of _v4_muscular_train."""
+    if labeled_suffix:
+        pattern = str(TRAIN_DIR / ('timelines_35day_season_*' + labeled_suffix))
+        suffix_for_split = labeled_suffix
+    else:
+        pattern = str(TRAIN_DIR / 'timelines_35day_season_*_v4_muscular_train.csv')
+        suffix_for_split = '_v4_muscular_train'
     files = glob.glob(pattern)
     season_files = []
     for filepath in files:
@@ -111,7 +125,7 @@ def load_train_data(min_season=None, exclude_season='2025_2026'):
         if 'season_' in filename:
             parts = filename.split('season_')
             if len(parts) > 1:
-                season_part = parts[1].split('_v4_muscular_train')[0]
+                season_part = parts[1].split(suffix_for_split)[0].strip('_')
                 if season_part != exclude_season:
                     if min_season is None or season_part >= min_season:
                         season_files.append((season_part, filepath))
@@ -132,9 +146,12 @@ def load_train_data(min_season=None, exclude_season='2025_2026'):
     print(f"Combined train: {len(combined):,} rows, target1=1: {(combined['target1']==1).sum():,}")
     return combined
 
-def load_test_data():
-    """Load test dataset (2025/26)."""
-    test_file = TEST_DIR / 'timelines_35day_season_2025_2026_v4_muscular_test.csv'
+def load_test_data(labeled_suffix=None):
+    """Load test dataset (2025/26). If labeled_suffix set, use that file."""
+    if labeled_suffix:
+        test_file = TEST_DIR / ('timelines_35day_season_2025_2026' + labeled_suffix)
+    else:
+        test_file = TEST_DIR / 'timelines_35day_season_2025_2026_v4_muscular_test.csv'
     if not test_file.exists():
         raise FileNotFoundError(f"Test file not found: {test_file}")
     df = pd.read_csv(test_file, encoding='utf-8-sig', low_memory=False)
@@ -142,6 +159,32 @@ def load_test_data():
         raise ValueError("Test dataset missing target1 column")
     print(f"Test: {len(df):,} rows, target1=1: {(df['target1']==1).sum():,}")
     return df
+
+
+def apply_exp10_filter(df, excl_set):
+    """Keep all positives; drop negatives when (player_id, ref_date) is in excl_set. Returns filtered DataFrame."""
+    df = df.copy()
+    df['reference_date'] = pd.to_datetime(df['reference_date'], errors='coerce')
+
+    def _norm_ref(ts):
+        t = pd.Timestamp(ts).normalize()
+        if getattr(t, 'tz', None) is not None:
+            t = t.tz_localize(None)
+        return t
+
+    keep = []
+    for i in range(len(df)):
+        if df['target1'].iloc[i] == 1:
+            keep.append(True)
+            continue
+        pid = int(df['player_id'].iloc[i])
+        ref = df['reference_date'].iloc[i]
+        if pd.isna(ref):
+            keep.append(False)
+            continue
+        ref_n = _norm_ref(ref)
+        keep.append((pid, ref_n) not in excl_set)
+    return df.loc[keep].reset_index(drop=True)
 
 # ---------------------------------------------------------------------------
 # Prepare features (same logic as iterative script)
@@ -200,27 +243,51 @@ def extract_gain_importance(model):
         return model.booster_.feature_importance(importance_type='gain')
     return model.feature_importances_
 
-def main(use_cache=None):
+
+def main(use_cache=None, exp10=False, test_negatives_before=None):
     if use_cache is None:
         use_cache = USE_CACHE
+    ranking_file = RANKING_OUTPUT_FILE_EXP10 if exp10 else RANKING_OUTPUT_FILE
     print("=" * 80)
-    print("FIRST TRAINING: LGBM ON ALL FEATURES (MUSCULAR ONLY) -> feature_ranking.json")
+    print("FIRST TRAINING: LGBM ON ALL FEATURES (MUSCULAR ONLY) -> " + str(ranking_file.name))
     print("=" * 80)
+    if exp10:
+        print("   Exp 10: D-7 labeled data, train >= 2020/21, onset-only negative filter.")
+        if test_negatives_before:
+            print(f"   Test: drop negatives with reference_date >= {test_negatives_before}")
     if not use_cache:
         print("   Cache disabled (--no-cache): preprocessing from CSV.")
     start_time = datetime.now()
     MODEL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
+    min_season = '2020_2021' if exp10 else MIN_SEASON
+    labeled_suffix = '_v4_labeled_muscle_skeletal_only_d7.csv' if exp10 else None
+
     # Load data
     print("\n1. Loading data...")
-    df_train = load_train_data(min_season=MIN_SEASON, exclude_season=EXCLUDE_SEASON)
-    df_test = load_test_data()
+    df_train = load_train_data(min_season=min_season, exclude_season=EXCLUDE_SEASON, labeled_suffix=labeled_suffix)
+    df_test = load_test_data(labeled_suffix=labeled_suffix)
+
+    if exp10:
+        from timelines.create_35day_timelines_v4_enhanced import load_injuries_data, build_exp10_onset_only_exclusion_set
+        injury_class_map = load_injuries_data(str(INJURIES_FILE))
+        excl_set = build_exp10_onset_only_exclusion_set(injury_class_map)
+        print(f"   Exp 10: excluding negatives where [ref, ref+35] contains onset of muscular/skeletal/unknown ({len(excl_set):,} keys).")
+        df_train = apply_exp10_filter(df_train, excl_set)
+        df_test = apply_exp10_filter(df_test, excl_set)
+        print(f"   After Exp 10 filter: train {len(df_train):,}, test {len(df_test):,}")
+        if test_negatives_before:
+            before = pd.Timestamp(test_negatives_before).normalize()
+            test_neg_mask = (df_test['target1'] == 0) & (pd.to_datetime(df_test['reference_date'], errors='coerce') >= before)
+            df_test = df_test.loc[~test_neg_mask].reset_index(drop=True)
+            print(f"   After test-negatives-before: test {len(df_test):,}")
 
     # Prepare features (all)
     print("\n2. Preparing features...")
-    cache_train = str(CACHE_DIR / 'preprocessed_muscular_full_train.csv')
-    cache_test = str(CACHE_DIR / 'preprocessed_muscular_full_test.csv')
+    cache_suffix = '_exp10' if exp10 else ''
+    cache_train = str(CACHE_DIR / ('preprocessed_muscular_full_train' + cache_suffix + '.csv'))
+    cache_test = str(CACHE_DIR / ('preprocessed_muscular_full_test' + cache_suffix + '.csv'))
     X_train = prepare_data(df_train, cache_file=cache_train, use_cache=use_cache)
     y_train = df_train['target1'].values
     X_test = prepare_data(df_test, cache_file=cache_test, use_cache=use_cache)
@@ -270,7 +337,20 @@ def main(use_cache=None):
     print(f"   Top 10: {ranked_features[:10]}")
 
     # Save feature_ranking.json (same structure as before for iterative script)
-    print("\n6. Saving feature_ranking.json...")
+    print("\n6. Saving " + str(ranking_file.name) + "...")
+    ranking_meta = {
+        'total_features': len(ranked_features),
+        'ranking_method': 'LightGBM gain importance (single muscular model, all features)',
+        'source': 'train_full_features_muscular_rank.py',
+        'ranking_date': start_time.isoformat(),
+        'train_seasons_min': min_season,
+        'test_season': EXCLUDE_SEASON,
+    }
+    if exp10:
+        ranking_meta['exp10'] = True
+        ranking_meta['labeled_suffix'] = labeled_suffix
+        if test_negatives_before:
+            ranking_meta['test_negatives_before'] = test_negatives_before
     ranking_data = {
         'ranked_features': ranked_features,
         'feature_importances': {
@@ -278,23 +358,16 @@ def main(use_cache=None):
             'average': {f: float(df_imp.loc[df_imp['feature'] == f, 'importance'].iloc[0]) for f in ranked_features},
             'normalized': {}
         },
-        'ranking_metadata': {
-            'total_features': len(ranked_features),
-            'ranking_method': 'LightGBM gain importance (single muscular model, all features)',
-            'source': 'train_full_features_muscular_rank.py',
-            'ranking_date': start_time.isoformat(),
-            'train_seasons_min': MIN_SEASON,
-            'test_season': EXCLUDE_SEASON
-        }
+        'ranking_metadata': ranking_meta
     }
     max_imp = df_imp['importance'].max()
     if max_imp > 0:
         ranking_data['feature_importances']['normalized'] = {
             row['feature']: float(row['importance'] / max_imp) for _, row in df_imp.iterrows()
         }
-    with open(RANKING_OUTPUT_FILE, 'w', encoding='utf-8') as f:
+    with open(ranking_file, 'w', encoding='utf-8') as f:
         json.dump(ranking_data, f, indent=2)
-    print(f"   Saved: {RANKING_OUTPUT_FILE}")
+    print(f"   Saved: {ranking_file}")
 
     # Optionally save model and column list
     joblib.dump(model, FULL_MODEL_PATH)
@@ -304,11 +377,13 @@ def main(use_cache=None):
     print(f"   Saved columns: {FULL_MODEL_COLUMNS_PATH}")
 
     elapsed = (datetime.now() - start_time).total_seconds()
-    print(f"\nDone in {elapsed:.1f}s. Next: run train_iterative_feature_selection_muscular_standalone.py")
+    print(f"\nDone in {elapsed:.1f}s. Next: run train_iterative_feature_selection_muscular_standalone.py" + (" with --exp10-data" if exp10 else ""))
     return 0
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train on all features (muscular only) and save feature_ranking.json")
     parser.add_argument("--no-cache", action="store_true", help="Disable cache; preprocess from timeline CSVs")
+    parser.add_argument("--exp10", action="store_true", help="Exp 10: D-7 labeled data, train >= 2020/21, onset-only negative filter; save feature_ranking_exp10.json")
+    parser.add_argument("--test-negatives-before", type=str, default=None, metavar="YYYY-MM-DD", help="For eval, drop test negatives with reference_date >= this (e.g. 2025-11-01)")
     args = parser.parse_args()
-    sys.exit(main(use_cache=not args.no_cache))
+    sys.exit(main(use_cache=not args.no_cache, exp10=args.exp10, test_negatives_before=args.test_negatives_before))

@@ -1,0 +1,10 @@
+# Commands used to train and deploy the Muscular LGBM Exp 12 model (model_muscular_lgbm_exp12)
+# Run from repository root: IPM V3
+#
+# Step 1: Train iteration 16 (320 features) with Exp 12 data and save to models/
+python models_production/lgbm_muscular_v4/code/modeling/train_iterative_feature_selection_muscular_standalone.py --exp12-data --test-negatives-before 2025-11-01 --only-iteration 16 --no-resume --train-on-full-data
+#
+# Step 2: Copy artifacts to this folder (model_muscular_lgbm_exp12)
+#   - models/lgbm_muscular_best_iteration_exp12.joblib -> model_muscular_lgbm_exp12/model.joblib
+#   - models/lgbm_muscular_best_iteration_features_exp12.json -> extract features to model_muscular_lgbm_exp12/columns.json
+#   MODEL_METADATA.json and MODEL_REPORT.md are maintained in this folder.

@@ -2,8 +2,8 @@
 """
 Generate predictions table for V4 challenger pipeline (reads/writes ONLY challenger paths).
 
-Shows Date, Player, Id, Muscular (LGBM) %, Muscular (GB) %, Skeletal %, Risk Class, Body Part, Severity.
-Supports 3-model CSV (injury_probability_muscular_lgbm, _muscular_gb, _skeletal) with fallback to
+Shows Date, Player, Id, Muscular (LGBM) %, Muscular (GB) %, Skeletal %, MSU (LGBM) %, Risk Class, Body Part, Severity.
+Supports 4-model CSV (injury_probability_muscular_lgbm, _muscular_gb, _skeletal, _msu_lgbm) with fallback to
 legacy single injury_probability.
 - Config: production/deployments/{country}/challenger/{club}/config.json
 - Predictions: challenger/{club}/predictions/predictions_lgbm_v4_*.csv
@@ -175,6 +175,7 @@ def main(country: str = "England", club: str = "Chelsea FC", target_date_str=Non
             'Muscular (LGBM) %': fmt_pct(row.get('injury_probability_muscular_lgbm', row.get('injury_probability'))),
             'Muscular (GB) %': fmt_pct(row.get('injury_probability_muscular_gb')),
             'Skeletal %': fmt_pct(row.get('injury_probability_skeletal')),
+            'MSU (LGBM) %': fmt_pct(row.get('injury_probability_msu_lgbm')),
             'Risk Class': risk_class,
             'Body Part': format_body_part(row.get('predicted_body_part', '')),
             'Severity': format_severity(row.get('predicted_severity', ''))
@@ -186,13 +187,13 @@ def main(country: str = "England", club: str = "Chelsea FC", target_date_str=Non
     output_file = predictions_dir / f"predictions_table_v4_{target_date.strftime('%Y%m%d')}.csv"
     table_df.to_csv(output_file, index=False, encoding='utf-8-sig')
 
-    print("=" * 140)
-    print(f"PREDICTIONS TABLE FOR {target_date.date()} (V4 - 3 models)")
-    print("=" * 140)
+    print("=" * 155)
+    print(f"PREDICTIONS TABLE FOR {target_date.date()} (V4 - 4 models)")
+    print("=" * 155)
     print()
-    header = f"{'Date':<12} {'Player':<28} {'Id':<6} {'Musc(LGBM)%':<12} {'Musc(GB)%':<12} {'Skeletal%':<12} {'Risk Class':<12} {'Body Part':<12} {'Severity':<8}"
+    header = f"{'Date':<12} {'Player':<28} {'Id':<6} {'Musc(LGBM)%':<12} {'Musc(GB)%':<12} {'Skeletal%':<12} {'MSU(LGBM)%':<12} {'Risk Class':<12} {'Body Part':<12} {'Severity':<8}"
     print(header)
-    print("-" * 140)
+    print("-" * 155)
 
     for row in table_data:
         try:
@@ -202,19 +203,20 @@ def main(country: str = "England", club: str = "Chelsea FC", target_date_str=Non
             m_lgbm = str(row['Muscular (LGBM) %'])
             m_gb = str(row['Muscular (GB) %'])
             sk = str(row['Skeletal %'])
+            msu = str(row['MSU (LGBM) %'])
             risk_str = str(row['Risk Class'])
             body_str = str(row['Body Part'])
             sev_str = str(row['Severity'])
-            print(f"{date_str:<12} {player_name:<28} {id_str:<6} {m_lgbm:<12} {m_gb:<12} {sk:<12} {risk_str:<12} {body_str:<12} {sev_str:<8}")
+            print(f"{date_str:<12} {player_name:<28} {id_str:<6} {m_lgbm:<12} {m_gb:<12} {sk:<12} {msu:<12} {risk_str:<12} {body_str:<12} {sev_str:<8}")
         except (UnicodeEncodeError, UnicodeDecodeError):
             player_name = str(row['Player']).encode('ascii', errors='replace').decode('ascii')
-            print(f"{row['Date']:<12} {player_name:<28} {row['Id']:<6} {row['Muscular (LGBM) %']:<12} {row['Muscular (GB) %']:<12} {row['Skeletal %']:<12} {row['Risk Class']:<12} {row['Body Part']:<12} {row['Severity']:<8}")
+            print(f"{row['Date']:<12} {player_name:<28} {row['Id']:<6} {row['Muscular (LGBM) %']:<12} {row['Muscular (GB) %']:<12} {row['Skeletal %']:<12} {row['MSU (LGBM) %']:<12} {row['Risk Class']:<12} {row['Body Part']:<12} {row['Severity']:<8}")
 
-    print("-" * 120)
+    print("-" * 155)
     print(f"Total: {len(table_data)} players")
     print()
     print(f"Table saved to: {output_file}")
-    print("=" * 120)
+    print("=" * 155)
     return 0
 
 

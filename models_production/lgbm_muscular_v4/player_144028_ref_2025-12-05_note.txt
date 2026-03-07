@@ -1,0 +1,2 @@
+Column order in player_144028_ref_2025-12-05_features_320_order.csv matches model_muscular_lgbm/columns.json exactly (320 features).
+player_id=144028, reference_date=2025-12-05, predicted_probability=0.062510

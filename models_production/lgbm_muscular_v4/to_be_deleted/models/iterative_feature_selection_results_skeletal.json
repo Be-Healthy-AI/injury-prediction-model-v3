@@ -1,0 +1,27 @@
+{
+  "iterations": [],
+  "configuration": {
+    "train_val_ratio": 0.8,
+    "split_random_state": 42,
+    "use_full_train": true,
+    "optimize_on": "test",
+    "algorithm": "lgbm",
+    "hyperparameter_preset": "below",
+    "features_per_iteration": 20,
+    "initial_features": 200,
+    "consecutive_drops_threshold": 3,
+    "performance_drop_threshold": 0.001,
+    "gini_weight": 0.6,
+    "f1_weight": 0.4,
+    "model": "Model 1 (Muscular) Only",
+    "fixed_prefix_source": "lgbm_muscular_best_iteration_features.json",
+    "fixed_prefix_feature_count": 340,
+    "start_time": "2026-03-05T21:45:55.191990",
+    "end_time": "2026-03-05T21:55:03.394286",
+    "total_iterations": 11,
+    "total_time_minutes": 9.136704933333334
+  },
+  "best_iteration": null,
+  "best_n_features": null,
+  "best_combined_score": null
+}

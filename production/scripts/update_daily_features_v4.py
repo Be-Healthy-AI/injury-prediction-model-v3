@@ -26,7 +26,7 @@ import time
 import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Set
 
 import pandas as pd
 
@@ -132,6 +132,38 @@ def load_player_ids_from_config(config_path: Path) -> List[int]:
     except Exception as e:
         print(f"[ERROR] Error loading config from {config_path}: {e}")
         return []
+
+
+def get_goalkeeper_player_ids_from_profile(data_dir: Path) -> Set[int]:
+    """Return set of player IDs whose position is Goalkeeper in players_profile.csv.
+    Uses same logic as V3 (Transfermarkt profile: position 'goalkeeper' or 'gk').
+    data_dir: path to raw data folder (e.g. production/raw_data/england/20260209).
+    """
+    profile_path = data_dir / 'players_profile.csv'
+    if not profile_path.exists():
+        logging.getLogger(__name__).warning(f"Profile not found: {profile_path}; not excluding goalkeepers")
+        return set()
+    try:
+        df = pd.read_csv(profile_path, sep=';', encoding='utf-8-sig', low_memory=False)
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"Could not read profile {profile_path}: {e}; not excluding goalkeepers")
+        return set()
+    player_id_col = 'player_id' if 'player_id' in df.columns else 'id'
+    if player_id_col not in df.columns or 'position' not in df.columns:
+        logging.getLogger(__name__).warning(f"Profile missing '{player_id_col}' or 'position'; not excluding goalkeepers")
+        return set()
+    goalkeeper_ids = set()
+    for _, row in df.iterrows():
+        try:
+            pid = row.get(player_id_col)
+            if pd.isna(pid):
+                continue
+            pos = str(row.get('position', '')).strip().lower()
+            if pos in ('goalkeeper', 'gk'):
+                goalkeeper_ids.add(int(pid))
+        except (ValueError, TypeError):
+            continue
+    return goalkeeper_ids
 
 
 def generate_daily_features_v4_wrapper(
@@ -404,8 +436,12 @@ def main():
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Determine which players to process
+    # Determine which players to process (exclude goalkeepers – same as V3; not used in timelines/predictions)
     if args.player_id:
+        goalkeeper_ids = get_goalkeeper_player_ids_from_profile(data_dir)
+        if args.player_id in goalkeeper_ids:
+            logger.warning(f"Player {args.player_id} is a goalkeeper; skipping (not used in timelines/predictions)")
+            return 0
         player_ids = [args.player_id]
         logger.info(f"Processing single player: {args.player_id}")
     else:
@@ -416,7 +452,15 @@ def main():
         if not player_ids:
             logger.error(f"No player IDs found. Check config.json at: {config_path}")
             return 1
-        logger.info(f"Processing {len(player_ids)} players from config.json")
+        # Exclude goalkeepers (from profile – same as V3)
+        goalkeeper_ids = get_goalkeeper_player_ids_from_profile(data_dir)
+        original_count = len(player_ids)
+        player_ids = [p for p in player_ids if p not in goalkeeper_ids]
+        excluded = original_count - len(player_ids)
+        if excluded:
+            logger.info(f"Excluded {excluded} goalkeeper(s); processing {len(player_ids)} players from config.json")
+        else:
+            logger.info(f"Processing {len(player_ids)} players from config.json")
     
     # Process all players
     total_players = len(player_ids)

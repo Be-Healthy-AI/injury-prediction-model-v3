@@ -1,0 +1,1 @@
+python models_production/lgbm_muscular_v4/code/modeling/train_iterative_feature_selection_muscular_standalone.py --model skeletal --exp12-data --test-negatives-before 2025-11-01 --only-iteration 21 --no-resume --train-on-full-data --iterative-hp-preset below --chosen --deploy-dir "models_production/lgbm_muscular_v4/model_skeletal"

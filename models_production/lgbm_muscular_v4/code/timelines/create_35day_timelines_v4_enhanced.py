@@ -7,15 +7,17 @@ Key features:
 - Generates timelines season by season (YYYY_YYYY+1 format)
 - Two targets: target1 = muscular injuries, target2 = skeletal injuries.
 - Positives (model-specific):
-  - Muscular (target1=1): reference date in [D-14, D-1] (inclusive), D = first day of muscular injury.
+  - Muscular (target1=1): reference date in [D-10, D-1] (inclusive), D = first day of muscular injury.
   - Skeletal (target2=1): reference date in [D-21, D-1] (inclusive), D = first day of skeletal injury.
 - Negatives (same for both): target1=0, target2=0 when:
-  - No muscular/skeletal/unknown injury in [D-28, D+28] (28 days before or after reference date D);
-  - Player selected (played or on bench) at least once in [D-14, D] (activity condition).
+  - No muscular/skeletal/unknown injury in [D, D+34] (35 days after reference date D); no activity requirement.
 - Same labeling rules apply to train and test (seasons 2018/19 to 2025/26).
 - PL-only filtering using career data
 - Season segmentation: train (≤2024/25) and test (2025/26)
 - Activity flag: has_minimum_activity (≥90 minutes in 35-day window)
+
+Phase 1 (--unlabeled): Generate ALL timelines for reference dates in [2018-07-01, 2025-12-05]
+with full 35-day window; no target1/target2. PL filter applied. Labeling applied in Phase 2 later.
 """
 
 import sys
@@ -59,12 +61,10 @@ ALLOWED_INJURY_CLASSES_SKELETAL = {'skeletal'}  # For target2
 INJURY_CLASSES_DISQUALIFYING_NON_INJURY = {'muscular', 'skeletal', 'unknown'}
 
 # Positive labeling windows (reference dates before injury day D)
-MUSCULAR_POSITIVE_DAYS_BEFORE = 14   # D-14 to D-1 (inclusive) for muscular
+MUSCULAR_POSITIVE_DAYS_BEFORE = 10   # D-10 to D-1 (inclusive) for muscular
 SKELETAL_POSITIVE_DAYS_BEFORE = 21   # D-21 to D-1 (inclusive) for skeletal
-# Negative: no injury in this window around reference date D
-NEGATIVE_NO_INJURY_DAYS = 28        # [D-28, D+28]
-# Activity: at least 1 selection (played or on bench) in [D-14, D]
-ACTIVITY_DAYS_BEFORE = 14
+# Negative: no muscular/skeletal/unknown injury in future window [D, D+34] (35 days after reference date D)
+NEGATIVE_FUTURE_DAYS = 34            # [D, D+34]
 
 # Activity requirement configuration (has_minimum_activity flag)
 MIN_ACTIVITY_MINUTES = 90  # Minimum minutes in 35-day window for activity flag
@@ -72,6 +72,11 @@ MIN_ACTIVITY_MINUTES = 90  # Minimum minutes in 35-day window for activity flag
 # Train/test split
 TRAIN_SEASON_CUTOFF = 2024  # Train on seasons ≤ 2024/25
 TEST_SEASON_START = 2025    # Test on season 2025/26
+
+# Phase 1 (unlabeled): global reference date range for "all timelines"
+# All reference dates D in [GLOBAL_REFERENCE_START, GLOBAL_REFERENCE_END] with full 35-day window are generated; labeling in Phase 2.
+GLOBAL_REFERENCE_START = '2018-07-01'
+GLOBAL_REFERENCE_END = '2025-12-05'
 
 # Script directory and paths
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -891,6 +896,308 @@ def load_all_injury_dates(injuries_file: str) -> Dict[int, Set[pd.Timestamp]]:
     
     return dict(all_injury_dates)
 
+
+def load_relevant_injury_periods(injuries_file: str) -> Dict[int, List[Tuple[pd.Timestamp, pd.Timestamp]]]:
+    """
+    Load injury periods (fromDate, untilDate) for muscular/skeletal/unknown only.
+    Used to exclude reference date D when D falls inside any injury period (onset <= D <= return).
+
+    Args:
+        injuries_file: Path to injuries_data.csv file
+
+    Returns:
+        Dictionary mapping player_id to list of (onset, return) normalized timestamps.
+        If untilDate is missing, return is set to fromDate (single-day period).
+    """
+    print("📂 Loading relevant injury periods (muscular/skeletal/unknown) for negative eligibility...")
+
+    if not os.path.exists(injuries_file):
+        raise FileNotFoundError(f"Injuries data file not found: {injuries_file}")
+
+    injuries_df = pd.read_csv(injuries_file, sep=';', encoding='utf-8-sig')
+
+    # Parse fromDate
+    if 'fromDate' not in injuries_df.columns:
+        print("   ⚠️  fromDate column not found; no injury periods loaded")
+        return {}
+    original_from = injuries_df['fromDate'].copy()
+    injuries_df['fromDate'] = pd.to_datetime(injuries_df['fromDate'], format='%d-%m-%Y', errors='coerce')
+    if injuries_df['fromDate'].isna().sum() > len(injuries_df) * 0.5:
+        injuries_df['fromDate'] = pd.to_datetime(original_from, format='%d/%m/%Y', errors='coerce')
+    if injuries_df['fromDate'].isna().sum() > len(injuries_df) * 0.5:
+        injuries_df['fromDate'] = pd.to_datetime(original_from, dayfirst=True, errors='coerce')
+
+    # Parse untilDate (same formats)
+    if 'untilDate' in injuries_df.columns:
+        original_until = injuries_df['untilDate'].copy()
+        injuries_df['untilDate'] = pd.to_datetime(injuries_df['untilDate'], format='%d-%m-%Y', errors='coerce')
+        if injuries_df['untilDate'].isna().sum() > len(injuries_df) * 0.5:
+            injuries_df['untilDate'] = pd.to_datetime(original_until, format='%d/%m/%Y', errors='coerce')
+        if injuries_df['untilDate'].isna().sum() > len(injuries_df) * 0.5:
+            injuries_df['untilDate'] = pd.to_datetime(original_until, dayfirst=True, errors='coerce')
+    else:
+        injuries_df['untilDate'] = pd.NaT
+
+    # Derive injury_class if needed
+    if 'injury_class' not in injuries_df.columns:
+        injuries_df['injury_class'] = injuries_df.apply(
+            lambda row: derive_injury_class(
+                row.get('injury_type', ''),
+                row.get('no_physio_injury', None)
+            ),
+            axis=1
+        )
+
+    periods_by_player: Dict[int, List[Tuple[pd.Timestamp, pd.Timestamp]]] = defaultdict(list)
+    for _, row in injuries_df.iterrows():
+        player_id = row.get('player_id')
+        from_date = row.get('fromDate')
+        until_date = row.get('untilDate')
+        injury_class = (row.get('injury_class') or '').strip().lower()
+
+        if injury_class not in INJURY_CLASSES_DISQUALIFYING_NON_INJURY:
+            continue
+        if pd.isna(player_id) or pd.isna(from_date):
+            continue
+
+        onset = pd.Timestamp(from_date).normalize()
+        if onset.tz is not None:
+            onset = onset.tz_localize(None)
+        if pd.notna(until_date):
+            end = pd.Timestamp(until_date).normalize()
+            if getattr(end, 'tz', None) is not None:
+                end = end.tz_localize(None)
+            if end < onset:
+                end = onset
+        else:
+            end = onset
+        periods_by_player[int(player_id)].append((onset, end))
+
+    total_periods = sum(len(p) for p in periods_by_player.values())
+    print(f"   Loaded {total_periods} relevant injury periods for {len(periods_by_player)} players")
+    return dict(periods_by_player)
+
+
+def load_muscular_unknown_injury_periods(injuries_file: str) -> Dict[int, List[Tuple[pd.Timestamp, pd.Timestamp]]]:
+    """
+    Load injury periods (fromDate, untilDate) for muscular and unknown only.
+    Used by labeling experiments to exclude ref_date in [D, R] for Exp 4/5.
+
+    Returns:
+        Dictionary mapping player_id to list of (onset, end) normalized timestamps.
+    """
+    if not os.path.exists(injuries_file):
+        raise FileNotFoundError(f"Injuries data file not found: {injuries_file}")
+    injuries_df = pd.read_csv(injuries_file, sep=';', encoding='utf-8-sig')
+    if 'fromDate' not in injuries_df.columns:
+        return {}
+    original_from = injuries_df['fromDate'].copy()
+    injuries_df['fromDate'] = pd.to_datetime(injuries_df['fromDate'], format='%d-%m-%Y', errors='coerce')
+    if injuries_df['fromDate'].isna().sum() > len(injuries_df) * 0.5:
+        injuries_df['fromDate'] = pd.to_datetime(original_from, format='%d/%m/%Y', errors='coerce')
+    if injuries_df['fromDate'].isna().sum() > len(injuries_df) * 0.5:
+        injuries_df['fromDate'] = pd.to_datetime(original_from, dayfirst=True, errors='coerce')
+    if 'untilDate' in injuries_df.columns:
+        original_until = injuries_df['untilDate'].copy()
+        injuries_df['untilDate'] = pd.to_datetime(injuries_df['untilDate'], format='%d-%m-%Y', errors='coerce')
+        if injuries_df['untilDate'].isna().sum() > len(injuries_df) * 0.5:
+            injuries_df['untilDate'] = pd.to_datetime(original_until, format='%d/%m/%Y', errors='coerce')
+        if injuries_df['untilDate'].isna().sum() > len(injuries_df) * 0.5:
+            injuries_df['untilDate'] = pd.to_datetime(original_until, dayfirst=True, errors='coerce')
+    else:
+        injuries_df['untilDate'] = pd.NaT
+    if 'injury_class' not in injuries_df.columns:
+        injuries_df['injury_class'] = injuries_df.apply(
+            lambda row: derive_injury_class(row.get('injury_type', ''), row.get('no_physio_injury', None)), axis=1
+        )
+    MUSCULAR_UNKNOWN = {'muscular', 'unknown'}
+    periods_by_player: Dict[int, List[Tuple[pd.Timestamp, pd.Timestamp]]] = defaultdict(list)
+    for _, row in injuries_df.iterrows():
+        player_id = row.get('player_id')
+        from_date = row.get('fromDate')
+        until_date = row.get('untilDate')
+        injury_class = (row.get('injury_class') or '').strip().lower()
+        if injury_class not in MUSCULAR_UNKNOWN:
+            continue
+        if pd.isna(player_id) or pd.isna(from_date):
+            continue
+        onset = pd.Timestamp(from_date).normalize()
+        if getattr(onset, 'tz', None) is not None:
+            onset = onset.tz_localize(None)
+        if pd.notna(until_date):
+            end = pd.Timestamp(until_date).normalize()
+            if getattr(end, 'tz', None) is not None:
+                end = end.tz_localize(None)
+            if end < onset:
+                end = onset
+        else:
+            end = onset
+        periods_by_player[int(player_id)].append((onset, end))
+    return dict(periods_by_player)
+
+
+def load_all_injury_periods(injuries_file: str) -> Dict[int, List[Tuple[pd.Timestamp, pd.Timestamp]]]:
+    """
+    Load injury periods (fromDate, untilDate) for all injury types (any class).
+    Used by labeling experiments Exp 6/7: rule out negatives with any injury in next 35 days.
+
+    Returns:
+        Dictionary mapping player_id to list of (onset, end) normalized timestamps.
+    """
+    if not os.path.exists(injuries_file):
+        raise FileNotFoundError(f"Injuries data file not found: {injuries_file}")
+    injuries_df = pd.read_csv(injuries_file, sep=';', encoding='utf-8-sig')
+    if 'fromDate' not in injuries_df.columns:
+        return {}
+    original_from = injuries_df['fromDate'].copy()
+    injuries_df['fromDate'] = pd.to_datetime(injuries_df['fromDate'], format='%d-%m-%Y', errors='coerce')
+    if injuries_df['fromDate'].isna().sum() > len(injuries_df) * 0.5:
+        injuries_df['fromDate'] = pd.to_datetime(original_from, format='%d/%m/%Y', errors='coerce')
+    if injuries_df['fromDate'].isna().sum() > len(injuries_df) * 0.5:
+        injuries_df['fromDate'] = pd.to_datetime(original_from, dayfirst=True, errors='coerce')
+    if 'untilDate' in injuries_df.columns:
+        original_until = injuries_df['untilDate'].copy()
+        injuries_df['untilDate'] = pd.to_datetime(injuries_df['untilDate'], format='%d-%m-%Y', errors='coerce')
+        if injuries_df['untilDate'].isna().sum() > len(injuries_df) * 0.5:
+            injuries_df['untilDate'] = pd.to_datetime(original_until, format='%d/%m/%Y', errors='coerce')
+        if injuries_df['untilDate'].isna().sum() > len(injuries_df) * 0.5:
+            injuries_df['untilDate'] = pd.to_datetime(original_until, dayfirst=True, errors='coerce')
+    else:
+        injuries_df['untilDate'] = pd.NaT
+    periods_by_player: Dict[int, List[Tuple[pd.Timestamp, pd.Timestamp]]] = defaultdict(list)
+    for _, row in injuries_df.iterrows():
+        player_id = row.get('player_id')
+        from_date = row.get('fromDate')
+        until_date = row.get('untilDate')
+        if pd.isna(player_id) or pd.isna(from_date):
+            continue
+        onset = pd.Timestamp(from_date).normalize()
+        if getattr(onset, 'tz', None) is not None:
+            onset = onset.tz_localize(None)
+        if pd.notna(until_date):
+            end = pd.Timestamp(until_date).normalize()
+            if getattr(end, 'tz', None) is not None:
+                end = end.tz_localize(None)
+            if end < onset:
+                end = onset
+        else:
+            end = onset
+        periods_by_player[int(player_id)].append((onset, end))
+    return dict(periods_by_player)
+
+
+def load_muscular_skeletal_unknown_injury_periods(injuries_file: str) -> Dict[int, List[Tuple[pd.Timestamp, pd.Timestamp]]]:
+    """
+    Load injury periods (fromDate, untilDate) for muscular, skeletal, and unknown only.
+    Used by labeling experiment Exp 9: rule out negatives with any muscular/skeletal/unknown injury in [ref, ref+35].
+
+    Returns:
+        Dictionary mapping player_id to list of (onset, end) normalized timestamps.
+    """
+    if not os.path.exists(injuries_file):
+        raise FileNotFoundError(f"Injuries data file not found: {injuries_file}")
+    injuries_df = pd.read_csv(injuries_file, sep=';', encoding='utf-8-sig')
+    if 'fromDate' not in injuries_df.columns:
+        return {}
+    original_from = injuries_df['fromDate'].copy()
+    injuries_df['fromDate'] = pd.to_datetime(injuries_df['fromDate'], format='%d-%m-%Y', errors='coerce')
+    if injuries_df['fromDate'].isna().sum() > len(injuries_df) * 0.5:
+        injuries_df['fromDate'] = pd.to_datetime(original_from, format='%d/%m/%Y', errors='coerce')
+    if injuries_df['fromDate'].isna().sum() > len(injuries_df) * 0.5:
+        injuries_df['fromDate'] = pd.to_datetime(original_from, dayfirst=True, errors='coerce')
+    if 'untilDate' in injuries_df.columns:
+        original_until = injuries_df['untilDate'].copy()
+        injuries_df['untilDate'] = pd.to_datetime(injuries_df['untilDate'], format='%d-%m-%Y', errors='coerce')
+        if injuries_df['untilDate'].isna().sum() > len(injuries_df) * 0.5:
+            injuries_df['untilDate'] = pd.to_datetime(original_until, format='%d/%m/%Y', errors='coerce')
+        if injuries_df['untilDate'].isna().sum() > len(injuries_df) * 0.5:
+            injuries_df['untilDate'] = pd.to_datetime(original_until, dayfirst=True, errors='coerce')
+    else:
+        injuries_df['untilDate'] = pd.NaT
+    if 'injury_class' not in injuries_df.columns:
+        injuries_df['injury_class'] = injuries_df.apply(
+            lambda row: derive_injury_class(row.get('injury_type', ''), row.get('no_physio_injury', None)), axis=1
+        )
+    MUSCULAR_SKELETAL_UNKNOWN = {'muscular', 'skeletal', 'unknown'}
+    periods_by_player: Dict[int, List[Tuple[pd.Timestamp, pd.Timestamp]]] = defaultdict(list)
+    for _, row in injuries_df.iterrows():
+        player_id = row.get('player_id')
+        from_date = row.get('fromDate')
+        until_date = row.get('untilDate')
+        injury_class = (row.get('injury_class') or '').strip().lower()
+        if injury_class not in MUSCULAR_SKELETAL_UNKNOWN:
+            continue
+        if pd.isna(player_id) or pd.isna(from_date):
+            continue
+        onset = pd.Timestamp(from_date).normalize()
+        if getattr(onset, 'tz', None) is not None:
+            onset = onset.tz_localize(None)
+        if pd.notna(until_date):
+            end = pd.Timestamp(until_date).normalize()
+            if getattr(end, 'tz', None) is not None:
+                end = end.tz_localize(None)
+            if end < onset:
+                end = onset
+        else:
+            end = onset
+        periods_by_player[int(player_id)].append((onset, end))
+    return dict(periods_by_player)
+
+
+def build_exp10_onset_only_exclusion_set(
+    injury_class_map: Dict[Tuple[int, pd.Timestamp], str],
+) -> Set[Tuple[int, pd.Timestamp]]:
+    """
+    Build the set of (player_id, ref_date) to exclude as negatives for Exp 10:
+    ref_date such that [ref_date, ref_date+34] contains the onset of a muscular/skeletal/unknown injury.
+    Used by run_labeling_experiments_500 (Exp 10) and by the iterative script when using Exp 10 data.
+
+    Returns:
+        Set of (player_id, ref_date) with ref_date normalized (timezone-naive).
+    """
+    EXP10_CLASSES = {"muscular", "skeletal", "unknown"}
+    NEXT_35_DAYS = 34  # [ref, ref+34] inclusive = 35 days
+    out: Set[Tuple[int, pd.Timestamp]] = set()
+    for (player_id, onset_d), cls in injury_class_map.items():
+        pid = int(player_id)
+        onset = pd.Timestamp(onset_d).normalize()
+        if getattr(onset, "tz", None) is not None:
+            onset = onset.tz_localize(None)
+        cls = (cls or "").strip().lower()
+        if cls not in EXP10_CLASSES:
+            continue
+        for k in range(35):  # ref such that onset in [ref, ref+34]: ref in [onset-34, onset]
+            ref = onset - timedelta(days=k)
+            out.add((pid, ref))
+    return out
+
+
+def build_ref_in_muscular_d_plus_5_exclusion_set(
+    injury_class_map: Dict[Tuple[int, pd.Timestamp], str],
+) -> Set[Tuple[int, pd.Timestamp]]:
+    """
+    Build the set of (player_id, ref_date) to exclude from training and test (Exp 12):
+    ref_date in [D, D+5] where D is the 1st day of a muscular injury for that player.
+    Used to drop timelines whose reference date falls inside the first 6 days of a muscular injury.
+
+    Returns:
+        Set of (player_id, ref_date) with ref_date normalized (timezone-naive).
+    """
+    out: Set[Tuple[int, pd.Timestamp]] = set()
+    for (player_id, onset_d), cls in injury_class_map.items():
+        cls = (cls or "").strip().lower()
+        if cls != "muscular":
+            continue
+        pid = int(player_id)
+        onset = pd.Timestamp(onset_d).normalize()
+        if getattr(onset, "tz", None) is not None:
+            onset = onset.tz_localize(None)
+        for k in range(6):  # D, D+1, ..., D+5
+            ref = onset + timedelta(days=k)
+            out.add((pid, ref))
+    return out
+
+
 # ===== WINDOWED FEATURES CREATION (from V1, adapted for V4) =====
 
 def create_windowed_features_vectorized(df: pd.DataFrame, start_date: pd.Timestamp, end_date: pd.Timestamp) -> Optional[Dict]:
@@ -975,7 +1282,7 @@ def generate_injury_timelines_enhanced(player_id: int, player_name: str, df: pd.
                                        injury_class_map: Dict[Tuple[int, pd.Timestamp], str]) -> List[Dict]:
     """
     Generate injury timelines for muscular injuries only (target1=1).
-    Each muscular injury on day D generates 14 reference dates: D-14, D-13, ..., D-1.
+    Each muscular injury on day D generates 10 reference dates: D-10, D-9, ..., D-1.
     Returns list of timeline dicts (target1=1; target2 set by caller when merging).
     """
     timelines = []
@@ -1044,7 +1351,7 @@ def get_muscular_positive_reference_dates(
     season_start: pd.Timestamp,
     season_end: pd.Timestamp,
 ) -> Set[pd.Timestamp]:
-    """Return set of reference dates that are muscular positives (D-14..D-1 before a muscular injury D)."""
+    """Return set of reference dates that are muscular positives (D-10..D-1 before a muscular injury D)."""
     out = set()
     injury_starts = df[df['cum_inj_starts'] > df['cum_inj_starts'].shift(1)]
     for _, injury_row in injury_starts.iterrows():
@@ -1088,23 +1395,37 @@ def get_skeletal_positive_reference_dates(
 def get_valid_non_injury_dates(df: pd.DataFrame,
                                 season_start: pd.Timestamp,
                                 season_end: pd.Timestamp,
-                                all_injury_dates: Optional[Set[pd.Timestamp]] = None) -> List[pd.Timestamp]:
+                                all_injury_dates: Optional[Set[pd.Timestamp]] = None,
+                                injury_periods: Optional[List[Tuple[pd.Timestamp, pd.Timestamp]]] = None,
+                                is_test_season: bool = False) -> List[pd.Timestamp]:
     """
     Get all valid non-injury (negative) reference dates. Same for both models (target1=0, target2=0).
 
-    all_injury_dates: set of relevant injury dates for this player (muscular/skeletal/unknown only).
+    all_injury_dates: set of relevant injury onset dates (muscular/skeletal/unknown only).
+    injury_periods: list of (onset, return) for same classes; used to exclude D when D is inside any period.
 
     Eligibility for a negative timeline at reference date D:
     - Reference date within season date range
     - Complete 35-day window available BEFORE reference date
-    - No muscular, skeletal, or unknown injury in [D-28, D+28]
-    - Player selected (played or on bench) at least once in [D-14, D]
+    - No muscular/skeletal/unknown injury onset in [D, D+34] (35 days after D)
+    - Reference date D is not inside any injury period (onset <= D <= return); no activity requirement.
     """
     valid_dates = []
     player_injury_dates = all_injury_dates if all_injury_dates is not None else set()
+    player_periods = injury_periods if injury_periods is not None else []
     max_date = df['date'].max()
     min_date = df['date'].min()
-    max_reference_date = min(max_date, season_end)
+
+    # For train seasons (≤2024/25), keep strict requirement that the full [D, D+34]
+    # future window is observable in the daily-features data.
+    # For the test season (2025/26), relax this constraint and allow D up to the
+    # last available day (or season_end), even if part of [D, D+34] lies beyond
+    # the current data horizon. We still check for injuries in [D, D+34] where
+    # injury data is available.
+    if is_test_season:
+        max_reference_date = min(max_date, season_end)
+    else:
+        max_reference_date = min(max_date - timedelta(days=NEGATIVE_FUTURE_DAYS), season_end)
     potential_dates = pd.date_range(min_date, max_reference_date, freq='D')
     df_dates = pd.to_datetime(df['date']).dt.normalize()
 
@@ -1117,34 +1438,28 @@ def get_valid_non_injury_dates(df: pd.DataFrame,
         start_date = reference_date - timedelta(days=34)
         if start_date < min_date:
             continue
-        # No muscular/skeletal/unknown injury in [D-28, D+28]
-        window_start_inj = reference_date_normalized - timedelta(days=NEGATIVE_NO_INJURY_DAYS)
-        window_end_inj = reference_date_normalized + timedelta(days=NEGATIVE_NO_INJURY_DAYS)
-        has_relevant_injury_around = False
+        # No muscular/skeletal/unknown injury onset in [D, D+34] (future-only window)
+        window_start_inj = reference_date_normalized
+        window_end_inj = reference_date_normalized + timedelta(days=NEGATIVE_FUTURE_DAYS)
+        has_relevant_injury_in_future = False
         for injury_date in player_injury_dates:
             injury_date_n = pd.Timestamp(injury_date).normalize()
             if window_start_inj <= injury_date_n <= window_end_inj:
-                has_relevant_injury_around = True
+                has_relevant_injury_in_future = True
                 break
-        if has_relevant_injury_around:
+        if has_relevant_injury_in_future:
             continue
-        # Player selected (played or on bench) at least once in [D-14, D]
-        selection_start = reference_date_normalized - timedelta(days=ACTIVITY_DAYS_BEFORE)
-        selection_end = reference_date_normalized
-        sel_mask = (df_dates >= selection_start) & (df_dates <= selection_end)
-        sel_df = df.loc[sel_mask]
-        if sel_df.empty:
-            continue
-        has_selection = False
-        for _, row in sel_df.iterrows():
-            mp = row.get('matches_played', 0)
-            mb = row.get('matches_bench_unused', 0)
-            if (pd.notna(mp) and mp > 0) or (pd.notna(mb) and mb > 0):
-                has_selection = True
+        # Reference date D must not fall inside any injury period (player still injured on D)
+        is_inside_injury_period = False
+        for (onset, end) in player_periods:
+            onset_n = pd.Timestamp(onset).normalize()
+            end_n = pd.Timestamp(end).normalize()
+            if onset_n <= reference_date_normalized <= end_n:
+                is_inside_injury_period = True
                 break
-        if not has_selection:
+        if is_inside_injury_period:
             continue
-        
+
         valid_dates.append(reference_date)
     
     return valid_dates
@@ -1244,6 +1559,32 @@ def generate_non_injury_timelines_for_dates(player_id: int, player_name: str, df
                                  target1=0, target2=0, player_df=df, window_start_date=start_date)
         timelines.append(timeline)
     return timelines
+
+
+def generate_timelines_for_dates_unlabeled(
+    player_id: int,
+    player_name: str,
+    df: pd.DataFrame,
+    reference_dates: List[pd.Timestamp],
+) -> List[Dict]:
+    """Generate one timeline per reference_date with no target1/target2 (Phase 1 unlabeled output)."""
+    timelines = []
+    for reference_date in reference_dates:
+        start_date = reference_date - timedelta(days=34)
+        windowed_features = create_windowed_features_vectorized(df, start_date, reference_date)
+        if windowed_features is None:
+            continue
+        ref_mask = (pd.to_datetime(df['date']).dt.normalize() == pd.Timestamp(reference_date).normalize())
+        if not ref_mask.any():
+            continue
+        ref_row = df[ref_mask].iloc[0]
+        timeline = build_timeline(
+            player_id, player_name, reference_date, ref_row, windowed_features,
+            target1=None, target2=None, player_df=df, window_start_date=start_date,
+        )
+        timelines.append(timeline)
+    return timelines
+
 
 def build_timeline(player_id: int, player_name: str, reference_date: pd.Timestamp,
                   ref_row: pd.Series, windowed_features: Dict,
@@ -1520,11 +1861,116 @@ def filter_timelines_for_model(timelines_df: pd.DataFrame, target_column: str = 
         print(f"   Target ratio: {positives / len(filtered_df) * 100:.2f}%")
     return filtered_df
 
+
 # ===== SEASON PROCESSING (PL filtering done in post-processing) =====
 
-def process_season(season_start_year: int, daily_features_dir: str, 
+def process_season_unlabeled(
+    season_start_year: int,
+    daily_features_dir: str,
+    player_names_map: Dict[int, str],
+    player_ids: List[int],
+    player_pl_periods: Dict[int, List[Tuple[pd.Timestamp, pd.Timestamp]]],
+    output_base_dir: str,
+    max_players: Optional[int] = None,
+) -> Tuple[Optional[str], int]:
+    """
+    Phase 1: Generate all timelines for every reference date in [GLOBAL_REFERENCE_START, GLOBAL_REFERENCE_END]
+    that has a full 35-day window. No injury data; no target1/target2. PL filter applied before save.
+    """
+    season_start, season_end = get_season_date_range(season_start_year)
+    effective_start = max(season_start, pd.Timestamp(GLOBAL_REFERENCE_START))
+    effective_end = min(season_end, pd.Timestamp(GLOBAL_REFERENCE_END))
+    if effective_start > effective_end:
+        print(f"\n⏭️  Skipping season {season_start_year}_{season_start_year+1}: no overlap with global range [{GLOBAL_REFERENCE_START}, {GLOBAL_REFERENCE_END}]")
+        return None, 0
+
+    is_test_season = season_start_year >= TEST_SEASON_START
+    subdir = "test" if is_test_season else "train"
+    out_dir = Path(output_base_dir) / subdir
+    out_dir.mkdir(parents=True, exist_ok=True)
+    # One file per season: train/ or test/ subdir, one CSV per season
+    output_file = str(out_dir / f"timelines_35day_season_{season_start_year}_{season_start_year+1}_v4_unlabeled.csv")
+
+    print(f"\n{'='*80}")
+    print(f"PROCESSING SEASON {season_start_year}_{season_start_year+1} (UNLABELED) → {subdir}/ (1 file per season)")
+    print(f"{'='*80}")
+    print(f"   Effective reference range: {effective_start.date()} to {effective_end.date()}")
+
+    season_start_time = datetime.now()
+    season_player_ids = player_ids[:max_players] if max_players is not None else player_ids
+
+    # Pass 1: collect (player_id, reference_dates) for all ref dates in effective range
+    player_reference_dates: List[Tuple[int, List[pd.Timestamp]]] = []
+    buffer_start = effective_start - timedelta(days=34)
+    buffer_end = effective_end
+
+    for player_id in tqdm(season_player_ids, desc=f"Pass 1 unlabeled: {season_start_year}_{season_start_year+1}", unit="player"):
+        try:
+            df = pd.read_csv(f"{daily_features_dir}/player_{player_id}_daily_features.csv")
+            df["date"] = pd.to_datetime(df["date"])
+            season_mask = (df["date"] >= buffer_start) & (df["date"] <= buffer_end)
+            df_season = df[season_mask].copy()
+            if len(df_season) == 0:
+                del df, df_season
+                continue
+            reference_dates = get_all_reference_dates_in_range(df_season, effective_start, effective_end)
+            if not reference_dates:
+                del df, df_season
+                continue
+            player_reference_dates.append((player_id, reference_dates))
+            del df, df_season
+        except Exception as e:
+            print(f"\n❌ Error processing player {player_id} for season {season_start_year}: {e}")
+            continue
+
+    total_ref_days = sum(len(rd) for _, rd in player_reference_dates)
+    print(f"\n✅ PASS 1 Complete for {season_start_year}_{season_start_year+1}:")
+    print(f"   Players with timelines: {len(player_reference_dates)}")
+    print(f"   Total reference days: {total_ref_days:,}")
+
+    # Pass 2: generate timelines (no targets)
+    all_timelines: List[Dict] = []
+    for player_id, reference_dates in tqdm(player_reference_dates, desc=f"Pass 2 unlabeled: {season_start_year}_{season_start_year+1}", unit="player"):
+        try:
+            df = pd.read_csv(f"{daily_features_dir}/player_{player_id}_daily_features.csv")
+            df["date"] = pd.to_datetime(df["date"])
+            season_mask = (df["date"] >= buffer_start) & (df["date"] <= buffer_end)
+            df_season = df[season_mask].copy()
+            if len(df_season) == 0:
+                continue
+            player_name = get_player_name_from_df(df_season, player_id=player_id, player_names_map=player_names_map)
+            timelines = generate_timelines_for_dates_unlabeled(player_id, player_name, df_season, reference_dates)
+            all_timelines.extend(timelines)
+            del df, df_season
+        except Exception as e:
+            print(f"\n❌ Error generating timelines for player {player_id}: {e}")
+            continue
+
+    if not all_timelines:
+        print(f"⚠️  No timelines generated for season {season_start_year}_{season_start_year+1}")
+        return None, 0
+
+    if player_pl_periods:
+        timelines_df = pd.DataFrame(all_timelines)
+        timelines_df = filter_timelines_pl_only(timelines_df, player_pl_periods)
+        all_timelines = timelines_df.to_dict("records")
+        del timelines_df
+        print(f"   Applied PL filter: {len(all_timelines):,} timelines after filter")
+
+    print(f"\n💾 Saving {len(all_timelines):,} unlabeled timelines to CSV...")
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    save_timelines_to_csv_chunked(all_timelines, output_file)
+    print(f"✅ Saved to: {output_file}")
+
+    season_time = datetime.now() - season_start_time
+    print(f"⏱️  Season processing time: {season_time}")
+    return output_file, len(all_timelines)
+
+
+def process_season(season_start_year: int, daily_features_dir: str,
                   all_injury_dates_by_player: Dict[int, Set[pd.Timestamp]],
                   relevant_injury_dates_by_player: Dict[int, Set[pd.Timestamp]],
+                  relevant_injury_periods_by_player: Dict[int, List[Tuple[pd.Timestamp, pd.Timestamp]]],
                   injury_class_map: Dict[Tuple[int, pd.Timestamp], str],
                   player_names_map: Dict[int, str],
                   player_ids: List[int],
@@ -1551,7 +1997,7 @@ def process_season(season_start_year: int, daily_features_dir: str,
         season_player_ids = player_ids
 
     # ===== PASS 1: Collect (player_id, date_target_list) with date_target_list = [(ref_date, target1, target2), ...] =====
-    # Same rules for train and test: eligible dates = muscular positives | skeletal positives | negative-eligible (28d no-injury + activity)
+    # Same rules for train and test: eligible dates = muscular positives | skeletal positives | negative-eligible (no muscular/skeletal/unknown in [D, D+34], no activity requirement)
     player_dates_with_targets: List[Tuple[int, List[Tuple[pd.Timestamp, int, int]]]] = []
     processed_players = 0
     skipped_players_info = []
@@ -1562,14 +2008,15 @@ def process_season(season_start_year: int, daily_features_dir: str,
             df = pd.read_csv(f'{daily_features_dir}/player_{player_id}_daily_features.csv')
             df['date'] = pd.to_datetime(df['date'])
             buffer_start = season_start - timedelta(days=34)
-            season_mask = (df['date'] >= buffer_start) & (df['date'] <= season_end)
+            buffer_end = season_end + timedelta(days=NEGATIVE_FUTURE_DAYS)
+            season_mask = (df['date'] >= buffer_start) & (df['date'] <= buffer_end)
             df_season = df[season_mask].copy()
             if len(df_season) == 0:
                 file_min = df['date'].min() if len(df) > 0 else None
                 file_max = df['date'].max() if len(df) > 0 else None
                 skipped_players_info.append({
                     'player_id': player_id,
-                    'reason': f'No data in season range (buffer: {buffer_start.date()} to {season_end.date()})',
+                    'reason': f'No data in season range (buffer: {buffer_start.date()} to {buffer_end.date()})',
                     'file_date_range': f'{file_min.date()} to {file_max.date()}' if file_min is not None else 'N/A',
                     'total_rows_in_file': len(df)
                 })
@@ -1582,9 +2029,14 @@ def process_season(season_start_year: int, daily_features_dir: str,
                 player_id, df_season, injury_class_map, season_start, season_end
             )
             player_relevant_injury_dates = relevant_injury_dates_by_player.get(player_id, set())
+            player_relevant_injury_periods = relevant_injury_periods_by_player.get(player_id, [])
             negative_eligible_dates = get_valid_non_injury_dates(
-                df_season, season_start=season_start, season_end=season_end,
-                all_injury_dates=player_relevant_injury_dates
+                df_season,
+                season_start=season_start,
+                season_end=season_end,
+                all_injury_dates=player_relevant_injury_dates,
+                injury_periods=player_relevant_injury_periods,
+                is_test_season=is_test_season,
             )
             date_target_list = get_eligible_reference_dates_with_targets(
                 df_season, season_start, season_end,
@@ -1634,7 +2086,8 @@ def process_season(season_start_year: int, daily_features_dir: str,
             df = pd.read_csv(f'{daily_features_dir}/player_{player_id}_daily_features.csv')
             df['date'] = pd.to_datetime(df['date'])
             buffer_start = season_start - timedelta(days=34)
-            season_mask = (df['date'] >= buffer_start) & (df['date'] <= season_end)
+            buffer_end = season_end + timedelta(days=NEGATIVE_FUTURE_DAYS)
+            season_mask = (df['date'] >= buffer_start) & (df['date'] <= buffer_end)
             df_season = df[season_mask].copy()
             if len(df_season) == 0:
                 continue
@@ -1691,29 +2144,36 @@ def process_season(season_start_year: int, daily_features_dir: str,
     
     return output_file, target1_count, non_injury_count
 
-def main(max_players: Optional[int] = None, seasons: Optional[List[int]] = None):
+def main(max_players: Optional[int] = None, seasons: Optional[List[int]] = None, unlabeled: bool = False):
     """Main function - processes all seasons with PL filtering
     
     Args:
         max_players: Optional limit on number of players to process (for testing)
         seasons: Optional list of season start years to process. If None, processes all available seasons.
+        unlabeled: If True, Phase 1: generate all timelines (no target1/target2) for ref dates in global range; labeling in Phase 2.
     """
-    print("🚀 V4 ENHANCED 35-DAY TIMELINE GENERATOR - PL-ONLY")
-    print("=" * 80)
-    print("📋 Features: V4 enhanced features with 35-day windows")
-    print("⚡ Processing: Season-by-season with natural target ratios")
-    print("🎯 Target ratios: Natural (all available positives and negatives)")
-    print(f"📊 Activity flag: has_minimum_activity (≥{MIN_ACTIVITY_MINUTES} minutes in 35-day window)")
-    print(f"🔍 Dual target: target1=muscular (D-14..D-1), target2=skeletal (D-21..D-1); negatives 28d no-injury + activity")
-    print(f"🏆 PL filtering: Only timelines when player was in Premier League")
-    print(f"📊 Season split: Train (≤{TRAIN_SEASON_CUTOFF}/25), Test ({TEST_SEASON_START}/26)")
-    
+    start_time = datetime.now()
+    if unlabeled:
+        print("🚀 V4 ENHANCED 35-DAY TIMELINE GENERATOR - PHASE 1 (UNLABELED)")
+        print("=" * 80)
+        print("📋 Generate ALL timelines per reference date (no labeling)")
+        print(f"📅 Reference date range: {GLOBAL_REFERENCE_START} to {GLOBAL_REFERENCE_END}")
+        print(f"🏆 PL filtering: Only timelines when player was in Premier League")
+        print(f"📊 Output: train/ and test/ subdirs, files *_v4_unlabeled.csv")
+    else:
+        print("🚀 V4 ENHANCED 35-DAY TIMELINE GENERATOR - PL-ONLY")
+        print("=" * 80)
+        print("📋 Features: V4 enhanced features with 35-day windows")
+        print("⚡ Processing: Season-by-season with natural target ratios")
+        print("🎯 Target ratios: Natural (all available positives and negatives)")
+        print(f"📊 Activity flag: has_minimum_activity (≥{MIN_ACTIVITY_MINUTES} minutes in 35-day window)")
+        print(f"🔍 Dual target: target1=muscular (D-10..D-1), target2=skeletal (D-21..D-1); negatives: no muscular/skeletal/unknown in [D, D+34], no activity requirement")
+        print(f"🏆 PL filtering: Only timelines when player was in Premier League")
+        print(f"📊 Season split: Train (≤{TRAIN_SEASON_CUTOFF}/25), Test ({TEST_SEASON_START}/26)")
     if seasons:
         print(f"📅 Processing specific seasons: {seasons}")
     else:
         print(f"📅 Processing all available seasons")
-    
-    start_time = datetime.now()
     
     # Setup paths
     # Prefer enriched daily features (Layer 2) if available
@@ -1737,9 +2197,9 @@ def main(max_players: Optional[int] = None, seasons: Optional[List[int]] = None)
         raise FileNotFoundError(f"Match data directory not found: {match_data_dir}")
     if not os.path.exists(career_file):
         raise FileNotFoundError(f"Career file not found: {career_file}")
-    if not os.path.exists(injuries_file):
+    if not unlabeled and not os.path.exists(injuries_file):
         raise FileNotFoundError(f"Injuries file not found: {injuries_file}")
-    
+
     # Get available seasons
     available_seasons = get_all_seasons_from_daily_features(daily_features_dir)
     
@@ -1782,23 +2242,25 @@ def main(max_players: Optional[int] = None, seasons: Optional[List[int]] = None)
     if not player_pl_periods:
         print("ERROR: No PL membership periods found. Cannot proceed.")
         return
-    
-    # Step 3: Load injuries data (once, shared across seasons)
-    print("\n" + "=" * 80)
-    print("Step 3: Loading injuries data")
-    print("=" * 80)
-    injury_class_map = load_injuries_data(injuries_file)
-    all_injury_dates_by_player = load_all_injury_dates(injuries_file)
-    print(f"✅ Loaded injury data for {len(all_injury_dates_by_player)} players")
-    # For non-injury validation: only muscular/skeletal/unknown disqualify; other/no_injury do not
-    relevant_injury_dates_by_player = defaultdict(set)
-    for (pid, date), cls in injury_class_map.items():
-        c = (cls or '').strip().lower()
-        if c in INJURY_CLASSES_DISQUALIFYING_NON_INJURY:
-            relevant_injury_dates_by_player[pid].add(date)
-    relevant_injury_dates_by_player = dict(relevant_injury_dates_by_player)
-    print(f"   Relevant injury dates (muscular/skeletal/unknown) for non-injury check: {sum(len(s) for s in relevant_injury_dates_by_player.values())} total")
-    
+
+    if not unlabeled:
+        # Step 3: Load injuries data (once, shared across seasons)
+        print("\n" + "=" * 80)
+        print("Step 3: Loading injuries data")
+        print("=" * 80)
+        injury_class_map = load_injuries_data(injuries_file)
+        all_injury_dates_by_player = load_all_injury_dates(injuries_file)
+        relevant_injury_periods_by_player = load_relevant_injury_periods(injuries_file)
+        print(f"✅ Loaded injury data for {len(all_injury_dates_by_player)} players")
+        # For non-injury validation: only muscular/skeletal/unknown disqualify; other/no_injury do not
+        relevant_injury_dates_by_player = defaultdict(set)
+        for (pid, date), cls in injury_class_map.items():
+            c = (cls or '').strip().lower()
+            if c in INJURY_CLASSES_DISQUALIFYING_NON_INJURY:
+                relevant_injury_dates_by_player[pid].add(date)
+        relevant_injury_dates_by_player = dict(relevant_injury_dates_by_player)
+        print(f"   Relevant injury dates (muscular/skeletal/unknown) for non-injury check: {sum(len(s) for s in relevant_injury_dates_by_player.values())} total")
+
     # Step 4: Get all player IDs
     print("\n" + "=" * 80)
     print("Step 4: Getting player IDs")
@@ -1831,37 +2293,57 @@ def main(max_players: Optional[int] = None, seasons: Optional[List[int]] = None)
     output_files = []
     total_target1 = 0
     total_non_injuries = 0
-    
+    total_unlabeled = 0
+
     for season_start_year in seasons_to_process:
-        output_file, target1_count, non_injury_count = process_season(
-            season_start_year,
-            daily_features_dir,
-            all_injury_dates_by_player,
-            relevant_injury_dates_by_player,
-            injury_class_map,
-            player_names_map,
-            player_ids,
-            player_pl_periods,
-            str(V4_TIMELINES),
-            max_players
-        )
-        if output_file:
-            output_files.append(output_file)
-            total_target1 += target1_count
-            total_non_injuries += non_injury_count
-    
+        if unlabeled:
+            output_file, count = process_season_unlabeled(
+                season_start_year,
+                daily_features_dir,
+                player_names_map,
+                player_ids,
+                player_pl_periods,
+                str(V4_TIMELINES),
+                max_players,
+            )
+            if output_file:
+                output_files.append(output_file)
+                total_unlabeled += count
+        else:
+            output_file, target1_count, non_injury_count = process_season(
+                season_start_year,
+                daily_features_dir,
+                all_injury_dates_by_player,
+                relevant_injury_dates_by_player,
+                relevant_injury_periods_by_player,
+                injury_class_map,
+                player_names_map,
+                player_ids,
+                player_pl_periods,
+                str(V4_TIMELINES),
+                max_players
+            )
+            if output_file:
+                output_files.append(output_file)
+                total_target1 += target1_count
+                total_non_injuries += non_injury_count
+
     # Summary
     print(f"\n{'='*80}")
     print("📊 FINAL SUMMARY")
     print(f"{'='*80}")
-    total_timelines = total_target1 + total_non_injuries
-    print(f"   Processed {len(output_files)} seasons")
-    print(f"   Total timelines: {total_timelines:,}")
-    print(f"   Positives (target1=1): {total_target1:,}")
-    print(f"   Negatives (target1=0): {total_non_injuries:,}")
-    if total_timelines > 0:
-        print(f"   Final target1 ratio: {total_target1 / total_timelines:.1%}")
-    print(f"   Note: Activity flag statistics available in individual season files")
+    if unlabeled:
+        print(f"   Processed {len(output_files)} seasons")
+        print(f"   Total unlabeled timelines: {total_unlabeled:,}")
+    else:
+        total_timelines = total_target1 + total_non_injuries
+        print(f"   Processed {len(output_files)} seasons")
+        print(f"   Total timelines: {total_timelines:,}")
+        print(f"   Positives (target1=1): {total_target1:,}")
+        print(f"   Negatives (target1=0): {total_non_injuries:,}")
+        if total_timelines > 0:
+            print(f"   Final target1 ratio: {total_target1 / total_timelines:.1%}")
+        print(f"   Note: Activity flag statistics available in individual season files")
     print(f"\n   Generated files:")
     for f in output_files:
         print(f"      - {f}")
@@ -1880,17 +2362,19 @@ if __name__ == "__main__":
                        help='Process specific seasons (season start years, e.g., --seasons 2024 2025)')
     parser.add_argument('--season', type=int, metavar='YEAR',
                        help='Process single season (season start year, e.g., --season 2025)')
-    
+    parser.add_argument('--unlabeled', action='store_true',
+                       help='Phase 1: all available days per player from 2018-07-01, 1 file per season in train/ and test/. No target1/target2; PL filter applied.')
+
     args = parser.parse_args()
-    
+
     # Determine seasons to process
     seasons = None
     if args.seasons:
         seasons = args.seasons
     elif args.season:
         seasons = [args.season]
-    
+
     # Determine max_players
     max_players = args.test if args.test else None
-    
-    main(max_players=max_players, seasons=seasons)
+
+    main(max_players=max_players, seasons=seasons, unlabeled=args.unlabeled)

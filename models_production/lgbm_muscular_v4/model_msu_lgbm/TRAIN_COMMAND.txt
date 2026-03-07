@@ -1,0 +1,8 @@
+# Command used to train and deploy the MSU LGBM model (model_msu_lgbm)
+# Run from repository root: C:\Users\joao.henriques\IPM V3 (or your IPM V3 path)
+#
+# Single step: train iteration 22 (440 features) with Exp 11 data and write directly to this folder (--deploy-dir)
+python models_production/lgbm_muscular_v4/code/modeling/train_iterative_feature_selection_muscular_standalone.py --exp11-data --test-negatives-before 2025-11-01 --only-iteration 22 --no-resume --train-on-full-data --iterative-hp-preset below --deploy-dir "models_production/lgbm_muscular_v4/model_msu_lgbm"
+#
+# The script writes: lgbm_muscular_best_iteration.joblib, lgbm_muscular_best_iteration_features.json,
+# and (when aligned) model.joblib and columns.json are also present for consistency with model_muscular_lgbm.

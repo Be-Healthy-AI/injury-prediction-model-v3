@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 """
-Deploy one of the three production models (muscular LGBM, muscular GB, skeletal LGBM)
-to its dedicated production directory. Each model gets its own folder so all three
-can coexist.
+Deploy one of the production models (muscular LGBM, muscular GB, MSU LGBM, skeletal LGBM)
+to its dedicated production directory. Each model gets its own folder.
 
 Layout:
-  model_muscular_lgbm/   <- Muscular LGBM (500 feat, below_strong)
-  model_muscular_gb/    <- Muscular GB (350 feat, below)
-  model_skeletal/       <- Skeletal LGBM (60 feat)
+  model_muscular_lgbm/   <- Muscular LGBM (copy non-suffixed artifacts then deploy)
+  model_muscular_gb/     <- Muscular GB
+  model_msu_lgbm/        <- MSU (Exp 11)
+  model_skeletal/        <- Skeletal LGBM
 
 Each directory contains: model.joblib, columns.json, MODEL_METADATA.json.
 
 Usage:
   python deploy_gb_to_production.py --model muscular_lgbm
   python deploy_gb_to_production.py --model muscular_gb
+  python deploy_gb_to_production.py --model msu_lgbm
   python deploy_gb_to_production.py --model skeletal
   python deploy_gb_to_production.py --algorithm gb    # alias: deploys muscular_gb
   python deploy_gb_to_production.py --algorithm lgbm  # alias: deploys muscular_lgbm
@@ -34,6 +35,7 @@ PRODUCTION_BASE = ROOT_DIR / 'models_production' / 'lgbm_muscular_v4'
 PRODUCTION_DIRS = {
     'muscular_lgbm': PRODUCTION_BASE / 'model_muscular_lgbm',
     'muscular_gb': PRODUCTION_BASE / 'model_muscular_gb',
+    'msu_lgbm': PRODUCTION_BASE / 'model_msu_lgbm',
     'skeletal': PRODUCTION_BASE / 'model_skeletal',
 }
 
@@ -47,10 +49,23 @@ def get_paths(target):
     performance_metrics_key: 'model1_muscular' or 'model2_skeletal' for reading from results file.
     """
     if target == 'muscular_lgbm':
+        # Prefer Exp12 artifacts (iteration 16, 500 features, below HP) when present
+        exp12_model = MODELS_DIR / 'lgbm_muscular_best_iteration_exp12.joblib'
+        exp12_features = MODELS_DIR / 'lgbm_muscular_best_iteration_features_exp12.json'
+        exp12_results = MODELS_DIR / 'iterative_feature_selection_results_muscular_exp12.json'
+        if exp12_model.exists() and exp12_features.exists():
+            return (exp12_model, exp12_features, exp12_results, 'model1_muscular')
         return (
             MODELS_DIR / 'lgbm_muscular_best_iteration.joblib',
             MODELS_DIR / 'lgbm_muscular_best_iteration_features.json',
             MODELS_DIR / 'iterative_feature_selection_results_muscular.json',
+            'model1_muscular',
+        )
+    if target == 'msu_lgbm':
+        return (
+            MODELS_DIR / 'lgbm_muscular_best_iteration_exp11.joblib',
+            MODELS_DIR / 'lgbm_muscular_best_iteration_features_exp11.json',
+            MODELS_DIR / 'iterative_feature_selection_results_muscular_exp11.json',
             'model1_muscular',
         )
     if target == 'muscular_gb':
@@ -61,6 +76,12 @@ def get_paths(target):
             'model1_muscular',
         )
     if target == 'skeletal':
+        # Prefer Exp12 artifacts (iteration 21, 600 features, below HP) when present
+        exp12_model = MODELS_DIR / 'lgbm_skeletal_best_iteration_exp12.joblib'
+        exp12_features = MODELS_DIR / 'lgbm_skeletal_best_iteration_features_exp12.json'
+        exp12_results = MODELS_DIR / 'iterative_feature_selection_results_skeletal_exp12.json'
+        if exp12_model.exists() and exp12_features.exists():
+            return (exp12_model, exp12_features, exp12_results, 'model2_skeletal')
         return (
             MODELS_DIR / 'lgbm_skeletal_best_iteration.joblib',
             MODELS_DIR / 'lgbm_skeletal_best_iteration_features.json',
@@ -76,7 +97,7 @@ def main():
     )
     parser.add_argument(
         "--model",
-        choices=["muscular_lgbm", "muscular_gb", "skeletal"],
+        choices=["muscular_lgbm", "muscular_gb", "msu_lgbm", "skeletal"],
         default=None,
         help="Which model to deploy (default: muscular_gb for backward compatibility)",
     )
@@ -117,6 +138,8 @@ def main():
         print(f"ERROR: Model not found: {MODEL_SOURCE}")
         if target == "skeletal":
             print("Run first: python train_iterative_feature_selection_skeletal_standalone.py --export-best")
+        elif target == "msu_lgbm":
+            print("Run first: python train_iterative_feature_selection_muscular_standalone.py --exp11-data --test-negatives-before 2025-11-01 --only-iteration <N> --no-resume --train-on-full-data")
         else:
             print(f"Run first: python train_iterative_feature_selection_muscular_standalone.py --algorithm {'gb' if target == 'muscular_gb' else 'lgbm'} --export-best")
         return 1
@@ -174,16 +197,21 @@ def main():
         model_name = "V4 Muscular Injury Prediction - LGBM (500 features, below_strong, 100% data)"
         algorithm_display = "LightGBM"
         experiment = "LGBM iterative feature selection, below_strong, trained on 100%% data"
+    elif target == "msu_lgbm":
+        model_version = "V4_MSU_LGBM_Exp11"
+        model_name = "V4 MSU Injury Prediction - LGBM (Exp 11, target_msu, 100% data)"
+        algorithm_display = "LightGBM"
+        experiment = "Exp 11: MSU (muscular/skeletal/unknown [D-7,D-1]), Exp10 negative filter, trained on 100%% data"
     elif target == "muscular_gb":
         model_version = "V4_Muscular_GB_350feat"
         model_name = "V4 Muscular Injury Prediction - GB (350 features, below, 100% data)"
         algorithm_display = "GradientBoosting"
         experiment = "GB iterative feature selection, below preset, iteration 7, trained on 100%% data"
     else:  # skeletal
-        model_version = "V4_Skeletal_LGBM_60feat"
-        model_name = "V4 Skeletal Injury Prediction - LGBM (60 features, iteration 3)"
+        model_version = f"V4_Skeletal_LGBM_{n_features}feat"
+        model_name = f"V4 Skeletal Injury Prediction - LGBM ({n_features} features, iteration {iteration}, below HP, Exp12)"
         algorithm_display = "LightGBM"
-        experiment = "Skeletal iterative feature selection, best iteration by test combined score"
+        experiment = "Skeletal Exp12 iterative feature selection, below HP, 100% data, best iteration by test combined score"
 
     metadata = {
         "model_version": model_version,

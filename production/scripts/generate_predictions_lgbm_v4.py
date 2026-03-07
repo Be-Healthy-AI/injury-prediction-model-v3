@@ -1,15 +1,22 @@
 #!/usr/bin/env python3
 """
-Generate daily injury predictions for production using V4 (3 models).
+Generate daily injury predictions for production using V4 (4 models).
 
 Reads timelines from production/deployments/{country}/challenger/{club}/timelines/ and generates
-predictions using three V4 models:
-- Muscular LGBM (500 features)
-- Muscular GB (350 features)
-- Skeletal LGBM (60 features)
+predictions using four V4 models:
+- Muscular LGBM
+- Muscular GB
+- Skeletal LGBM
+- MSU LGBM (Muscular/Skeletal/Unknown)
+
+For the Muscular LGBM model, encoding and options follow the deployment guidelines so that
+production predictions match the training pipeline. See:
+  models_production/lgbm_muscular_v4/model_muscular_lgbm/DEPLOYMENT_GUIDELINES.md
+Reference predictions from the test set (for validation) are in:
+  models_production/lgbm_muscular_v4/model_muscular_lgbm/test_predictions_from_training_pipeline.csv
 
 Output: one CSV with injury_probability_muscular_lgbm, injury_probability_muscular_gb,
-injury_probability_skeletal, plus backward-compat injury_probability (= muscular LGBM).
+injury_probability_skeletal, injury_probability_msu_lgbm, plus backward-compat injury_probability (= muscular LGBM).
 """
 
 from __future__ import annotations
@@ -42,18 +49,24 @@ from production.scripts.insight_utils import (
     classify_risk_4level,
 )
 
-# V4: three models
+# Skeletal model: use encoding_schema.json from model_skeletal for fixed one-hot universe
+# (same pattern as muscular: standalone encoding to match training, no call to training script)
+
+# V4: four models (model_muscular_lgbm encoding follows DEPLOYMENT_GUIDELINES.md)
 V4_BASE = ROOT_DIR / "models_production" / "lgbm_muscular_v4"
 MODELS_V4 = {
-    "muscular_lgbm": V4_BASE / "model_muscular_lgbm",   # 500 features
-    "muscular_gb": V4_BASE / "model_muscular_gb",       # 350 features
-    "skeletal": V4_BASE / "model_skeletal",             # 60 features
+    "muscular_lgbm": V4_BASE / "model_muscular_lgbm",
+    "muscular_gb": V4_BASE / "model_muscular_gb",
+    "skeletal": V4_BASE / "model_skeletal",
+    "msu_lgbm": V4_BASE / "model_msu_lgbm",   # Muscular/Skeletal/Unknown LGBM
 }
 PRIMARY_MODEL_KEY = "muscular_lgbm"  # Used for SHAP, body part/severity, top_feature_*, risk_level
 
 
 def load_models() -> Dict[str, Tuple[object, List[str]]]:
-    """Load all three V4 models and their feature columns. Returns dict model_key -> (model, columns)."""
+    """Load all four V4 models and their feature columns. Returns dict model_key -> (model, columns).
+    For muscular_lgbm, model and columns come from model_muscular_lgbm/ per DEPLOYMENT_GUIDELINES.md.
+    """
     result = {}
     for key, model_dir in MODELS_V4.items():
         model_path = model_dir / "model.joblib"
@@ -63,128 +76,256 @@ def load_models() -> Dict[str, Tuple[object, List[str]]]:
         if not cols_path.exists():
             raise FileNotFoundError(f"V4 model {key}: columns file not found: {cols_path}")
         model = joblib.load(model_path)
-        with open(cols_path, 'r', encoding='utf-8', errors='replace') as f:
-            columns = json.load(f)
-        result[key] = (model, columns)
+        # Use the model's own feature order so prediction column order matches training.
+        # Priority:
+        # 1) LightGBM: feature_name_
+        # 2) Sklearn GB: feature_names_in_
+        # 3) Fallback to columns.json (legacy)
+        columns = getattr(model, "feature_name_", None)
+        if columns is None or len(columns) == 0:
+            # For sklearn GradientBoosting (muscular_gb), feature_names_in_ stores the training order
+            columns = getattr(model, "feature_names_in_", None)
+        if columns is None or len(columns) == 0:
+            with open(cols_path, 'r', encoding='utf-8', errors='replace') as f:
+                columns_data = json.load(f)
+            # Support both JSON array of names and object with "features" key (same as evaluate_production script)
+            if isinstance(columns_data, list):
+                columns = columns_data
+            else:
+                columns = columns_data.get("features", columns_data)
+        result[key] = (model, list(columns))
         print(f"[LOAD] V4 {key}: {len(columns)} features")
     return result
 
 
+def clean_categorical_value(value):
+    """Clean categorical values to remove special characters that cause issues in feature names.
+    Must match training pipeline (train_iterative_feature_selection_muscular_standalone.py).
+    """
+    if pd.isna(value) or value is None:
+        return 'Unknown'
+
+    value_str = str(value).strip()
+
+    problematic_values = ['tel:', 'tel', 'phone', 'n/a', 'na', 'null', 'none', '', 'nan', 'address:', 'website:']
+    if value_str.lower() in problematic_values:
+        return 'Unknown'
+
+    replacements = {
+        ':': '_', "'": '_', ',': '_', '"': '_', ';': '_', '/': '_', '\\': '_',
+        '{': '_', '}': '_', '[': '_', ']': '_', '(': '_', ')': '_', '|': '_',
+        '&': '_', '?': '_', '!': '_', '*': '_', '+': '_', '=': '_', '@': '_',
+        '#': '_', '$': '_', '%': '_', '^': '_', ' ': '_',
+    }
+    for old_char, new_char in replacements.items():
+        value_str = value_str.replace(old_char, new_char)
+
+    value_str = ''.join(char for char in value_str if ord(char) >= 32 or char in '\n\r\t')
+    while '__' in value_str:
+        value_str = value_str.replace('__', '_')
+    value_str = value_str.strip('_')
+    if not value_str:
+        return 'Unknown'
+    return value_str
+
+
+# Map nationality variants (e.g. from production timelines) to exact strings used in training
+# so one-hot column names match model columns (e.g. nationality1_Türkiye).
+NATIONALITY_NORMALIZE = {
+    'turkey': 'Türkiye',  # ASCII variant -> Unicode as in model columns.json
+}
+
+
+def normalize_nationality(value):
+    """Normalize nationality string to match training pipeline column names."""
+    if pd.isna(value) or value is None:
+        return value
+    s = str(value).strip()
+    if not s:
+        return value
+    key = s.lower()
+    return NATIONALITY_NORMALIZE.get(key, value)
+
+
+def sanitize_feature_name(name):
+    """Sanitize feature names to be JSON-safe for LightGBM.
+    Must match training pipeline (train_iterative_feature_selection_muscular_standalone.py).
+    """
+    name_str = str(name)
+    replacements = {
+        '"': '_quote_', '\\': '_backslash_', '/': '_slash_',
+        '\b': '_bs_', '\f': '_ff_', '\n': '_nl_', '\r': '_cr_', '\t': '_tab_',
+        ' ': '_', "'": '_apostrophe_', ':': '_colon_', ';': '_semicolon_',
+        ',': '_comma_', '&': '_amp_', '?': '_qmark_', '!': '_excl_',
+        '*': '_star_', '+': '_plus_', '=': '_eq_', '@': '_at_',
+        '#': '_hash_', '$': '_dollar_', '%': '_pct_', '^': '_caret_',
+    }
+    for old_char, new_char in replacements.items():
+        name_str = name_str.replace(old_char, new_char)
+    name_str = ''.join(char for char in name_str if ord(char) >= 32 or char in '\n\r\t')
+    while '__' in name_str:
+        name_str = name_str.replace('__', '_')
+    name_str = name_str.strip('_')
+    if not name_str:
+        return 'Unknown'
+    return name_str
+
+
 def encode_categorical_features(timelines_df: pd.DataFrame) -> pd.DataFrame:
     """
-    One-hot encode categorical features that the V4 model expects.
-    
-    The model expects one-hot encoded versions of:
-    - current_club_country -> current_club_country_England, current_club_country_Northern_Ireland, etc.
-    - dominant_foot -> dominant_foot_left, dominant_foot_right
-    - last_match_position_week_X -> last_match_position_week_X_* (for each position)
+    One-hot encode categorical features to match the training pipeline exactly.
+    Encoding follows model_muscular_lgbm/DEPLOYMENT_GUIDELINES.md and
+    train_iterative_feature_selection_muscular_standalone.prepare_data():
+    - EXCLUDED_RAW_FEATURES dropped; drop_first=True; clean_categorical_value; sanitize_feature_name.
     """
     df_encoded = timelines_df.copy()
-    
-    # List of categorical features that need one-hot encoding
-    categorical_features = []
-    
-    # Check for current_club_country (categorical)
-    if 'current_club_country' in df_encoded.columns:
-        if df_encoded['current_club_country'].dtype == 'object' or df_encoded['current_club_country'].nunique() < 50:
-            categorical_features.append('current_club_country')
-    
-    # Check for dominant_foot (categorical)
-    if 'dominant_foot' in df_encoded.columns:
-        if df_encoded['dominant_foot'].dtype == 'object' or df_encoded['dominant_foot'].nunique() < 10:
-            categorical_features.append('dominant_foot')
-    
-    # Check for nationality1 and nationality2 (categorical)
-    for nat_col in ['nationality1', 'nationality2']:
-        if nat_col in df_encoded.columns:
-            if df_encoded[nat_col].dtype == 'object' or df_encoded[nat_col].nunique() < 200:
-                if nat_col not in categorical_features:
-                    categorical_features.append(nat_col)
-    
-    # Check for last_match_position_week_X columns
-    # These are categorical columns like 'last_match_position_week_1' that need to be one-hot encoded
-    # into columns like 'last_match_position_week_1_Central_Midfielder', etc.
-    for col in df_encoded.columns:
-        # Match pattern: last_match_position_week_X (where X is 1-5)
-        if col.startswith('last_match_position_week_') and col.replace('last_match_position_week_', '').isdigit():
-            # This is a categorical column that needs encoding
-            # Check if it's object type or has reasonable number of unique non-null values
-            non_null_count = df_encoded[col].notna().sum()
-            unique_count = df_encoded[col].nunique()
-            if df_encoded[col].dtype == 'object' or (non_null_count > 0 and unique_count < 20):
-                if col not in categorical_features:
-                    categorical_features.append(col)
-    
-    # One-hot encode each categorical feature
+
+    # Same meta and raw exclusions as training prepare_data (production timelines have no target cols)
+    META_COLUMNS = ['player_id', 'reference_date', 'player_name', 'date']
+    EXCLUDED_RAW_FEATURES = ('current_club', 'current_club_country', 'previous_club', 'previous_club_country')
+    feature_columns = [
+        c for c in df_encoded.columns
+        if c not in META_COLUMNS and c not in EXCLUDED_RAW_FEATURES
+    ]
+    if not feature_columns:
+        return df_encoded
+
+    X = df_encoded[feature_columns].copy()
+    categorical_features = X.select_dtypes(include=['object']).columns.tolist()
+
     for feature in categorical_features:
-        if feature not in df_encoded.columns:
+        if feature not in X.columns:
             continue
-        
-        # Clean the values (handle NaN, empty strings, etc.)
-        feature_values = df_encoded[feature].copy()
-        
-        # Replace empty strings with NaN
-        if feature_values.dtype == 'object':
-            feature_values = feature_values.replace('', pd.NA)
-        
-        # Normalize values to match model expectations
-        # For positions: "Defensive Midfielder" -> "Defensive_Midfielder" (replace spaces with underscores)
-        # For dominant_foot: "right" -> "right", "left" -> "left" (already correct)
-        # For current_club_country: keep as is
-        # For nationality: normalize country names (replace spaces with underscores, handle special chars)
-        if 'last_match_position' in feature:
-            # Normalize position names: replace spaces with underscores
-            feature_values = feature_values.astype(str).str.replace(' ', '_', regex=False)
-            feature_values = feature_values.replace('nan', pd.NA)
-        elif 'nationality' in feature:
-            # Normalize nationality names: replace spaces with underscores, handle special characters
-            feature_values = feature_values.astype(str).str.replace(' ', '_', regex=False)
-            feature_values = feature_values.str.replace("'", '', regex=False)  # Remove apostrophes
-            feature_values = feature_values.str.replace('-', '_', regex=False)  # Replace hyphens with underscores
-            feature_values = feature_values.replace('nan', pd.NA)
-        
-        # For one-hot encoding, we need to handle NaN specially
-        # pd.get_dummies will create columns for all non-null values
-        # For null values, all dummy columns will be 0 (which is what we want)
-        feature_values_clean = feature_values.fillna('__MISSING__').astype(str)
-        feature_values_clean = feature_values_clean.replace('', '__MISSING__')
-        feature_values_clean = feature_values_clean.str.strip()
-        
-        # Create one-hot encoded columns
-        # Use prefix matching the model's expected format: feature_value
-        dummies = pd.get_dummies(feature_values_clean, prefix=feature, drop_first=False)
-        
-        # Remove the __MISSING__ column if it exists (we don't want it)
-        if f'{feature}__MISSING__' in dummies.columns:
-            dummies = dummies.drop(columns=[f'{feature}__MISSING__'])
-        
-        # For rows where the original value was NaN, set all dummy columns to 0
-        nan_mask = pd.isna(feature_values)
-        if nan_mask.any():
-            # Convert to int to avoid dtype warnings
-            dummies = dummies.astype(int)
-            dummies.loc[nan_mask, :] = 0
-        
-        # Clean column names to match model format exactly
-        # Remove any numeric suffixes that pd.get_dummies might add
-        dummies.columns = [col.replace('_1.0', '').replace('_0.0', '') for col in dummies.columns]
-        
-        # Add dummy columns to dataframe
-        df_encoded = pd.concat([df_encoded, dummies], axis=1)
-        
-        # Drop original categorical column
-        df_encoded = df_encoded.drop(columns=[feature])
-    
+        X[feature] = X[feature].fillna('Unknown')
+        if feature in ('nationality1', 'nationality2'):
+            X[feature] = X[feature].apply(normalize_nationality)
+        X[feature] = X[feature].apply(clean_categorical_value)
+        dummies = pd.get_dummies(X[feature], prefix=feature, drop_first=True)
+        dummies.columns = [sanitize_feature_name(col) for col in dummies.columns]
+        X = pd.concat([X.drop(columns=[feature]), dummies], axis=1)
+
+    for col in X.columns:
+        X[col] = pd.to_numeric(X[col], errors='coerce').fillna(0.0)
+
+    X.columns = [sanitize_feature_name(col) for col in X.columns]
+
+    meta_present = [c for c in META_COLUMNS if c in df_encoded.columns]
+    if meta_present:
+        df_encoded = pd.concat([df_encoded[meta_present].reset_index(drop=True), X], axis=1)
+    else:
+        df_encoded = X
+
     if categorical_features:
-        print(f"[ENCODE] One-hot encoded {len(categorical_features)} categorical features: {categorical_features}")
-    
+        print(f"[ENCODE] One-hot encoded {len(categorical_features)} categorical features (drop_first=True): {categorical_features}")
     return df_encoded
+
+
+# Skeletal: same meta exclusions as skeletal prepare_data (no EXCLUDED_RAW_FEATURES)
+SKELETAL_META_COLUMNS = ['player_id', 'reference_date', 'player_name', 'date']
+
+
+def encode_skeletal_features(
+    timelines_df: pd.DataFrame,
+    model_columns: List[str],
+    encoding_schema: Dict[str, List[str]],
+) -> pd.DataFrame:
+    """
+    Encode timelines for skeletal model using a fixed one-hot schema (same as muscular pattern).
+    Uses encoding_schema.json from model_skeletal so production matches training pipeline.
+    - Only meta columns dropped (no current_club / previous_club exclusion).
+    - Categoricals: 1 for matching dummy column, 0 for others in schema.
+    - Numerics: value from timeline, 0 if missing.
+    """
+    # Map each dummy column name -> its categorical base
+    dummy_to_base: Dict[str, str] = {}
+    for base, dummies in encoding_schema.items():
+        for d in dummies:
+            dummy_to_base[d] = base
+
+    feature_columns = [
+        c for c in timelines_df.columns
+        if c not in SKELETAL_META_COLUMNS
+        and c not in ('target1', 'target2', 'target', 'has_minimum_activity')
+    ]
+    X = timelines_df[feature_columns].copy() if feature_columns else pd.DataFrame(index=timelines_df.index)
+
+    aligned = pd.DataFrame(index=timelines_df.index)
+    for col in model_columns:
+        if col in dummy_to_base:
+            base = dummy_to_base[col]
+            if base not in X.columns:
+                aligned[col] = 0.0
+                continue
+            # Same as skeletal prepare_data: fillna Unknown, clean_categorical_value, then dummy = base + "_" + sanitize(value)
+            raw = X[base].fillna('Unknown').astype(str)
+            cleaned = raw.apply(clean_categorical_value)
+            dummy_names = cleaned.apply(lambda v: f"{base}_{sanitize_feature_name(v)}")
+            aligned[col] = (dummy_names == col).astype(float)
+        else:
+            # Numeric: take from timeline, 0 if missing
+            if col in X.columns:
+                aligned[col] = pd.to_numeric(X[col], errors='coerce').fillna(0.0)
+            else:
+                aligned[col] = 0.0
+
+    return aligned
+
+
+# MSU: same exclusions as muscular prepare_data (EXCLUDED_RAW_FEATURES)
+META_COLUMNS_MSU = ['player_id', 'reference_date', 'player_name', 'date']
+EXCLUDED_RAW_FEATURES_MSU = ('current_club', 'current_club_country', 'previous_club', 'previous_club_country')
+
+
+def encode_msu_features(
+    timelines_df: pd.DataFrame,
+    model_columns: List[str],
+    encoding_schema: Dict[str, List[str]],
+) -> pd.DataFrame:
+    """
+    Encode timelines for MSU model using a fixed one-hot schema (same pattern as muscular/skeletal).
+    Uses encoding_schema.json from model_msu_lgbm so production matches training pipeline.
+    - Same exclusions as muscular: META + EXCLUDED_RAW_FEATURES; nationality normalized.
+    - Categoricals: 1 for matching dummy column, 0 for others in schema.
+    - Numerics: value from timeline, 0 if missing.
+    """
+    dummy_to_base: Dict[str, str] = {}
+    for base, dummies in encoding_schema.items():
+        for d in dummies:
+            dummy_to_base[d] = base
+
+    feature_columns = [
+        c for c in timelines_df.columns
+        if c not in META_COLUMNS_MSU and c not in EXCLUDED_RAW_FEATURES_MSU
+        and c not in ('target1', 'target2', 'target', 'target_msu', 'has_minimum_activity')
+    ]
+    X = timelines_df[feature_columns].copy() if feature_columns else pd.DataFrame(index=timelines_df.index)
+
+    aligned = pd.DataFrame(index=timelines_df.index)
+    for col in model_columns:
+        if col in dummy_to_base:
+            base = dummy_to_base[col]
+            if base not in X.columns:
+                aligned[col] = 0.0
+                continue
+            raw = X[base].fillna('Unknown').astype(str)
+            if base in ('nationality1', 'nationality2'):
+                raw = raw.apply(normalize_nationality)
+            cleaned = raw.apply(clean_categorical_value)
+            dummy_names = cleaned.apply(lambda v: f"{base}_{sanitize_feature_name(v)}")
+            aligned[col] = (dummy_names == col).astype(float)
+        else:
+            if col in X.columns:
+                aligned[col] = pd.to_numeric(X[col], errors='coerce').fillna(0.0)
+            else:
+                aligned[col] = 0.0
+
+    return aligned
 
 
 def align_features_to_model(timelines_df: pd.DataFrame, model_columns: list) -> pd.DataFrame:
     """
     Align timeline features to match model column order and handle missing features.
-    
+
     V4 timelines should already have the correct features, but we need to:
     1. One-hot encode categorical features
     2. Ensure column order matches model_columns
@@ -233,6 +374,188 @@ def align_features_to_model(timelines_df: pd.DataFrame, model_columns: list) -> 
     
     print(f"[ALIGN] Aligned features: {len(aligned_df.columns)} columns, {len(aligned_df)} rows")
     return aligned_df
+
+
+def align_skeletal_features_to_model(
+    timelines_df: pd.DataFrame,
+    model_columns: list,
+    model_skeletal_dir: Path,
+) -> pd.DataFrame:
+    """
+    Align features for skeletal LGBM using encoding_schema.json (same pattern as muscular).
+    Encodes with fixed one-hot universe so production matches test_predictions_from_training_pipeline.csv.
+    """
+    schema_path = model_skeletal_dir / "encoding_schema.json"
+    if not schema_path.exists():
+        raise FileNotFoundError(
+            f"Skeletal model requires encoding_schema.json in {model_skeletal_dir}. "
+            "Re-export the model with --export-best from the skeletal training script, or run "
+            "models_production/lgbm_muscular_v4/code/modeling/generate_skeletal_encoding_schema.py to generate it."
+        )
+    with open(schema_path, "r", encoding="utf-8") as f:
+        encoding_schema = json.load(f)
+
+    print(f"[ALIGN] Aligning {len(timelines_df)} timelines to skeletal model ({len(model_columns)} features)...")
+    print(f"[ENCODE] Skeletal encoding using encoding_schema.json ({len(encoding_schema)} categoricals)...")
+    X_encoded = encode_skeletal_features(timelines_df, model_columns, encoding_schema)
+
+    # Ensure exact column order and fill any missing with 0
+    existing = [c for c in model_columns if c in X_encoded.columns]
+    missing = [c for c in model_columns if c not in X_encoded.columns]
+    if existing:
+        aligned_df = X_encoded[existing].copy()
+    else:
+        aligned_df = pd.DataFrame(index=X_encoded.index)
+    if missing:
+        aligned_df = pd.concat([
+            aligned_df,
+            pd.DataFrame(0.0, index=X_encoded.index, columns=missing),
+        ], axis=1)
+    aligned_df = aligned_df[model_columns]
+
+    for col in aligned_df.columns:
+        aligned_df[col] = pd.to_numeric(aligned_df[col], errors="coerce").fillna(0.0).astype(float)
+
+    print(f"[ALIGN] Skeletal aligned features: {len(aligned_df.columns)} columns, {len(aligned_df)} rows")
+    return aligned_df
+
+
+def align_msu_features_to_model(
+    timelines_df: pd.DataFrame,
+    model_columns: list,
+    model_msu_dir: Path,
+) -> pd.DataFrame:
+    """
+    Align features for MSU LGBM using encoding_schema.json (same pattern as muscular/skeletal).
+    """
+    schema_path = model_msu_dir / "encoding_schema.json"
+    if not schema_path.exists():
+        raise FileNotFoundError(
+            f"MSU model requires encoding_schema.json in {model_msu_dir}. "
+            "Re-export the model with --only-iteration or --export-best (MSU), or run "
+            "models_production/lgbm_muscular_v4/code/modeling/generate_msu_encoding_schema.py to generate it."
+        )
+    with open(schema_path, "r", encoding="utf-8") as f:
+        encoding_schema = json.load(f)
+
+    print(f"[ALIGN] Aligning {len(timelines_df)} timelines to MSU model ({len(model_columns)} features)...")
+    print(f"[ENCODE] MSU encoding using encoding_schema.json ({len(encoding_schema)} categoricals)...")
+    X_encoded = encode_msu_features(timelines_df, model_columns, encoding_schema)
+
+    existing = [c for c in model_columns if c in X_encoded.columns]
+    missing = [c for c in model_columns if c not in X_encoded.columns]
+    if existing:
+        aligned_df = X_encoded[existing].copy()
+    else:
+        aligned_df = pd.DataFrame(index=X_encoded.index)
+    if missing:
+        aligned_df = pd.concat([
+            aligned_df,
+            pd.DataFrame(0.0, index=X_encoded.index, columns=missing),
+        ], axis=1)
+    aligned_df = aligned_df[model_columns]
+
+    for col in aligned_df.columns:
+        aligned_df[col] = pd.to_numeric(aligned_df[col], errors="coerce").fillna(0.0).astype(float)
+
+    print(f"[ALIGN] MSU aligned features: {len(aligned_df.columns)} columns, {len(aligned_df)} rows")
+    return aligned_df
+
+
+def validate_muscular_lgbm_against_training(
+    predictions_df: pd.DataFrame,
+    reference_csv_path: Path,
+    tolerance: float = 1e-5,
+) -> Tuple[bool, float, int]:
+    """
+    Compare production muscular LGBM predictions to test_predictions_from_training_pipeline.csv
+    for overlapping (player_id, reference_date). Returns (all_within_tolerance, max_abs_diff, n_over_tolerance).
+    """
+    if not reference_csv_path.exists():
+        print(f"[VALIDATE] Reference file not found: {reference_csv_path}")
+        return True, 0.0, 0
+    if 'injury_probability_muscular_lgbm' not in predictions_df.columns:
+        print(f"[VALIDATE] No injury_probability_muscular_lgbm column in predictions")
+        return True, 0.0, 0
+    ref = pd.read_csv(reference_csv_path, encoding='utf-8-sig')
+    ref['reference_date'] = pd.to_datetime(ref['reference_date'], errors='coerce')
+    pred = predictions_df[['player_id', 'reference_date', 'injury_probability_muscular_lgbm']].copy()
+    pred['reference_date'] = pd.to_datetime(pred['reference_date'], errors='coerce')
+    merged = pred.merge(
+        ref[['player_id', 'reference_date', 'predicted_probability']],
+        on=['player_id', 'reference_date'],
+        how='inner',
+        suffixes=('_prod', '_train'),
+    )
+    if len(merged) == 0:
+        print(f"[VALIDATE] No overlapping (player_id, reference_date) between production and reference CSV")
+        return True, 0.0, 0
+    merged['diff'] = (merged['injury_probability_muscular_lgbm'] - merged['predicted_probability']).abs()
+    max_diff = float(merged['diff'].max())
+    over = (merged['diff'] > tolerance).sum()
+    mean_diff = float(merged['diff'].mean())
+    print(f"[VALIDATE] Muscular LGBM vs test_predictions_from_training_pipeline.csv:")
+    print(f"   Rows compared: {len(merged):,}")
+    print(f"   Max abs diff:  {max_diff:.6e}")
+    print(f"   Mean abs diff: {mean_diff:.6e}")
+    print(f"   Over tolerance ({tolerance:.0e}): {over:,}")
+    if over > 0:
+        worst = merged.nlargest(5, 'diff')[['player_id', 'reference_date', 'injury_probability_muscular_lgbm', 'predicted_probability', 'diff']]
+        print(f"   Worst 5: player_id, reference_date, prod, train, diff")
+        for _, r in worst.iterrows():
+            print(f"      {int(r['player_id'])}, {r['reference_date'].strftime('%Y-%m-%d')}, {r['injury_probability_muscular_lgbm']:.6f}, {r['predicted_probability']:.6f}, {r['diff']:.6e}")
+    return over == 0, max_diff, int(over)
+
+
+def validate_muscular_gb_against_training(
+    predictions_df: pd.DataFrame,
+    reference_csv_path: Path,
+    tolerance: float = 1e-5,
+) -> Tuple[bool, float, int]:
+    """
+    Compare production muscular GB predictions to test_predictions_from_training_pipeline.csv
+    for overlapping (player_id, reference_date). Returns (all_within_tolerance, max_abs_diff, n_over_tolerance).
+    """
+    if not reference_csv_path.exists():
+        print(f"[VALIDATE] Reference file not found: {reference_csv_path}")
+        return True, 0.0, 0
+    if 'injury_probability_muscular_gb' not in predictions_df.columns:
+        print(f"[VALIDATE] No injury_probability_muscular_gb column in predictions")
+        return True, 0.0, 0
+    ref = pd.read_csv(reference_csv_path, encoding='utf-8-sig')
+    ref['reference_date'] = pd.to_datetime(ref['reference_date'], errors='coerce')
+    pred = predictions_df[['player_id', 'reference_date', 'injury_probability_muscular_gb']].copy()
+    pred['reference_date'] = pd.to_datetime(pred['reference_date'], errors='coerce')
+    merged = pred.merge(
+        ref[['player_id', 'reference_date', 'predicted_probability']],
+        on=['player_id', 'reference_date'],
+        how='inner',
+        suffixes=('_prod', '_train'),
+    )
+    if len(merged) == 0:
+        print("[VALIDATE] No overlapping (player_id, reference_date) between production and reference CSV (muscular GB)")
+        return True, 0.0, 0
+    merged['diff'] = (merged['injury_probability_muscular_gb'] - merged['predicted_probability']).abs()
+    max_diff = float(merged['diff'].max())
+    over = (merged['diff'] > tolerance).sum()
+    mean_diff = float(merged['diff'].mean())
+    print("[VALIDATE] Muscular GB vs test_predictions_from_training_pipeline.csv:")
+    print(f"   Rows compared: {len(merged):,}")
+    print(f"   Max abs diff:  {max_diff:.6e}")
+    print(f"   Mean abs diff: {mean_diff:.6e}")
+    print(f"   Over tolerance ({tolerance:.0e}): {over:,}")
+    if over > 0:
+        worst = merged.nlargest(5, 'diff')[['player_id', 'reference_date', 'injury_probability_muscular_gb', 'predicted_probability', 'diff']]
+        print("   Worst 5: player_id, reference_date, prod, train, diff")
+        for _, r in worst.iterrows():
+            print(
+                f"      {int(r['player_id'])}, "
+                f"{r['reference_date'].strftime('%Y-%m-%d')}, "
+                f"{r['injury_probability_muscular_gb']:.6f}, "
+                f"{r['predicted_probability']:.6f}, "
+                f"{r['diff']:.6e}"
+            )
+    return over == 0, max_diff, int(over)
 
 
 def get_latest_raw_data_folder(country: str = "england") -> Path:
@@ -285,9 +608,9 @@ def generate_predictions(
     timelines_file_mtime: Optional[float] = None,
 ) -> pd.DataFrame:
     """
-    Generate predictions for V4 timelines using all three models.
+    Generate predictions for V4 timelines using all four models.
     Returns one DataFrame with injury_probability_muscular_lgbm, injury_probability_muscular_gb,
-    injury_probability_skeletal, plus injury_probability (= primary) and risk_level.
+    injury_probability_skeletal, injury_probability_msu_lgbm, plus injury_probability (= primary) and risk_level.
     SHAP and body part/severity are computed for the primary model only.
     """
     print(f"\n[PREPROCESS] Preparing data for {len(timelines_df):,} timelines...")
@@ -299,9 +622,17 @@ def generate_predictions(
 
     for model_key, (model, model_columns) in models.items():
         print(f"\n[ALIGN] Aligning features to V4 model: {model_key} ({len(model_columns)} features)...")
-        X_aligned = align_features_to_model(timelines_df, model_columns)
+        if model_key == "skeletal":
+            X_aligned = align_skeletal_features_to_model(timelines_df, model_columns, MODELS_V4["skeletal"])
+        elif model_key == "msu_lgbm":
+            X_aligned = align_msu_features_to_model(timelines_df, model_columns, MODELS_V4["msu_lgbm"])
+        else:
+            X_aligned = align_features_to_model(timelines_df, model_columns)
         if aligned_indices is None:
             aligned_indices = X_aligned.index
+        # With model_columns coming from the model itself (feature_name_ / feature_names_in_),
+        # X_aligned has the exact same column order as during training, so we can rely on
+        # sklearn/LightGBM's feature name checks without bypassing them.
         proba = model.predict_proba(X_aligned)[:, 1]
         col_name = f"injury_probability_{model_key}"
         prob_columns[col_name] = proba
@@ -457,7 +788,36 @@ def main():
         default=None,
         help='Minimum reference date (YYYY-MM-DD). Only generate predictions from this date onwards'
     )
-    
+    parser.add_argument(
+        '--debug-row',
+        type=str,
+        default=None,
+        metavar='PLAYER_ID,REF_DATE',
+        help='Debug: dump aligned muscular_lgbm feature row for (player_id, reference_date) to CSV. Example: 144028,2025-12-05'
+    )
+    parser.add_argument(
+        '--validate-muscular-lgbm',
+        action='store_true',
+        help='After saving, compare muscular LGBM predictions to test_predictions_from_training_pipeline.csv for overlapping (player_id, reference_date)'
+    )
+    parser.add_argument(
+        '--validate-tolerance',
+        type=float,
+        default=1e-5,
+        help='Max allowed absolute difference in probability for validation (default: 1e-5). Used with --validate-muscular-lgbm'
+    )
+    parser.add_argument(
+        '--validate-muscular-gb',
+        action='store_true',
+        help='After saving, compare muscular GB predictions to model_muscular_gb/test_predictions_from_training_pipeline.csv for overlapping (player_id, reference_date)'
+    )
+    parser.add_argument(
+        '--validate-gb-tolerance',
+        type=float,
+        default=1e-5,
+        help='Max allowed absolute difference in probability for GB validation (default: 1e-5). Used with --validate-muscular-gb'
+    )
+
     args = parser.parse_args()
     
     # Get challenger club paths
@@ -511,7 +871,7 @@ def main():
         return 0
     
     print("=" * 80)
-    print("GENERATE PREDICTIONS - V4 (3 models: muscular_lgbm, muscular_gb, skeletal)")
+    print("GENERATE PREDICTIONS - V4 (4 models: muscular_lgbm, muscular_gb, skeletal, msu_lgbm)")
     print("=" * 80)
     print(f"Country: {args.country}")
     print(f"Club: {args.club}")
@@ -519,7 +879,7 @@ def main():
     print(f"Output file: {output_file}")
     print("=" * 80)
     
-    # Load all three models
+    # Load all four models
     models = load_models()
     
     # Load insight models (optional, shared with V3)
@@ -565,8 +925,36 @@ def main():
     
     # Get daily features directory
     daily_features_dir = challenger_path / "daily_features"
-    
-    # Generate predictions (all three models, one CSV)
+
+    # Debug: dump one row's aligned features and prediction for comparison with training pipeline
+    if getattr(args, 'debug_row', None):
+        parts = [p.strip() for p in args.debug_row.split(',')]
+        if len(parts) != 2:
+            print(f"[DEBUG] Invalid --debug-row: use PLAYER_ID,REF_DATE (e.g. 144028,2025-12-05)")
+        else:
+            try:
+                debug_player_id = int(parts[0])
+                debug_ref_date = pd.to_datetime(parts[1]).normalize()
+            except Exception as e:
+                print(f"[DEBUG] Invalid --debug-row: {e}")
+            else:
+                mask = (timelines_df['player_id'] == debug_player_id) & (
+                    pd.to_datetime(timelines_df['reference_date']).dt.normalize() == debug_ref_date
+                )
+                if not mask.any():
+                    print(f"[DEBUG] No row found for player_id={debug_player_id}, reference_date={debug_ref_date}")
+                else:
+                    idx = timelines_df.index[mask][0]
+                    model_columns = models['muscular_lgbm'][1]
+                    X_aligned = align_features_to_model(timelines_df, model_columns)
+                    aligned_row = X_aligned.loc[[idx]]
+                    debug_csv = predictions_dir / f"debug_row_{debug_player_id}_{parts[1].replace('-', '')}_muscular_lgbm_features.csv"
+                    aligned_row.to_csv(debug_csv, index=False, encoding='utf-8-sig')
+                    print(f"[DEBUG] Wrote aligned muscular_lgbm feature row to: {debug_csv}")
+                    prob = models['muscular_lgbm'][0].predict_proba(aligned_row)[:, 1][0]
+                    print(f"[DEBUG] Muscular LGBM prediction for (player_id={debug_player_id}, reference_date={parts[1]}): {prob}")
+
+    # Generate predictions (all four models, one CSV)
     predictions = generate_predictions(
         timelines_df=timelines_df,
         models=models,
@@ -596,10 +984,37 @@ def main():
     predictions.to_csv(output_file, index=False, encoding='utf-8-sig')
     print(f"[SAVE] Saved {len(predictions):,} predictions")
     
+    # Optional: validate muscular LGBM against training test predictions (DEPLOYMENT_GUIDELINES.md)
+    if getattr(args, 'validate_muscular_lgbm', False):
+        ref_csv = MODELS_V4["muscular_lgbm"] / "test_predictions_from_training_pipeline.csv"
+        tol = getattr(args, 'validate_tolerance', 1e-5)
+        all_ok, max_diff, n_over = validate_muscular_lgbm_against_training(predictions, ref_csv, tolerance=tol)
+        if not all_ok:
+            print(f"[VALIDATE] FAILED: {n_over} row(s) exceed tolerance {tol:.0e}. Production should match training pipeline.")
+            return 1
+        print(f"[VALIDATE] OK: all overlapping rows within tolerance {tol:.0e}")
+    
+    # Optional: validate muscular GB against its training test predictions
+    if getattr(args, 'validate_muscular_gb', False):
+        ref_csv_gb = MODELS_V4["muscular_gb"] / "test_predictions_from_training_pipeline.csv"
+        tol_gb = getattr(args, 'validate_gb_tolerance', 1e-5)
+        all_ok_gb, max_diff_gb, n_over_gb = validate_muscular_gb_against_training(
+            predictions,
+            ref_csv_gb,
+            tolerance=tol_gb,
+        )
+        if not all_ok_gb:
+            print(
+                f"[VALIDATE] FAILED (GB): {n_over_gb} row(s) exceed tolerance {tol_gb:.0e}. "
+                "Production should match training pipeline for muscular GB."
+            )
+            return 1
+        print(f"[VALIDATE] OK (GB): all overlapping rows within tolerance {tol_gb:.0e}")
+    
     # Summary
     print(f"\n[SUMMARY] Prediction Summary:")
     print(f"   Total predictions: {len(predictions):,}")
-    for col in ['injury_probability_muscular_lgbm', 'injury_probability_muscular_gb', 'injury_probability_skeletal']:
+    for col in ['injury_probability_muscular_lgbm', 'injury_probability_muscular_gb', 'injury_probability_skeletal', 'injury_probability_msu_lgbm']:
         if col in predictions.columns:
             print(f"   {col}: mean={predictions[col].mean():.4f}, max={predictions[col].max():.4f}")
     if 'injury_probability' in predictions.columns:

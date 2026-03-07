@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Generate calibration chart showing model predictive power.
+Generate calibration chart(s) for V3 and/or V4 model predictions.
 
-This chart demonstrates how well the model's predicted probabilities
-match actual injury rates by binning predictions and comparing to
-observed injury rates in the next 10 days.
+This script can update calibration for V3 only, V4 only, or both in one run.
+Charts show how well predicted probabilities match actual injury rates by
+binning predictions and comparing to observed muscular injuries in a time window.
 """
 
 from __future__ import annotations
@@ -19,7 +19,6 @@ from typing import Dict, List, Tuple
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 
 # Calculate paths relative to this script
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -29,99 +28,97 @@ ROOT_DIR = PRODUCTION_ROOT.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.append(str(ROOT_DIR))
 
+# Version identifier for paths and labels
+V3 = "v3"
+V4 = "v4"
 
-def get_all_clubs(country: str = "England") -> List[str]:
-    """Get all club folders in the deployments directory."""
-    deployments_dir = PRODUCTION_ROOT / "deployments" / country
+
+def get_all_clubs(country: str = "England", version: str = V3) -> List[str]:
+    """Get all club folders for the given model version."""
+    if version == V3:
+        deployments_dir = PRODUCTION_ROOT / "deployments" / country
+    else:
+        deployments_dir = PRODUCTION_ROOT / "deployments" / country / "challenger"
     if not deployments_dir.exists():
         return []
-    
     clubs = []
     for item in deployments_dir.iterdir():
         if item.is_dir() and (item / "config.json").exists():
             clubs.append(item.name)
-    
     return sorted(clubs)
+
+
+def _extract_date_from_filename(file_path: Path) -> str:
+    """Extract YYYYMMDD date from prediction filename."""
+    parts = file_path.stem.split("_")
+    return parts[-1] if len(parts) >= 4 else ""
 
 
 def load_all_predictions(
     clubs: List[str],
     start_date: pd.Timestamp,
-    end_date: pd.Timestamp
+    end_date: pd.Timestamp,
+    version: str = V3,
 ) -> pd.DataFrame:
     """
-    Load all V3 predictions from all clubs within date range.
-    Optimized to only load the most recent prediction file per club,
-    since each file contains all historical reference_date values.
+    Load predictions from all clubs within date range for the given version.
+    Uses the most recent prediction file per club (each file has all reference_date values).
     """
     all_predictions = []
-    
-    for club in clubs:
-        predictions_dir = PRODUCTION_ROOT / "deployments" / "England" / club / "predictions"
-        
-        # Find all V3 prediction files (e.g., predictions_lgbm_v3_20260106.csv)
+    if version == V3:
+        base_dir = PRODUCTION_ROOT / "deployments" / "England"
         pattern = "predictions_lgbm_v3_*.csv"
+    else:
+        base_dir = PRODUCTION_ROOT / "deployments" / "England" / "challenger"
+        pattern = "predictions_lgbm_v4_*.csv"
+
+    for club in clubs:
+        predictions_dir = base_dir / club / "predictions"
         prediction_files = list(predictions_dir.glob(pattern))
-        
+
         if not prediction_files:
-            print(f"  [WARN] No V3 prediction files found for {club}")
+            print(f"  [WARN] No {version.upper()} prediction files found for {club}")
             continue
-        
-        # Extract date from filename and find the most recent file
-        # Filename format: predictions_lgbm_v3_YYYYMMDD.csv
-        def extract_date_from_filename(file_path: Path) -> str:
-            """Extract YYYYMMDD date from filename."""
-            filename = file_path.stem  # e.g., "predictions_lgbm_v3_20260122"
-            parts = filename.split('_')
-            if len(parts) >= 4:
-                return parts[-1]  # Last part should be the date
-            return ""
-        
-        # Sort files by date (most recent first)
+
         files_with_dates = []
         for pred_file in prediction_files:
-            date_str = extract_date_from_filename(pred_file)
+            date_str = _extract_date_from_filename(pred_file)
             if date_str and len(date_str) == 8 and date_str.isdigit():
                 try:
                     file_date = datetime.strptime(date_str, "%Y%m%d")
                     files_with_dates.append((file_date, pred_file))
                 except ValueError:
                     continue
-        
+
         if not files_with_dates:
             print(f"  [WARN] Could not extract valid dates from prediction files for {club}")
             continue
-        
-        # Get the most recent file
+
         files_with_dates.sort(key=lambda x: x[0], reverse=True)
         most_recent_date, most_recent_file = files_with_dates[0]
-        
+
         try:
-            df = pd.read_csv(most_recent_file, parse_dates=['reference_date'], low_memory=False)
-            # Filter by date range
+            df = pd.read_csv(most_recent_file, parse_dates=["reference_date"], low_memory=False)
             df_filtered = df[
-                (df['reference_date'] >= start_date) & 
-                (df['reference_date'] <= end_date)
+                (df["reference_date"] >= start_date) & (df["reference_date"] <= end_date)
             ].copy()
-            
             if not df_filtered.empty:
-                df_filtered['club'] = club
+                df_filtered["club"] = club
                 all_predictions.append(df_filtered)
                 print(f"  Loaded {len(df_filtered)} predictions from {club} ({most_recent_file.name})")
             else:
                 print(f"  [WARN] No predictions in date range for {club} ({most_recent_file.name})")
         except Exception as e:
             print(f"  [WARN] Could not load {most_recent_file}: {e}")
-    
+
     if not all_predictions:
-        raise ValueError("No predictions found for the specified date range")
-    
+        raise ValueError(f"No {version.upper()} predictions found for the specified date range")
+
     combined = pd.concat(all_predictions, ignore_index=True)
-    print(f"\n[INFO] Total predictions loaded: {len(combined):,}")
+    print(f"\n[INFO] Total {version.upper()} predictions loaded: {len(combined):,}")
     print(f"       Date range: {combined['reference_date'].min().date()} to {combined['reference_date'].max().date()}")
     print(f"       Unique players: {combined['player_id'].nunique()}")
     print(f"       Unique clubs: {combined['club'].nunique()}")
-    
     return combined
 
 
@@ -351,78 +348,69 @@ def create_calibration_chart(
     output_path: Path,
     window_days: int = 10,
     start_date: pd.Timestamp = None,
-    end_date: pd.Timestamp = None
+    end_date: pd.Timestamp = None,
+    version_label: str = "",
 ):
     """Create and save the calibration chart."""
     print(f"\n[INFO] Creating calibration chart...")
-    
+    title_suffix = f" - {version_label}" if version_label else ""
     fig, ax = plt.subplots(figsize=(12, 8))
-    
-    # Extract data
-    bin_centers = calibration_df['bin_center'].values
-    injury_rates = calibration_df['injury_rate'].values
-    avg_predicted = calibration_df['avg_predicted_prob'].values * 100  # Convert to percentage
-    bin_labels = calibration_df['bin_label'].values
-    observations = calibration_df['total_observations'].values
-    
-    # Plot actual injury rate (bars)
+
+    bin_centers = calibration_df["bin_center"].values
+    injury_rates = calibration_df["injury_rate"].values
+    avg_predicted = calibration_df["avg_predicted_prob"].values * 100
+    bin_labels = calibration_df["bin_label"].values
+    observations = calibration_df["total_observations"].values
+
     bars = ax.bar(
         bin_centers,
         injury_rates,
         width=0.08,
         alpha=0.7,
-        color='steelblue',
-        edgecolor='navy',
+        color="steelblue",
+        edgecolor="navy",
         linewidth=1.5,
-        label='Actual Injury Rate (%)'
+        label="Actual Injury Rate (%)",
     )
-    
-    # Plot average predicted probability (line)
     ax.plot(
         bin_centers,
         avg_predicted,
-        'ro-',
+        "ro-",
         linewidth=2.5,
         markersize=10,
-        label='Average Predicted Probability (%)',
-        zorder=5
+        label="Average Predicted Probability (%)",
+        zorder=5,
     )
-    
-    # Plot perfect calibration line (diagonal)
     perfect_line = np.linspace(0, 100, 100)
     ax.plot(
         np.linspace(0, 1, 100),
         perfect_line,
-        'k--',
+        "k--",
         linewidth=2,
         alpha=0.5,
-        label='Perfect Calibration',
-        zorder=1
+        label="Perfect Calibration",
+        zorder=1,
     )
-    
-    # Add observation counts on bars
-    for i, (bar, obs) in enumerate(zip(bars, observations)):
+    for bar, obs in zip(bars, observations):
         height = bar.get_height()
         ax.text(
             bar.get_x() + bar.get_width() / 2,
             height + 1,
-            f'n={obs:,}',
-            ha='center',
-            va='bottom',
+            f"n={obs:,}",
+            ha="center",
+            va="bottom",
             fontsize=9,
-            fontweight='bold'
+            fontweight="bold",
         )
-    
-    # Customize axes
-    ax.set_xlabel('Predicted Injury Probability', fontsize=14, fontweight='bold')
-    ax.set_ylabel('Actual Injury Rate (%)', fontsize=14, fontweight='bold')
+    ax.set_xlabel("Predicted Injury Probability", fontsize=14, fontweight="bold")
+    ax.set_ylabel("Actual Injury Rate (%)", fontsize=14, fontweight="bold")
     ax.set_title(
-        f'Model Calibration Chart (Muscular Injuries Only)\n'
-        f'Injury Window: {window_days} days | '
-        f'Observations: {start_date.date() if start_date else "N/A"} to {end_date.date() if end_date else "N/A"}',
+        f"Model Calibration Chart (Muscular Injuries Only){title_suffix}\n"
+        f"Injury Window: {window_days} days | "
+        f"Observations: {start_date.date() if start_date else 'N/A'} to {end_date.date() if end_date else 'N/A'}",
         fontsize=16,
-        fontweight='bold',
-        pad=20
+        fontweight="bold",
+        pad=20,
     )
     
     # Set x-axis ticks and labels
@@ -463,116 +451,314 @@ def create_calibration_chart(
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     print(f"       Saved chart to: {output_path}")
-    
     plt.close()
+
+
+def create_dashboard_calibration_chart(
+    calibration_df: pd.DataFrame,
+    output_path: Path,
+    window_days: int = 5,
+    start_date: pd.Timestamp = None,
+    end_date: pd.Timestamp = None,
+    version_label: str = "",
+):
+    """Create a professional dashboard-style calibration chart for customer presentations."""
+    print(f"\n[INFO] Creating dashboard-style calibration chart...")
+    plt.style.use("default")
+    fig = plt.figure(figsize=(18, 11), facecolor="none")
+    ax = fig.add_subplot(111, facecolor="none")
+    ax.patch.set_facecolor("none")
+    ax.patch.set_alpha(0.0)
+
+    bin_centers = calibration_df["bin_center"].values
+    injury_rates = calibration_df["injury_rate"].values
+    bin_labels = calibration_df["bin_label"].values
+    observations = calibration_df["total_observations"].values
+    num_bars = len(bin_centers)
+
+    color_stops = [
+        np.array([34, 197, 94]) / 255.0,
+        np.array([132, 204, 22]) / 255.0,
+        np.array([234, 179, 8]) / 255.0,
+        np.array([251, 146, 60]) / 255.0,
+        np.array([239, 68, 68]) / 255.0,
+        np.array([185, 28, 28]) / 255.0,
+    ]
+    bar_colors = []
+    for i in range(num_bars):
+        t = i / (num_bars - 1) if num_bars > 1 else 0
+        eased_t = t * t * (3.0 - 2.0 * t)
+        color_idx = eased_t * (len(color_stops) - 1)
+        idx_low = int(color_idx)
+        idx_high = min(idx_low + 1, len(color_stops) - 1)
+        blend = color_idx - idx_low
+        color_rgb = color_stops[idx_low] * (1 - blend) + color_stops[idx_high] * blend
+        bar_colors.append(
+            "#{:02X}{:02X}{:02X}".format(
+                int(color_rgb[0] * 255), int(color_rgb[1] * 255), int(color_rgb[2] * 255)
+            )
+        )
+
+    shadow_offset = 0.005
+    ax.bar(
+        [x + shadow_offset for x in bin_centers],
+        injury_rates,
+        width=0.06,
+        alpha=0.1,
+        color="#000000",
+        edgecolor="none",
+        zorder=1,
+    )
+    bars = ax.bar(
+        bin_centers,
+        injury_rates,
+        width=0.06,
+        alpha=1.0,
+        color=bar_colors,
+        edgecolor="white",
+        linewidth=3.5,
+        zorder=3,
+    )
+    for bar in bars:
+        bar.set_alpha(0.95)
+        bar.set_capstyle("round")
+
+    x = np.asarray(bin_centers, dtype=float)
+    y = np.asarray(injury_rates, dtype=float)
+    if len(x) >= 2:
+
+        def _pchip_monotone(xi: np.ndarray, yi: np.ndarray, xq: np.ndarray) -> np.ndarray:
+            xi = np.asarray(xi, dtype=float)
+            yi = np.asarray(yi, dtype=float)
+            xq = np.asarray(xq, dtype=float)
+            n = len(xi)
+            if n == 2:
+                return np.interp(xq, xi, yi)
+            h = np.diff(xi)
+            d = np.diff(yi) / h
+            m = np.zeros(n, dtype=float)
+            m[0] = d[0]
+            m[-1] = d[-1]
+            for k in range(1, n - 1):
+                if d[k - 1] == 0.0 or d[k] == 0.0 or np.sign(d[k - 1]) != np.sign(d[k]):
+                    m[k] = 0.0
+                else:
+                    w1 = 2 * h[k] + h[k - 1]
+                    w2 = h[k] + 2 * h[k - 1]
+                    m[k] = (w1 + w2) / (w1 / d[k - 1] + w2 / d[k])
+            yq = np.empty_like(xq, dtype=float)
+            idx = np.searchsorted(xi, xq) - 1
+            idx = np.clip(idx, 0, n - 2)
+            x0, x1 = xi[idx], xi[idx + 1]
+            y0, y1 = yi[idx], yi[idx + 1]
+            m0, m1 = m[idx], m[idx + 1]
+            t = (xq - x0) / (x1 - x0)
+            t2, t3 = t * t, t * t * t
+            h00 = 2 * t3 - 3 * t2 + 1
+            h10 = t3 - 2 * t2 + t
+            h01 = -2 * t3 + 3 * t2
+            h11 = t3 - t2
+            yq = h00 * y0 + h10 * (x1 - x0) * m0 + h01 * y1 + h11 * (x1 - x0) * m1
+            return yq
+
+        x_smooth = np.linspace(x.min(), x.max(), 400)
+        y_smooth = _pchip_monotone(x, y, x_smooth)
+        y_smooth = np.clip(y_smooth, 0, None)
+        ax.plot(x_smooth, y_smooth, color="#38BDF8", linewidth=10, alpha=0.18, solid_capstyle="round", zorder=4)
+        ax.plot(x_smooth, y_smooth, color="#F8FAFC", linewidth=3.5, alpha=0.9, solid_capstyle="round", zorder=5)
+        ax.plot(x, y, linestyle="none", marker="o", markersize=5.5, markerfacecolor="#F8FAFC", markeredgecolor="#0EA5E9", markeredgewidth=1.2, alpha=0.9, zorder=6)
+
+    ax.set_xlabel("Predicted Risk Level", fontsize=20, fontweight="600", color="#E2E8F0", labelpad=20, family="sans-serif")
+    ax.set_ylabel("Actual Injury Rate (%)", fontsize=20, fontweight="600", color="#E2E8F0", labelpad=20, family="sans-serif")
+    title_text = "Injury Prediction Model Performance"
+    subtitle_text = (
+        f"Actual Injury Rates by Predicted Risk Level | "
+        f"{start_date.date() if start_date else 'N/A'} to {end_date.date() if end_date else 'N/A'}"
+    )
+    if version_label:
+        subtitle_text += f" | {version_label}"
+    ax.set_title(title_text, fontsize=24, fontweight="700", color="#F1F5F9", pad=30, family="sans-serif")
+    ax.text(0.5, 0.96, subtitle_text, transform=ax.transAxes, fontsize=13, fontweight="400", color="#CBD5E1", ha="center", va="top", family="sans-serif")
+    ax.set_xlim(-0.02, 1.02)
+    y_max = max(injury_rates) * 1.3 if len(injury_rates) > 0 else 20
+    ax.set_ylim(0, y_max)
+    ax.grid(True, alpha=0.2, linestyle="-", linewidth=0.8, color="#64748B", zorder=0, which="major")
+    ax.set_axisbelow(True)
+    ax.tick_params(axis="both", which="major", labelsize=12, width=1.5, length=5, color="#94A3B8", labelcolor="#CBD5E1", pad=8)
+    ax.set_xticks(bin_centers)
+    ax.set_xticklabels(bin_labels, rotation=0, ha="center", fontsize=14, fontweight="600", color="#CBD5E1", family="sans-serif")
+    ax.set_yticklabels([f"{int(y)}%" for y in ax.get_yticks()], fontsize=14, fontweight="500", color="#CBD5E1", family="sans-serif")
+    for spine in ax.spines.values():
+        spine.set_edgecolor("#64748B")
+        spine.set_linewidth(1.5)
+        spine.set_visible(True)
+    fig.patch.set_facecolor("none")
+    plt.tight_layout(rect=[0, 0, 1, 0.98])
+    plt.savefig(output_path, dpi=300, bbox_inches="tight", facecolor="none", edgecolor="none", pad_inches=0.2, transparent=True)
+    plt.close()
+    print(f"[INFO] Saved dashboard chart to: {output_path}")
+
+
+def _run_one_version(
+    version: str,
+    start_date: pd.Timestamp,
+    end_date: pd.Timestamp,
+    window_days: int,
+    injury_dates: Dict[int, set],
+    data_date: str,
+    output_override: str,
+    dashboard: bool,
+) -> None:
+    """Generate calibration data and chart(s) for one model version (v3 or v4)."""
+    country = "England"
+    version_upper = version.upper()
+    if version == V3:
+        out_dir = PRODUCTION_ROOT / "deployments" / country
+    else:
+        out_dir = PRODUCTION_ROOT / "deployments" / country / "challenger"
+
+    clubs = get_all_clubs(country, version=version)
+    if not clubs:
+        print(f"[WARN] No clubs found for {version_upper}; skipping.")
+        return
+    print(f"[INFO] Found {len(clubs)} clubs for {version_upper}")
+    print(f"       Clubs: {', '.join(clubs)}")
+
+    print(f"\n[INFO] Loading {version_upper} predictions from all clubs...")
+    predictions_df = load_all_predictions(clubs, start_date, end_date, version=version)
+
+    calibration_df = calculate_calibration_data(
+        predictions_df, injury_dates, window_days=window_days
+    )
+
+    date_str = end_date.strftime("%Y%m%d")
+    if output_override and not output_override.endswith(".png"):
+        output_override = str(Path(output_override).with_suffix(".png"))
+    if output_override:
+        output_path = Path(output_override)
+        output_csv = output_path.with_suffix(".csv")
+    else:
+        output_csv = out_dir / f"calibration_data_{version}_{date_str}.csv"
+        output_path = out_dir / f"calibration_chart_{version}_{date_str}.png"
+
+    output_csv.parent.mkdir(parents=True, exist_ok=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    calibration_df.to_csv(output_csv, index=False)
+    print(f"\n[INFO] Saved calibration data to: {output_csv}")
+
+    create_calibration_chart(
+        calibration_df,
+        output_path,
+        window_days=window_days,
+        start_date=start_date,
+        end_date=end_date,
+        version_label=version_upper,
+    )
+
+    if version == V4 and dashboard:
+        dash_path = out_dir / f"calibration_chart_{version}_dashboard_{date_str}.png"
+        create_dashboard_calibration_chart(
+            calibration_df,
+            dash_path,
+            window_days=window_days,
+            start_date=start_date,
+            end_date=end_date,
+            version_label=version_upper,
+        )
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Generate calibration chart showing model predictive power'
+        description="Generate calibration chart(s) for V3 and/or V4 model predictions"
     )
     parser.add_argument(
-        '--start-date',
+        "--version",
         type=str,
-        default='2025-12-06',
-        help='Start date for observations (YYYY-MM-DD, default: 2025-12-06)'
+        choices=[V3, V4, "both"],
+        default=V3,
+        help="Which model version(s) to run: v3, v4, or both (default: v3)",
     )
     parser.add_argument(
-        '--end-date',
+        "--start-date",
+        type=str,
+        default="2025-12-06",
+        help="Start date for observations (YYYY-MM-DD, default: 2025-12-06)",
+    )
+    parser.add_argument(
+        "--end-date",
         type=str,
         default=None,
-        help='End date for observations (YYYY-MM-DD, default: today - 6 days)'
+        help="End date for observations (YYYY-MM-DD, default: today - 11 days)",
     )
     parser.add_argument(
-        '--window-days',
+        "--window-days",
         type=int,
         default=5,
-        help='Observation window in days (default: 5)'
+        help="Observation window in days (default: 5)",
     )
     parser.add_argument(
-        '--output',
+        "--output",
         type=str,
         default=None,
-        help='Output file path (default: production/deployments/England/calibration_chart_v3_YYYYMMDD.png)'
+        help="Output file path (only used when --version is v3 or v4; ignored when both)",
     )
     parser.add_argument(
-        '--data-date',
+        "--data-date",
         type=str,
         default=None,
-        help='Raw data date to use for injuries (YYYYMMDD, default: latest)'
+        help="Raw data date to use for injuries (YYYYMMDD, default: latest)",
     )
-    
+    parser.add_argument(
+        "--dashboard",
+        action="store_true",
+        help="Also generate dashboard-style chart (only applies to V4)",
+    )
     args = parser.parse_args()
-    
-    # Parse dates
+
     start_date = pd.to_datetime(args.start_date)
-    
     if args.end_date:
         end_date = pd.to_datetime(args.end_date)
     else:
-        # Default: today - 11 days (to have full 10-day observation window)
         end_date = pd.Timestamp.now().normalize() - timedelta(days=11)
-    
+
+    versions_to_run = [args.version] if args.version != "both" else [V3, V4]
+
     print("=" * 80)
-    print("MODEL CALIBRATION CHART GENERATOR (V3)")
+    print("MODEL CALIBRATION CHART GENERATOR")
     print("=" * 80)
     print(f"Start date: {start_date.date()}")
     print(f"End date: {end_date.date()}")
     print(f"Observation window: {args.window_days} days")
-    print(f"Model version: V3 (lgbm_muscular_v3)")
+    print(f"Version(s): {', '.join(versions_to_run)}")
+    if args.dashboard and V4 in versions_to_run:
+        print("Dashboard chart: yes (V4)")
     print()
-    
-    # Get all clubs
-    clubs = get_all_clubs("England")
-    print(f"[INFO] Found {len(clubs)} Premier League clubs")
-    print(f"       Clubs: {', '.join(clubs)}")
-    
-    # Load predictions
-    print(f"\n[INFO] Loading V3 predictions from all clubs...")
-    predictions_df = load_all_predictions(
-        clubs,
-        start_date,
-        end_date
-    )
-    
-    # Load injuries
+
     injury_dates = load_all_injuries(data_date=args.data_date)
-    
-    # Calculate calibration data
-    calibration_df = calculate_calibration_data(
-        predictions_df,
-        injury_dates,
-        window_days=args.window_days
-    )
-    
-    # Save calibration data to CSV
-    output_csv = args.output.replace('.png', '.csv') if args.output else None
-    if output_csv is None:
-        output_csv = PRODUCTION_ROOT / "deployments" / "England" / f"calibration_data_v3_{end_date.strftime('%Y%m%d')}.csv"
-    else:
-        output_csv = Path(output_csv).with_suffix('.csv')
-    
-    output_csv = Path(output_csv)
-    output_csv.parent.mkdir(parents=True, exist_ok=True)
-    calibration_df.to_csv(output_csv, index=False)
-    print(f"\n[INFO] Saved calibration data to: {output_csv}")
-    
-    # Create chart
-    if args.output:
-        output_path = Path(args.output)
-    else:
-        output_path = PRODUCTION_ROOT / "deployments" / "England" / f"calibration_chart_v3_{end_date.strftime('%Y%m%d')}.png"
-    
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    create_calibration_chart(
-        calibration_df,
-        output_path,
-        window_days=args.window_days,
-        start_date=start_date,
-        end_date=end_date
-    )
-    
+
+    for ver in versions_to_run:
+        print("\n" + "=" * 80)
+        print(f"CALIBRATION: {ver.upper()}")
+        print("=" * 80)
+        use_output = args.output if len(versions_to_run) == 1 else None
+        try:
+            _run_one_version(
+                version=ver,
+                start_date=start_date,
+                end_date=end_date,
+                window_days=args.window_days,
+                injury_dates=injury_dates,
+                data_date=args.data_date or "",
+                output_override=use_output or "",
+                dashboard=args.dashboard,
+            )
+        except ValueError as e:
+            print(f"[ERROR] {ver.upper()}: {e}")
+            if args.version == "both":
+                print(f"       Continuing with other version(s).")
+            else:
+                raise
+
     print("\n" + "=" * 80)
     print("CALIBRATION CHART GENERATION COMPLETE")
     print("=" * 80)

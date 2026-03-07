@@ -1,0 +1,8 @@
+# Commands used to train and deploy the Muscular LGBM model (model_muscular_lgbm)
+# Run from repository root: C:\Users\joao.henriques\IPM V3 (or your IPM V3 path)
+#
+# Step 1: Train iteration 20 (400 features) with Exp 10 data and export to models/
+python models_production/lgbm_muscular_v4/code/modeling/train_iterative_feature_selection_muscular_standalone.py --exp10-data --test-negatives-before 2025-11-01 --only-iteration 20 --no-resume --train-on-full-data --iterative-hp-preset below
+#
+# Step 2: Deploy from models/ to model_muscular_lgbm (creates model.joblib, columns.json, MODEL_METADATA.json)
+python models_production/lgbm_muscular_v4/code/modeling/deploy_gb_to_production.py --model muscular_lgbm
